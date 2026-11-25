@@ -134,6 +134,18 @@ O4 modem through the AP.
 3. **Do not** enable `sdr_dump`, flash modem images, or touch OTP/keys chasing
    IQ. The AP has no readback and the images are encrypted.
 
+## Public mod check (Visor / analog)
+
+- The G3 **Visor Mod** (Cosmostreamer) is described as outputting/streaming the
+  **original video received from the drone** and PiP/network features. It is not
+  evidence of the C5 modem producing analog/IQ samples.
+- G3/N3 documentation and community reports say the goggles only support the
+  **O4 digital link**; analog needs an added receiver/module or an external
+  box. No public teardown shows a C5 IQ/sample interface.
+- A self-contained “all inside the goggles” analog mod still has to add a
+  receiver board or tap the modem/display hardware. That is a hardware mod, not
+  an exposed AP software path.
+
 ## If the G3 mod is real
 
 It most likely uses the **display/video plane** (or an added receiver), not the
