@@ -134,6 +134,27 @@ O4 modem through the AP.
 3. **Do not** enable `sdr_dump`, flash modem images, or touch OTP/keys chasing
    IQ. The AP has no readback and the images are encrypted.
 
+## AP ↔ Sparrow2 control path (DUSS) — checked
+
+- `dji_sdrs_agent` opens `/dev/ttyS1`, the `/bulk/s2_da` channel, the modem
+  reset GPIO, `/data/dji_sdrs_agent_pm_*`, and a DUSS socket.
+- The AP has a **DUSS message bus**: `/dev/socket`-style endpoints
+  `@/duss/mb/0x1c01…0x1f00`, and `dji_mb_ctrl` can send arbitrary messages
+  (`-m target_machine -g target_type -t target_idx -s cmd_set -c cmd_id …`).
+- `/system/etc/commands.json` lists command IDs for:
+  `camera, fc, gimbal, rc, hdvt, vision, djiflight, bvision, ads_b, hms,
+  simulator, remote_battery, ui, dm368, special, thirdflight, common, glass,
+  extend, wlm, lte, smart_func`.
+  **There is no `sdrs_agent`/SDR/IQ/analog command set.**
+- `amt_test_cmd` only supports `rpmb_rw <iter>` (RPMB test; dangerous, not RF).
+- `dji_engpc` is modem log/boot-mode tooling, not a sample API.
+- `/dev/ttyS1` is a log UART; no shell/test prompt was found in SDRUART logs.
+
+**Conclusion:** the AP can talk to the modem/service layer over DUSS, but there
+is no documented command for IQ/analog capture. Sending guessed `cmd_set`/
+`cmd_id` messages is unsafe (could panic the modem/AP) and is not a supported
+path.
+
 ## Wi-Fi/BT radio (the other 5 GHz candidate)
 
 - The SoC has SDIO controllers (`f9304000.dwsd0`, `f9300000.dwmmc0`) and
