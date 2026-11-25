@@ -1,8 +1,10 @@
 import os, sys
-APP = r"C:\N3 goggles\ROOT docs\ROOT app"
+APP = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, APP)
 import n3ctl
-base = r"C:\N3 goggles\SDR findings\device-evidence"
+base = os.path.join(APP, "state", "evidence")
+if not os.path.isdir(base) or not os.listdir(base):
+    raise SystemExit("run probe_n3_radio.py first")
 d = sorted([x for x in os.listdir(base) if os.path.isdir(os.path.join(base, x))])[-1]
 out = os.path.join(base, d)
 cmds = {
