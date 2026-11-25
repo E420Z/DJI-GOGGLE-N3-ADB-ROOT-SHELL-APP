@@ -75,6 +75,10 @@ payload prefix: 00 64 00 18
 then: ASCII command + "\r"
 ```
 
+`/system/etc/commands.json` lists `0x55` under the **`hdvt`** command set
+(`req: yes`, `ack: null`, `flags: zero`). So the console is an HDVT (digital
+video link) debug command, not a documented RF/IQ command set.
+
 No console help/prompt text appears in the SDRUART logs, so the command
 vocabulary is not discoverable without a working console session.
 

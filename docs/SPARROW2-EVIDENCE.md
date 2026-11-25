@@ -186,6 +186,10 @@ sys_amt_task_generate_auth_msg
 
 No `iq`, `sample`, `adc`, `spectrum`, `rf_read`, or `dump_iq` symbol.
 
+`/system/etc/commands.json` maps `0x55` to the **`hdvt`** set
+(`{"cmdid":"0x55","req":"yes","ack":"null","flags":"zero"}`), i.e. an HDVT
+(digital video link) debug command, not an RF/IQ set.
+
 ---
 
 ## 8. Safety boundary
