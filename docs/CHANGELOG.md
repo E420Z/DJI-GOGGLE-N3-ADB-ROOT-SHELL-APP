@@ -15,6 +15,10 @@
   strings.
 - Added the in-app **Load findings** view and `n3_sparrow2_report.py` for a
   one-command read-only report.
+- Prepared an on-device **custom `-J` bulk-route console probe**
+  (`probe_n3_bulk_console.py` + experimental app button): enables the disabled
+  `system_service` bulk route to `vt_gnd` over `/bulk/s2` with a free `test:9`
+  source host. Dry-run verified; hardware run pending.
 - Result: **no exposed AP-side IQ/ADC channel.** The console is a factory-PC
   tool. The remaining on-goggles leads are the bulk/AMT channels
   (logs/file/auth), not IQ.

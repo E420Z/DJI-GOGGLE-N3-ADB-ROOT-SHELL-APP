@@ -28,6 +28,7 @@ import background  # noqa: E402
 import theme_builder  # noqa: E402
 from ui import theme  # noqa: E402
 from ui.live import LiveStream, capture_png  # noqa: E402
+from tools import probe_n3_bulk_console as bulkmod  # noqa: E402
 
 STOCK_LIB = os.path.join(APP_DIR, "assets", "libew_gls_stock.so")
 SHOTS = os.path.join(APP_DIR, "state", "shots")
@@ -760,6 +761,7 @@ class SparrowPage(ctk.CTkFrame):
         btn(row, "Sparrow2 summary", self.open_summary).pack(side="left")
         btn(row, "Load findings", self.load_findings).pack(side="left", padx=6)
         btn(row, "Generate report", self.report).pack(side="left", padx=6)
+        btn(row, "Bulk console probe", self.bulk_probe).pack(side="left", padx=6)
         btn(row, "Radio probe doc", self.open_doc).pack(side="left", padx=6)
 
         body = card(self)
@@ -870,6 +872,40 @@ class SparrowPage(ctk.CTkFrame):
         self.app.run_task(
             work, "sparrow2 report",
             on_done=lambda out, err: self.append(err or out))
+
+    def bulk_probe(self):
+        """Experimental: custom -J bulk route to Sparrow2, read-only help."""
+        import json as _json
+
+        def work():
+            if not n3ctl.is_root():
+                n3ctl.start_root(log=self.app.log)
+            raw = n3ctl.run_root("cat /system/etc/dji.json",
+                                 timeout=40, retries=1)
+            base = _json.loads(raw)
+            probe = bulkmod.build_probe(base, 9)
+            text = _json.dumps(probe, separators=(",", ":"))
+            local = os.path.join(APP_DIR, "state", "n3_sparrow_probe.json")
+            os.makedirs(os.path.dirname(local), exist_ok=True)
+            with open(local, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            if not n3ctl.push_file(local, bulkmod.REMOTE_JSON,
+                                   log=self.app.log):
+                raise RuntimeError("push failed")
+            cmd = ("dji_mb_ctrl -J %s -S sparrow_probe -R link -m 2304 "
+                   "-o 4000000 -g 14 -t 0 -s 9 -c 0x55 0064001868656c700d "
+                   "2>&1" % bulkmod.REMOTE_JSON)
+            try:
+                return n3ctl.run_root(cmd, timeout=45, retries=1)
+            finally:
+                n3ctl.run_root("rm -f %s" % bulkmod.REMOTE_JSON,
+                               timeout=10, retries=1)
+
+        self.app.run_task(
+            work, "bulk console probe",
+            on_done=lambda out, err: self.append(err or out),
+            confirm="Experimental: sends a read-only 'help' query to Sparrow2 "
+                    "over /bulk/s2 using a custom DUSS route. Continue?")
 
 
 class App(ctk.CTk):

@@ -147,6 +147,35 @@ There is **no `@/duss/mb/0x1e07`**. `dji_amt` is `0x1c02`; `dji_sys` is
 service. `sdr_shell` is a PC-factory tool that happens to be installed in
 `/system/bin`.
 
+### Prepared on-device bypass: custom `-J` bulk route
+
+The route table also contains a **disabled** bulk route to the real Sparrow2:
+
+```
+system_service / system / e0:
+  status: 0, channel: bulk, protocol: v1,
+  bulk: /bulk/s2, interface 4, ep_in 0x85, ep_out 0x05,
+        vid 0x2CA3, pid 0x1020
+```
+
+`test / diag / e0` is `status: 1` but `channel: local` → `glass:1` (the factory
+handler). That is why the shipped console is local-only.
+
+`dji_mb_ctrl -J <json>` can load a custom route table. The prepared probe
+`app/tools/probe_n3_bulk_console.py` adds a service `sparrow_probe` with a free
+source host (`test:9` = `0x1e09`) and an **enabled** bulk `e0` route over
+`/bulk/s2`, then sends the same `0x55` payload:
+
+```
+py -3.12 app/tools/probe_n3_bulk_console.py --dry-run
+py -3.12 app/tools/probe_n3_bulk_console.py --live --command help
+```
+
+It sends only a read-only `help` query. No factory mode, no writes. It may fail
+if interface 4 is claimed by `dji_sdrs_agent` or the router rejects the free
+host; variants are `--host-index 0/1/7/9`. This is the remaining on-goggles
+software experiment.
+
 ---
 
 ## 6. Factory-mode attempt and recovery
@@ -254,8 +283,8 @@ equivalent on-device IQ door was found.
 - The C5VRX analogy does **not** map cleanly: ESP32-C5 has a ROM `MODEM_DIAG`
   path; Sparrow2's firmware is encrypted and its console is host-gated.
 - **No on-goggles software path was found.** Further work would require
-  vendor-internal access (the encrypted firmware / factory fixture) or added
-  hardware, both outside this project's scope.
+  vendor-internal access (the encrypted firmware / factory fixture), outside
+  this project's scope.
 
 ---
 
@@ -283,3 +312,5 @@ equivalent on-device IQ door was found.
     `probe_n3_factory_console.py`
   - `probe_n3_amt_proto.py`, `probe_n3_mb_info.py`, `probe_n3_uart_console.py`
   - `probe_n3_sparrow_diag.py`, `probe_n3_dump.py`, `probe_n3_engpc*.py`
+  - `probe_n3_bulk_console.py` (custom `-J` bulk-route console probe)
+  - `analyze_sdrs_cfg.py` (offline channel/route analysis)
