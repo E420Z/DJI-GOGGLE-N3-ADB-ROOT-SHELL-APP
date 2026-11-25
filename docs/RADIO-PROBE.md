@@ -166,6 +166,33 @@ path.
 - `dji_wifi_cli` is a station scan/connect CLI, not an SDR/IQ tool.
 - So the built-in Wi-Fi/BT path is not an accessible raw-IQ receiver either.
 
+## Exhaustive process/FD audit
+
+Only **one** process has a direct path to the C5:
+
+- `dji_sdrs_agent`: `/dev/bus/usb/002/002` (the C5), `/dev/ttyS1` (modem UART),
+  modem reset GPIO, DUSS socket, `/data/dji_sdrs_agent_pm_*`, and
+  `libdji_crypto_lib.so` (firmware verification). It uses `usbpri_host_*` /
+  `duss_hal_bulk_*`.
+
+Everything else is not the C5 IQ path:
+
+- `dji_wlm`: `/dev/usb-ffs/bulk4/ep1` + `ep2` (PC-facing USB gadget), `/dev/ttyS4`,
+  DUSS socket.
+- `usb_bulk_raw 1/4/5/6`: PC-facing gadget endpoints (`/dev/usb-ffs/bulk*`).
+- `dji_hardlink_drv`: **camera/display** pipeline components
+  (`mctf2`, `vtx`, `gdc2`, `ycc`), not the modem.
+- `dji_arhome`: `/dev/dji_display` (compositor).
+- `dji_mb_ctrl`: generic DUSS message sender; `commands.json` has no
+  `sdrs_agent`/SDR/IQ command.
+- `amt_test_cmd`: only `rpmb_rw` (RPMB test).
+- `dji_engpc`: modem log/boot-mode tooling (not running by default).
+
+No other process holds the C5 USB device or modem UART. The theoretical
+alternative — opening `/dev/bus/usb/002/002` and claiming an unbound C5 vendor
+interface — has no IQ channel/protocol and could disrupt the modem; not a safe
+test.
+
 ## C5VRX / “C5” name collision
 
 `Twotoz/C5VRX` is an **ESP32-C5** project, not a DJI C5 modem project:
