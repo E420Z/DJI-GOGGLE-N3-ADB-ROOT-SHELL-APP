@@ -10,6 +10,11 @@
   routing (`-1002`/`-1007`), the factory-flag attempt + recovery, channel
   inventory (logs/dumps only), and the AMT surface (manufacturing/calibration/
   file/auth, not IQ).
+- Added [`SPARROW2-EVIDENCE.md`](SPARROW2-EVIDENCE.md) with verbatim console
+  errors, DUSS host list, recovery proof, channel table, firmware, and AMT
+  strings.
+- Added the in-app **Load findings** view and `n3_sparrow2_report.py` for a
+  one-command read-only report.
 - Result: **no exposed AP-side IQ/ADC channel.** The console is a factory-PC
   tool; the practical analog route is an external receiver into the display
   video plane.

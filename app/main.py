@@ -758,6 +758,8 @@ class SparrowPage(ctk.CTkFrame):
         btn(row, "Console help (read-only)", self.console_help,
             accent=True).pack(side="left", padx=6)
         btn(row, "Sparrow2 summary", self.open_summary).pack(side="left")
+        btn(row, "Load findings", self.load_findings).pack(side="left", padx=6)
+        btn(row, "Generate report", self.report).pack(side="left", padx=6)
         btn(row, "Radio probe doc", self.open_doc).pack(side="left", padx=6)
 
         body = card(self)
@@ -820,6 +822,54 @@ class SparrowPage(ctk.CTkFrame):
 
     def open_summary(self):
         self._open("SPARROW2.md")
+
+    def load_findings(self):
+        path = os.path.abspath(os.path.join(APP_DIR, "..", "docs",
+                                            "SPARROW2.md"))
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                self.append("\n===== SPARROW2.md =====\n" + fh.read())
+        except Exception as exc:  # noqa: BLE001
+            self.app.log("Load findings: %s" % exc)
+
+    REPORT_CMDS = [
+        ("identity", "getprop ro.boot.mode; getprop sys.usb.config; "
+                     "cat /proc/cmdline"),
+        ("firmware", "ls -l /vendor/modem_firmware/sparrow2/ 2>/dev/null"),
+        ("tools", "ls -l /system/bin/sdr_shell "
+                  "/system/bin/test_sparrow2_link.sh "
+                  "/system/bin/test_sparrow2_tsync.sh "
+                  "/system/bin/test_sparrow2_hw_ver.sh "
+                  "/system/bin/test_reset_s2_link.sh "
+                  "/system/bin/test_sdrlog_e3t_uart5_link.sh "
+                  "/system/bin/test_rf.sh 2>/dev/null"),
+        ("duss_hosts", "grep -a '@/duss/mb' /proc/net/unix 2>/dev/null "
+                       "| sed 's/.*@/@/' | sort -u"),
+        ("host_1e07", "grep -c '@/duss/mb/0x1e07' /proc/net/unix 2>/dev/null"),
+        ("sdr_shell_help", "timeout 12 /system/bin/sdr_shell help 2>&1"),
+    ]
+
+    def report(self):
+        def work():
+            if not n3ctl.is_root():
+                n3ctl.start_root(log=self.app.log)
+            parts = ["# Sparrow2 report (read-only)", ""]
+            for name, cmd in self.REPORT_CMDS:
+                try:
+                    out = n3ctl.run_root(cmd, timeout=30, retries=1)
+                except Exception as exc:  # noqa: BLE001
+                    out = "ERROR: %s" % exc
+                parts.append("## %s\n```\n%s\n```" % (name, out.strip()))
+            text = "\n\n".join(parts)
+            path = os.path.join(APP_DIR, "state", "sparrow2_report.md")
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8", errors="replace") as fh:
+                fh.write(text)
+            return text + "\n\nsaved: %s" % path
+
+        self.app.run_task(
+            work, "sparrow2 report",
+            on_done=lambda out, err: self.append(err or out))
 
 
 class App(ctk.CTk):
