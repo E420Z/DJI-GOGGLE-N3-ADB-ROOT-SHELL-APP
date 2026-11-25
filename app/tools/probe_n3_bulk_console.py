@@ -24,8 +24,10 @@ Usage:
     # run the probe (device connected, root shell available)
     py -3.12 app/tools/probe_n3_bulk_console.py --live --command help
 
-    # try a different free source host index if 0x1e09 is rejected
+    # try a different free source host if test:9 is rejected
     py -3.12 app/tools/probe_n3_bulk_console.py --live --host-index 0
+    py -3.12 app/tools/probe_n3_bulk_console.py --live --host-name system --host-index 8
+    py -3.12 app/tools/probe_n3_bulk_console.py --live --host-name sdrs_agent --host-index 1
 """
 from __future__ import annotations
 
@@ -85,12 +87,12 @@ def bulk_route(base: dict) -> dict:
     return route
 
 
-def build_probe(base: dict, host_index: int) -> dict:
+def build_probe(base: dict, host_index: int, host_name: str = "test") -> dict:
     out = copy.deepcopy(base)
     out["sparrow_probe"] = {
         "mb_route_table": {
             "link": {
-                "host": "test",
+                "host": host_name,
                 "index": host_index,
                 "e0": bulk_route(base),
             }
@@ -109,7 +111,10 @@ def main() -> int:
     ap.add_argument("--live", action="store_true",
                     help="read /system/etc/dji.json from the device")
     ap.add_argument("--host-index", type=int, default=9,
-                    help="free source host index (test:<n>, default 9)")
+                    help="free source host index (default 9)")
+    ap.add_argument("--host-name", default="test",
+                    help="source host name: test / system / sdrs_agent "
+                         "(default test)")
     ap.add_argument("--command", default="help",
                     help="console command (default: help)")
     ap.add_argument("--dry-run", action="store_true",
@@ -132,14 +137,13 @@ def main() -> int:
         base = json.loads(open(path, encoding="utf-8",
                               errors="replace").read())
 
-    probe = build_probe(base, args.host_index)
+    probe = build_probe(base, args.host_index, args.host_name)
     text = json.dumps(probe, separators=(",", ":"))
     os.makedirs(os.path.dirname(LOCAL_JSON), exist_ok=True)
     with open(LOCAL_JSON, "w", encoding="utf-8") as fh:
         fh.write(text)
     print("wrote:", LOCAL_JSON, len(text), "bytes")
-    print("source host: test:%d (0x1e%02x)" %
-          (args.host_index, args.host_index))
+    print("source host: %s:%d" % (args.host_name, args.host_index))
     print("route: e0 -> vt_gnd 0 -> /bulk/s2 iface 4 ep 05/85 (status 1)")
 
     if args.dry_run:
@@ -151,7 +155,7 @@ def main() -> int:
         return 1
     lines = ["# Sparrow2 bulk console probe",
              "time: %s" % datetime.datetime.now().isoformat(timespec="seconds"),
-             "host-index: %d" % args.host_index,
+             "host: %s:%d" % (args.host_name, args.host_index),
              "command: %r" % args.command]
     try:
         print("pushing: %s -> %s" % (LOCAL_JSON, REMOTE_JSON))

@@ -173,8 +173,9 @@ py -3.12 app/tools/probe_n3_bulk_console.py --live --command help
 
 It sends only a read-only `help` query. No factory mode, no writes. It may fail
 if interface 4 is claimed by `dji_sdrs_agent` or the router rejects the free
-host; variants are `--host-index 0/1/7/9`. This is the remaining on-goggles
-software experiment.
+host; variants are
+`--host-name test|system|sdrs_agent --host-index 0/1/7/8/9`. This is the
+remaining on-goggles software experiment.
 
 ---
 
