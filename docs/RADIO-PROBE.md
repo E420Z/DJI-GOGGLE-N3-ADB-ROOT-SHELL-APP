@@ -74,6 +74,32 @@ Media service: liveview + local/remote playback supported;
 composite/decoded video → ARGB/NV12/H.264 → `test_disp`/video plane. The goggles
 act as a display; the O4 modem is not involved.
 
+## Deep check of the C5 / modem interfaces
+
+- The C5 exposes **11 vendor interfaces**, all `class ff / subclass 43 / proto 01`,
+  two endpoints each. Only `2-1:1.4` is bound to `usbfs`; no interface is a
+  standard SDR/ADC/IQ device.
+- `sdrs_agent_service…sdr_dump` is `status 0`, output `dump_store`.
+  `dji_bb_dls.json` shows the stores are **AP/CP/L1C/DSP crash dumps**
+  (`ap_crash_store`, `cp_crash_store`, `l1c_crash_store`, `dsp_crash_store`),
+  not sample streams.
+- `wlm_cfg.json` has link/video keys (`support_dual_chnl_video`,
+  `video_4d_slice_hdr`, `video_5d_slice_hdr`) — digital link configuration, no
+  analog/FM/IQ mode.
+- `gfsk_agent_cfg.json` has a `gfsk_crash_dump` channel only.
+- The SDRUART log is pairing/role/link control (`cp_role`, `sdr state`,
+  `pair cmd`), not samples.
+- No `analog`, `FM`, `demod`, `tuner`, `IQ`, `ADC`, `FFT`, or `spectrum` mode
+  was found in the readable configs. The `dji_sdrs_agent`/`dji_wlm` binaries are
+  packed/encrypted enough that their strings are not readable.
+- `/dev/dji_video_in` is attached via `duss_hal_attach_video_in` — a **video
+  frame input**, not an RF sampler.
+
+**Conclusion (updated):** there is no exposed analog/IQ path from the built-in
+5.8 GHz C5 modem. A G3-style “internal-only” analog mod would have to add a
+receiver board and feed the **display/video plane**; it cannot be sampling the
+O4 modem through the AP.
+
 ## What is *not* present
 
 - No HDMI/DP input (`hdmi_dp_in=false`).
