@@ -1,15 +1,33 @@
 # N3 radio/video probe — can we sample the internal 5.8 GHz?
 
 Date: 2026-11-25. Owner's device. **Read-only**: `ls`, `cat`, `getprop`, `dmesg`,
-`logcat`, `find`, `grep`. No writes, no service stops, no modem/firmware changes.
+`logcat`, `find`, `grep`, plus a few DUSS *query* attempts (no writes, no factory
+mode, no service stops, no modem/firmware changes).
 
 Evidence: `device-evidence/2026-11-25_19-42-02/`
 
+## Naming (important)
+
+- **Sparrow2** = DJI's internal 5.8 GHz SDR/modem chip used by the goggles
+  (available as O4 / O4+). Its USB **product string is `C5`** and its USB ID is
+  `2ca3:1020`. When this document says "C5" in the USB/descriptor sense it means
+  that device, not Espressif.
+- **ESP32-C5** = an Espressif Wi-Fi/Bluetooth SoC, completely unrelated. The
+  C5VRX analog-video project uses an **ESP32-C5**, not DJI's Sparrow2.
+- Sparrow2 is a full radio SoC: separate **AP / CP / DSP / L1C / SCP** images plus
+  RF NVRAM and AMT (see inventory below). IQ samples necessarily exist *inside*
+  it; the question is whether any AP-side interface can request/stream them.
+
 ## Short answer
 
-- The internal 5.8 GHz path is the **C5 / Sparrow2 modem** (`2ca3:1020`), the same
-  family as Goggles 3. The AP can reset/flash it but **cannot read its memory or
-  IQ**. There is no `/dev` IQ/ADC/FFT interface.
+- The internal 5.8 GHz path is the **Sparrow2** modem (USB product string `C5`,
+  `2ca3:1020`), the same family as Goggles 3. The AP can reset/flash it but
+  **cannot read its memory or IQ**. There is no `/dev` IQ/ADC/FFT interface.
+- There **is** a shipped Sparrow2 text console, `/system/bin/sdr_shell`, and a
+  full factory test suite (`test_sparrow2_*.sh`, `test_rf.sh`, …). This is the
+  real analogue of the ESP32-C5 `MODEM_DIAG` lead. However it is **gated behind
+  factory/test mode**: in normal mode the DUSS send is rejected (`-1002`/`-1007`)
+  because the `test:7` host is not registered. See the console section below.
 - The N3 **does** have a real **display video path**: `/proc/display/testcmd`,
   a **video plane 4 (NV12)**, gfx planes 5/6, a writeback plane 7, `test_disp`,
   `/data/disp_fifo`, `/dev/dji_video_in`, `/dev/dji_vtx`, and hardware
@@ -74,7 +92,7 @@ Media service: liveview + local/remote playback supported;
 composite/decoded video → ARGB/NV12/H.264 → `test_disp`/video plane. The goggles
 act as a display; the O4 modem is not involved.
 
-## Deep check of the C5 / modem interfaces
+## Deep check of the C5 (Sparrow2) USB interfaces
 
 - The C5 exposes **11 vendor interfaces**, all `class ff / subclass 43 / proto 01`,
   two endpoints each. Only `2-1:1.4` is bound to `usbfs`; no interface is a
@@ -90,22 +108,26 @@ act as a display; the O4 modem is not involved.
 - The SDRUART log is pairing/role/link control (`cp_role`, `sdr state`,
   `pair cmd`), not samples.
 - No `analog`, `FM`, `demod`, `tuner`, `IQ`, `ADC`, `FFT`, or `spectrum` mode
-  was found in the readable configs. The `dji_sdrs_agent`/`dji_wlm` binaries are
-  packed/encrypted enough that their strings are not readable.
+  was found in the readable configs. The Sparrow2 **firmware images are
+  encrypted**; the user-space tools (`dji_sdrs_agent`, `dji_wlm`) are readable
+  but only expose link/log/dump handling, not an IQ API.
 - `/dev/dji_video_in` is attached via `duss_hal_attach_video_in` — a **video
   frame input**, not an RF sampler.
 
 **Conclusion (updated):** there is no exposed analog/IQ path from the built-in
-5.8 GHz C5 modem. A G3-style “internal-only” analog mod would have to add a
+Sparrow2 modem. A G3-style "internal-only" analog mod would have to add a
 receiver board and feed the **display/video plane**; it cannot be sampling the
-O4 modem through the AP.
+O4/Sparrow2 modem through the AP.
 
 ## Factory/test surface (also checked)
 
-- `/system/bin/amt_test_cmd` (8 KB), `dji_engpc` (137 KB), `dji_mb_ctrl` (18 KB),
-  and `dji_sdrs_agent` (385 KB) contain **no readable** `analog`, `FM`, `IQ`,
-  `ADC`, `spectrum`, or `demod` strings. `dji_sdrs_agent` is packed/stripped
-  enough that even printable-string extraction is empty.
+- `amt_test_cmd` (8 KB), `dji_engpc` (137 KB), `dji_mb_ctrl` (18 KB), and
+  `dji_sdrs_agent` (385 KB) are readable binaries. None contains a usable
+  `IQ`, `ADC`, `spectrum`, or `demod` **API**; `dji_sdrs_agent` does contain the
+  dump/log strings (`dump_v0`, `dump_v1`, `sdrs_dump_channel_*`).
+- `/system/bin/sdr_shell` + `test_sparrow2_*.sh` are the real Sparrow2
+  test/console surface (details above). They expose link, board-ID, time-sync,
+  GPIO, and an ASCII console channel — not a documented IQ command.
 - `/system/bin/dji_mb_ctrl_safe.sh` is an **aging-test lock wrapper** around
   `dji_mb_ctrl`, not an RF mode.
 - `/system/etc/dji_autotest/` exists, but has no analog/RF/SDR hits.
@@ -126,13 +148,29 @@ O4 modem through the AP.
 
 ## Safe next steps
 
-1. **Controlled display test** (needs owner approval): use `test_disp` with a
+1. **Factory-mode console experiment** (needs explicit owner approval): enter
+   factory/test mode so the `test:7` DUSS host is registered, then run
+   `sdr_shell help` / `?` / a few read-only queries and capture responses. This
+   is the only way to learn whether the Sparrow2 console exposes sample/IQ/ADC
+   commands. Risks: `us.db` swap (suspend/shutdown disabled), factory subnode
+   notifications, possible UI/behaviour changes. Reversible with
+   `stop_factory` + `prepare_factory_test.sh exit`.
+2. **In-process DUSS client** (alternate to factory mode): a small hook inside
+   an already-registered DJI process could use the same `0x55` channel without
+   entering factory mode. Also non-read-only, and only worth doing if step 1
+   shows the console is useful.
+3. **Controlled display test** (needs owner approval): use `test_disp` with a
    known ARGB frame on a non-critical plane, with a recovery plan
    (`start_stock_ui` / power-cycle). This proves the display-injection path.
-2. **External video pipeline**: external 5.8 GHz receiver → host/Pi → MJPEG/H.264
+4. **External video pipeline**: external 5.8 GHz receiver → host/Pi → MJPEG/H.264
    → N3 overlay/display plane. We can build the software side with `n3sdk`.
-3. **Do not** enable `sdr_dump`, flash modem images, or touch OTP/keys chasing
+5. **Do not** enable `sdr_dump`, flash modem images, or touch OTP/keys chasing
    IQ. The AP has no readback and the images are encrypted.
+
+**Recommended order:** step 1 (with approval) is the highest-value next move,
+because it is the only in-goggles way to test the "undocumented console" theory
+that worked for ESP32-C5. If the console has no IQ command, fall back to steps
+3–4 (display injection / external receiver).
 
 ## AP ↔ Sparrow2 control path (DUSS) — checked
 
@@ -147,13 +185,139 @@ O4 modem through the AP.
   extend, wlm, lte, smart_func`.
   **There is no `sdrs_agent`/SDR/IQ/analog command set.**
 - `amt_test_cmd` only supports `rpmb_rw <iter>` (RPMB test; dangerous, not RF).
-- `dji_engpc` is modem log/boot-mode tooling, not a sample API.
-- `/dev/ttyS1` is a log UART; no shell/test prompt was found in SDRUART logs.
+- `dji_engpc` is an LTE/WCN engineering bridge, not a Sparrow2 API (see below).
+- `/dev/ttyS1` is the Sparrow2 log UART. A **text console** does exist, but it is
+  driven over DUSS (`sdr_shell`), not as a login prompt on ttyS1. No
+  "help"/prompt text appears in the SDRUART logs.
 
-**Conclusion:** the AP can talk to the modem/service layer over DUSS, but there
-is no documented command for IQ/analog capture. Sending guessed `cmd_set`/
-`cmd_id` messages is unsafe (could panic the modem/AP) and is not a supported
-path.
+**Conclusion:** the AP can talk to the modem/service layer over DUSS, and a
+Sparrow2 console command channel (`cmdset 9 / cmd 0x55`) is present. It is only
+usable when the factory/test host is registered. There is still **no known
+documented command for IQ/analog capture**. We did not fuzz `cmd_set`/`cmd_id`.
+
+## Sparrow2 console (`sdr_shell`) and factory test suite
+
+This is the most important new finding. The device ships tools whose entire job
+is to talk to Sparrow2.
+
+### `/system/bin/sdr_shell`
+
+```sh
+alias v1_sender="dji_mb_ctrl -S test -R diag"
+sdr_shell() {
+    host=14                              # "peer" switches to host 9
+    [ "$1" = "peer" ] && { host=9; shift; }
+    data=`echo "$@\r" | xxd -p`
+    v1_sender -g $host -t 0 -s 0x9 -c 0x55 00640018$data
+    # prints the bytes after "Resp message" as text
+}
+```
+
+So Sparrow2 exposes an **ASCII command line** over DUSS:
+`host 14 (or 9)`, `cmd_set 9`, `cmd_id 0x55`, payload prefix `00 64 00 18`,
+then the command string + `\r`. This is structurally the same idea as C5VRX's
+undocumented `MODEM_DIAG` path: a vendor debug channel, not a public API.
+
+### Factory test scripts that drive Sparrow2
+
+`/system/bin/` contains:
+
+```
+test_sparrow2_link.sh      # USB0 / UART1 / UART4 / hw-ver / heat-chase I/O
+test_sparrow2_tsync.sh     # time-sync GPIO + GNSS counter, from SDRUART log
+test_sparrow2_hw_ver.sh    # board id via -c 0x2c
+test_reset_s2_link.sh      # toggles GPIO0 to reset S2, then re-checks link
+test_sdrlog_e3t_uart5_link.sh  # ttyS1<->ttyS2 921600 loopback
+pro_sparrow2_0.sh / get_upload_sparrow2_0.sh / burn_otp_sparrow2_0.sh
+test_rf.sh                 # S2 CP-state aging test (reads SDRUART log)
+```
+
+Examples of the actual Sparrow2 protocol from those scripts:
+
+```
+dji_mb_ctrl -S test -R diag -g 14 -t 0 -s 0 -c 0x01                # version/link
+dji_mb_ctrl -S test -R diag -g 14 -t 0 -s 0 -c 0x2c 544D190500000000  # board id
+dji_mb_ctrl -S test -R diag -g 14 -t 0 -s 9 -c 0x55 00640005 ...     # shell/cmd
+dji_mb_ctrl -S test -R diag -g 14 -t 0 -q 1 -s 7 -c 0xad -2 0009     # UART4
+```
+
+`test_rf.sh` is **not** a spectrum/IQ test — it only checks the CP state counter
+in the SDRUART log for aging. The `*_link` scripts check connectivity, board ID,
+time sync, and GPIO, not samples.
+
+### Firmware inventory (encrypted)
+
+`/vendor/modem_firmware/sparrow2/`:
+
+```
+ap.img  cp.img  dsp.img  l1c.img  scp.img  pwr.bin  ipc.bin
+bootarea.img  amt.bin  cp_nvram.bin  rf_nvram.bin  share_info.bin
+variants: wa020  wa520  wa521  wa530  za530_lite  za530_pro
+```
+
+`strings` on these images returns only random fragments — they are encrypted /
+signed. So the console's command table cannot be recovered statically without
+breaking the vendor's protection, which we will not do.
+
+### Why `sdr_shell` currently returns "no response"
+
+We tried the shipped console and simple queries (`help`, `?`, empty) and traced
+the failure:
+
+```
+Send message, from machine 0x900 host 1e07, to machine 0 host 0e00,
+msg_id: 00090055 ...
+duss_event_send_sync_v2() error: -1002   (no machine route)
+```
+
+- `dji.json` `platform.machine_id` = **2304 = 0x900** (the goggles' own machine).
+- `test.mb_route_table["diag"]` is host **`1e07`**; key `"e0"` (target type 14,
+  index 0) routes to `vt_gnd → glass:1`, i.e. host **`0e00`**.
+- Device logs map **`-1002` to a DUSS router error ("Router error -1002 on
+  host …")**, i.e. the source/target machine pair is not routable.
+- Passing `-m 2304` (same machine), or selecting `sdrs_agent_service` /
+  `wl_manager_service` / `system_service`, changes the error to **`-1007`**
+  (sync send rejected). Even the `cmdset 9 / cmd 0x43` ping that `dji_glasses`
+  sends successfully every 500 ms fails from our transient shell.
+
+So the blocker is **host registration**, not the command text: the `test:7`
+host (and the ack route back to it) is only registered in **factory/test mode**.
+That is why the factory scripts use `-S test -R diag` and work there.
+
+### What this means for IQ
+
+- A Sparrow2 console definitely exists, and IQ/sample commands may exist in
+  firmware, but we have **no evidence of an IQ command** and cannot enumerate
+  the command table (encrypted images, no response in normal mode).
+- Reaching the console requires entering factory mode (`in_factory` /
+  `start_factory` / `prepare_factory_test.sh enter`), which changes system
+  state (`us.db` swap, suspend disabled, subnode notifications) and is
+  **not read-only**. It is reversible (`stop_factory`,
+  `prepare_factory_test.sh exit`) but needs explicit owner approval and a
+  recovery plan. We have **not** entered factory mode.
+- Alternatively, code running *inside* an already-registered DJI process could
+  use the same DUSS channel. That is a hooking/modding step, also not read-only.
+
+## `dji_engpc` is LTE/WCN engineering, not Sparrow2
+
+`/vendor/etc/engpc/` is a generic Unisoc/Spreadtrum-style engineering bridge:
+
+```
+dev/cp.conf  : COM_DIAG -> /dev/sdiag_lte,  COM_AT -> /dev/stty_lte31,
+               COM_LOG -> /dev/slog_lte
+dev/wcn.conf : COM_AT -> wcnd, COM_DIAG -> /dev/slog_wcn0
+dev/pc.conf  : cali bootmode exposes COM_CP_DIAG as vser /dev/ttyGS0
+chnl/autotest.conf : PC-CP-DIAG  PC COM_CP_DIAG -> CP COM_DIAG  ("bbat mode")
+```
+
+This is the **cellular CP (LTE) DIAG + Wi-Fi/BT (WCN) AT** bridge. The N3 has
+no LTE device, and none of these paths touch Sparrow2. `/dev/ttyGS*` is the
+USB gadget serial (`g_serial`); no such node is created in normal mode.
+
+An earlier `dji_engpc -h` probe left a short-lived `dji_engpc` process; it exited
+on its own. There is **no init service** for it. Device state afterwards was
+confirmed normal: stock UI running (`stock=True, patched=False`), USB config
+`rndis,mass_storage,bulk,acm`, no ttyGS/ttyACM nodes.
 
 ## Wi-Fi/BT radio (the other 5 GHz candidate)
 

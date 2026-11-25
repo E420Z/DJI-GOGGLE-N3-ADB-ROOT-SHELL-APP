@@ -1,7 +1,8 @@
 """N3 ROOT — modern control deck for DJI Goggles N3.
 
-Pages: Connection, E42OZ (goggles/live debug), Root Shell, Mods & UI, Logs,
-Settings. Reuses the proven n3ctl / mods / background / theme_builder modules.
+Pages: Connection, E42OZ (goggles/live debug), Sparrow2 (5.8 GHz radio),
+Root Shell, Mods & UI, Logs, Settings. Reuses the proven n3ctl / mods /
+background / theme_builder modules.
 """
 from __future__ import annotations
 
@@ -716,6 +717,102 @@ class SettingsPage(ctk.CTkFrame):
             self.app.log("Open folder: %s" % exc)
 
 
+class SparrowPage(ctk.CTkFrame):
+    """Sparrow2 (DJI 5.8 GHz) console + factory-test surface.
+
+    Read-only diagnostics. The shipped sdr_shell console is only reachable in
+    factory/test mode; in normal mode DUSS returns -1002/-1007. This page shows
+    that honestly instead of pretending the console works.
+    """
+
+    FW_DIR = "/vendor/modem_firmware/sparrow2"
+
+    def __init__(self, app):
+        super().__init__(app.host, fg_color="transparent")
+        self.app = app
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(2, weight=1)
+
+        head = card(self)
+        head.grid(row=0, column=0, padx=7, pady=7, sticky="ew")
+        lbl(head, "Sparrow2 — internal 5.8 GHz", 15, True).pack(
+            anchor="w", padx=16, pady=(14, 4))
+        muted(head, "Sparrow2 is DJI's radio SoC (USB product string C5, "
+                    "2ca3:1020). ESP32-C5 is a different, unrelated chip.",
+              12, wraplength=900, justify="left").pack(
+            anchor="w", padx=16, pady=(0, 4))
+        muted(head, "The AP has no IQ/ADC device. A shipped console exists "
+                    "(/system/bin/sdr_shell) but it is factory-mode gated: "
+                    "normal mode returns DUSS -1002/-1007.", 12,
+              wraplength=900, justify="left").pack(
+            anchor="w", padx=16, pady=(0, 14))
+
+        acts = card(self)
+        acts.grid(row=1, column=0, padx=7, pady=(0, 7), sticky="ew")
+        row = ctk.CTkFrame(acts, fg_color="transparent")
+        row.pack(fill="x", padx=14, pady=12)
+        btn(row, "Firmware inventory", self.inventory).pack(side="left")
+        btn(row, "List Sparrow2 tools", self.tools).pack(side="left", padx=6)
+        btn(row, "Console help (read-only)", self.console_help,
+            accent=True).pack(side="left", padx=6)
+        btn(row, "Open doc", self.open_doc).pack(side="left")
+
+        body = card(self)
+        body.grid(row=2, column=0, padx=7, pady=7, sticky="nsew")
+        self.text = ctk.CTkTextbox(body, fg_color="#07050C",
+                                   font=theme.font(11, mono=True),
+                                   text_color="#D8D2E8", wrap="none")
+        self.text.pack(fill="both", expand=True, padx=12, pady=12)
+        self.append("Select a probe. Nothing here writes to the goggles or "
+                    "enters factory mode.\n")
+
+    def append(self, text):
+        self.text.insert("end", text + "\n")
+        self.text.see("end")
+
+    def _run(self, cmd, label, timeout=40):
+        def work():
+            if not n3ctl.is_root():
+                n3ctl.start_root(log=self.app.log)
+            return n3ctl.run_root(cmd, timeout=timeout, retries=1)
+
+        self.app.run_task(
+            work, label,
+            on_done=lambda out, err: self.append(
+                "\n===== %s =====\n%s" %
+                (label, (out or "").rstrip() if not err else err)))
+
+    def inventory(self):
+        self._run("ls -l %s 2>/dev/null; echo; ls -d %s/*/ 2>/dev/null"
+                  % (self.FW_DIR, self.FW_DIR), "firmware inventory")
+
+    def tools(self):
+        self._run("ls -l /system/bin/sdr_shell "
+                  "/system/bin/test_sparrow2_link.sh "
+                  "/system/bin/test_sparrow2_tsync.sh "
+                  "/system/bin/test_sparrow2_hw_ver.sh "
+                  "/system/bin/test_reset_s2_link.sh "
+                  "/system/bin/test_sdrlog_e3t_uart5_link.sh "
+                  "/system/bin/test_rf.sh 2>/dev/null", "sparrow2 tools")
+
+    def console_help(self):
+        self.append("\n[console] sending sdr_shell 'help' (read-only). "
+                    "If you see -1002/-1007, factory/test mode is required.")
+        self._run("timeout 12 /system/bin/sdr_shell help 2>&1; "
+                  "echo '--- raw ---'; "
+                  "dji_mb_ctrl -S test -R diag -m 2304 -o 3000000 -g 14 -t 0 "
+                  "-s 9 -c 0x55 0064001868656c700d 2>&1 | tail -6",
+                  "sdr_shell help", timeout=45)
+
+    def open_doc(self):
+        path = os.path.abspath(os.path.join(APP_DIR, "..", "docs",
+                                            "RADIO-PROBE.md"))
+        try:
+            os.startfile(path)  # type: ignore[attr-defined]
+        except Exception as exc:  # noqa: BLE001
+            self.app.log("Open doc: %s" % exc)
+
+
 class App(ctk.CTk):
     def __init__(self):
         theme.setup()
@@ -746,7 +843,7 @@ class App(ctk.CTk):
                             fg_color=theme.SIDEBAR)
         side.grid(row=0, column=0, rowspan=3, sticky="nsew")
         side.grid_propagate(False)
-        side.grid_rowconfigure(7, weight=1)
+        side.grid_rowconfigure(8, weight=1)
         lbl(side, "N3 ROOT", 22, True, theme.ACCENT).grid(
             row=0, column=0, padx=20, pady=(22, 0), sticky="w")
         muted(side, "Goggles N3 control deck").grid(
@@ -754,6 +851,7 @@ class App(ctk.CTk):
         self.nav = {}
         items = [("connection", "Connection", "◈"),
                  ("goggles", "E42OZ", "◉"),
+                 ("sparrow", "Sparrow2", "✦"),
                  ("shell", "Root Shell", "▣"),
                  ("mods", "Mods & UI", "◆"),
                  ("logs", "Logs", "≡"),
@@ -768,9 +866,9 @@ class App(ctk.CTk):
             self.nav[key] = b
         self.side_status = ctk.CTkLabel(side, text="●  disconnected",
                                         font=theme.font(11), text_color=theme.DIM)
-        self.side_status.grid(row=8, column=0, padx=20, pady=(0, 18), sticky="w")
+        self.side_status.grid(row=9, column=0, padx=20, pady=(0, 18), sticky="w")
         muted(side, "v%s · experimental · session-only" % VERSION, 10).grid(
-            row=9, column=0, padx=20, pady=(0, 16), sticky="w")
+            row=10, column=0, padx=20, pady=(0, 16), sticky="w")
 
     def _build_main(self):
         self.grid_rowconfigure(1, weight=1)
@@ -801,6 +899,7 @@ class App(ctk.CTk):
         self.page_classes = {
             "connection": ConnectionPage,
             "goggles": GogglesPage,
+            "sparrow": SparrowPage,
             "shell": ShellPage,
             "mods": ModsPage,
             "logs": LogsPage,
@@ -820,6 +919,7 @@ class App(ctk.CTk):
                         text_color=theme.ACCENT if k == key else theme.MUTED)
         self.page_title.configure(text={
             "connection": "Connection", "goggles": "E42OZ — Goggles",
+            "sparrow": "Sparrow2 — 5.8 GHz radio",
             "shell": "Root Shell", "mods": "Mods & UI",
             "logs": "Logs", "settings": "Settings"}[key])
         self.pages[key].tkraise()
