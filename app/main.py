@@ -114,6 +114,7 @@ class ConnectionPage(ctk.CTkFrame):
         actions = [
             ("Enable ADB", self.act_adb, True),
             ("Start root", self.act_start_root, True),
+            ("Open root console", lambda: self.app.show_page("shell"), True),
             ("Stop root", self.act_stop_root, False),
             ("Recover stock UI", self.act_stock, False),
             ("Restart patched UI", self.act_restart, False),
@@ -364,8 +365,14 @@ class GogglesPage(ctk.CTkFrame):
                 "It draws safely into the live buffer. Display hooks are off in "
                 "this build, so it is the conservative version."):
             return
-        self.app.run_task(lambda: modman.install("n3menu", log=self.app.log),
-                          "Install N3 menu",
+
+        def work():
+            ok = modman.install("n3menu", log=self.app.log)
+            if ok:
+                n3ctl.start_ui(log=self.app.log, mods=modman.mods_for_ui())
+            return ok
+
+        self.app.run_task(work, "Install + start N3 menu",
                           on_done=lambda *_: self.app.refresh_status())
 
     def pick_background(self):
@@ -549,6 +556,15 @@ class ModsPage(ctk.CTkFrame):
             b.pack(side="right", padx=10)
 
     def toggle(self, mid, installed):
+        rec = modman.find(mid) or {}
+        if (not installed and (rec.get("experimental") or
+                               rec.get("risk") in ("high", "medium"))):
+            if not messagebox.askyesno(
+                    "Experimental mod",
+                    "%s is marked %s risk%s.\n\nInstall it anyway?"
+                    % (rec.get("name", mid), rec.get("risk", "medium"),
+                       " (experimental)" if rec.get("experimental") else "")):
+                return
         if installed:
             self.app.run_task(lambda: modman.uninstall(mid, log=self.app.log),
                               "Remove " + mid, on_done=lambda *_: self.refresh())

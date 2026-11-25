@@ -43,7 +43,13 @@ The limit is ADB/FIFO throughput (~2.5–3.3 MB/s), not CPU or a missing codec.
 So there is no Toolya UI codec to copy. Our 160×90/57 fps stream is already
 faster than Toolya's UI mirror for debugging.
 
-## Usage
+## In the app
+
+The app's **E42OZ → Start live** path uses this same stream through
+`app/ui/live.py`. Verified on 2026-11-25: **290 frames in 5 s (~59 fps)**,
+160×90, with the stock UI restored afterwards.
+
+## Usage (standalone debug tool)
 
 ```
 # stock UI or an already-loaded app

@@ -6,6 +6,7 @@
 - **USB / ROOT / ADB** status cards.
 - **Enable ADB** switches the stock USB composition to include ADB.
 - **Start root** opens the `dji_blackbox` shell on `192.168.60.2:4444`.
+- **Open root console** jumps to the embedded Root Shell page.
 - **Stop root** kills the session shell.
 - **Recover stock UI** restarts `dji_glasses` (the black-screen escape hatch).
 - **Restart patched UI** starts the themed UI with the installed mods.

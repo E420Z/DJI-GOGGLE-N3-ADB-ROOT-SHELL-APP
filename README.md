@@ -80,7 +80,7 @@ py -3.12 -m pip install -r requirements.txt
 powershell -ExecutionPolicy Bypass -File run.ps1
 ```
 
-Or:
+Or double-click **`Start N3 ROOT.cmd`**, or:
 
 ```powershell
 py -3.12 app\main.py

@@ -14,5 +14,6 @@
 | [`DEBUG-TOOLKIT.md`](DEBUG-TOOLKIT.md) | Screenshots, logs, diffs, watchdog, key injection. |
 | [`SCREENSHOTS.md`](SCREENSHOTS.md) | Safe dmabuf capture details. |
 | [`GFSK.md`](GFSK.md) | GFSK link-metrics provider notes. |
+| [`CHANGELOG.md`](CHANGELOG.md) | Version history. |
 
 Start with `APP.md` for usage and `ROOT-EXPLOIT.md` for the transport.

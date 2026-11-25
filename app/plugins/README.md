@@ -1,7 +1,8 @@
 # Plugins
 
 Drop a folder here with a `plugin.json` to add a mod or command plugin. The app
-scans this folder on **Mods → Refresh**. Folders starting with `_` are ignored.
+scans this folder on **Mods & UI → Refresh**. Folders starting with `_` are
+ignored.
 
 ## Minimal command plugin
 

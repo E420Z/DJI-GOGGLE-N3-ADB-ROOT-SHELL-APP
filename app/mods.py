@@ -28,47 +28,10 @@ BUILTINS = [
         "version": "2.0-n3",
         "type": "theme",
         "description": "Replaces the cycling DJI backgrounds with your own "
-                       "1920x1080 JPEG. Managed from the Background tab.",
+                       "1920x1080 JPEG. Managed from Mods & UI.",
         "risk": "low",
         "managed": "background",
         "experimental": False,
-    },
-    {
-        "id": "menu",
-        "name": "Menu Framework",
-        "version": "3.0-n3",
-        "type": "menu",
-        "description": "Natartos menu injector, adapted to the N3 MoreMenu "
-                       "vtable. Experimental until the vtable patch is tested.",
-        "risk": "high",
-        "so": "hook_menu.so",
-        "files": ["hook_menu.so"],
-        "experimental": True,
-    },
-    {
-        "id": "popen",
-        "name": "Script Redirect",
-        "version": "5.0-n3",
-        "type": "hook",
-        "description": "Redirects popen(./bin/debug_script_*) to "
-                       "/data/local/tmp/. Used by Doom/Stream style apps.",
-        "risk": "medium",
-        "so": "hook_popen.so",
-        "files": ["hook_popen.so"],
-        "experimental": True,
-    },
-    {
-        "id": "template",
-        "name": "Sample Menu Item",
-        "version": "1.0",
-        "type": "menu-item",
-        "description": "Registers a harmless 'Template' item that toggles "
-                       "/data/local/tmp/natartos_template.",
-        "risk": "low",
-        "so": "mod_template.so",
-        "files": ["mod_template.so"],
-        "requires": ["menu"],
-        "experimental": True,
     },
 ]
 
