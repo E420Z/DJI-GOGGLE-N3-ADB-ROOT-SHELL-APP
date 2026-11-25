@@ -134,6 +134,17 @@ O4 modem through the AP.
 3. **Do not** enable `sdr_dump`, flash modem images, or touch OTP/keys chasing
    IQ. The AP has no readback and the images are encrypted.
 
+## Wi-Fi/BT radio (the other 5 GHz candidate)
+
+- The SoC has SDIO controllers (`f9304000.dwsd0`, `f9300000.dwmmc0`) and
+  Wi-Fi/BT board configs (`wifi_board_*.ini`, `bt_configure_*.ini`), plus
+  `dji_wifi_cli`.
+- But there is **no `wlan0`, no `ieee80211`, no `cfg80211`/`mac80211`, no SDIO
+  or PCI device enumerated**, and no wireless debugfs. Wi-Fi is not active in
+  this state.
+- `dji_wifi_cli` is a station scan/connect CLI, not an SDR/IQ tool.
+- So the built-in Wi-Fi/BT path is not an accessible raw-IQ receiver either.
+
 ## C5VRX / “C5” name collision
 
 `Twotoz/C5VRX` is an **ESP32-C5** project, not a DJI C5 modem project:
