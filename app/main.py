@@ -131,7 +131,11 @@ class ConnectionPage(ctk.CTkFrame):
               "1) Connect USB and power on the goggles.  2) Start root (blackbox RCE).  "
               "3) Enable ADB.  4) Open E42OZ for live preview and mods.\n"
               "Recover stock UI is always available if the screen ever goes black.",
-              12, justify="left").pack(anchor="w", padx=18, pady=(0, 14))
+              12, justify="left").pack(anchor="w", padx=18, pady=(0, 6))
+        lbl(helpc, "⚠ Experimental: custom menu/overlay and display hooks can break "
+                   "rendering. See docs/EXPERIMENTAL.md. Use Recover stock UI if needed.",
+            11, True, theme.WARN, wraplength=900, justify="left").pack(
+                anchor="w", padx=18, pady=(0, 14))
 
     def act_adb(self):
         self.app.run_task(lambda: n3ctl.enable_adb(log=self.app.log),
@@ -236,6 +240,11 @@ class GogglesPage(ctk.CTkFrame):
                 ("Recover stock UI", self.recover_stock, False)]):
             b = btn(q, text, cmd, accent=acc)
             b.grid(row=i // 2, column=i % 2, padx=4, pady=4, sticky="ew")
+        lbl(quick, "⚠ Custom menu/overlay is experimental. A prior display-hook "
+                   "build black-screened. If the screen goes black, use "
+                   "Recover stock UI or power-cycle.",
+            10, False, theme.WARN, wraplength=300, justify="left").pack(
+                anchor="w", padx=16, pady=(0, 12))
 
         state = card(right)
         state.grid(row=1, column=0, sticky="ew", pady=7)
@@ -547,9 +556,16 @@ class ModsPage(ctk.CTkFrame):
             left = ctk.CTkFrame(row, fg_color="transparent")
             left.pack(side="left", fill="x", expand=True, padx=12, pady=8)
             lbl(left, m.get("name", m.get("id")), 13, True).pack(anchor="w")
-            muted(left, "%s · v%s · %s" % (m.get("type", "mod"),
-                                          m.get("version", "?"),
-                                          m.get("risk", "medium")), 11).pack(anchor="w")
+            line = "%s · v%s · %s" % (m.get("type", "mod"),
+                                      m.get("version", "?"),
+                                      m.get("risk", "medium"))
+            muted(left, line, 11).pack(anchor="w")
+            if m.get("experimental") or m.get("risk") in ("high", "medium"):
+                lbl(left, "⚠ EXPERIMENTAL" if m.get("experimental")
+                    else "⚠ REVIEW BEFORE USE", 10, True, theme.WARN).pack(anchor="w")
+            if m.get("notes"):
+                muted(left, m["notes"], 10, wraplength=430,
+                      justify="left").pack(anchor="w", pady=(2, 0))
             inst = bool(m.get("installed"))
             b = btn(row, "Remove" if inst else "Install",
                     lambda mid=m["id"], on=inst: self.toggle(mid, on))
@@ -753,7 +769,7 @@ class App(ctk.CTk):
         self.side_status = ctk.CTkLabel(side, text="●  disconnected",
                                         font=theme.font(11), text_color=theme.DIM)
         self.side_status.grid(row=8, column=0, padx=20, pady=(0, 18), sticky="w")
-        muted(side, "v%s · session-only" % VERSION, 10).grid(
+        muted(side, "v%s · experimental · session-only" % VERSION, 10).grid(
             row=9, column=0, padx=20, pady=(0, 16), sticky="w")
 
     def _build_main(self):

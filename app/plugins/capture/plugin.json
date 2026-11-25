@@ -5,7 +5,9 @@
   "type": "debug",
   "description": "Thread-only dmabuf capture for screenshots. No display detour.",
   "risk": "low",
+  "status": "stable",
+  "experimental": false,
+  "notes": "Read-only; never suppresses a frame.",
   "so": "files/hook_capture.so",
-  "filename": "hook_capture.so",
-  "experimental": false
+  "filename": "hook_capture.so"
 }

@@ -2,6 +2,11 @@
 
 ## 1.0.0 — 2026-11-25
 
+- Labelled experimental/crash-prone areas in the app, plugin manifests, README,
+  and `docs/EXPERIMENTAL.md`. The N3 Menu is **experimental/beta**; the
+  `displayFrame` hooks that black-screened are compile-time **off**.
+- Marked the GitHub release as a **prerelease** and included recovery steps.
+
 - New CustomTkinter control deck: Connection, E42OZ, Root Shell, Mods & UI,
   Logs, Settings.
 - Embedded live preview from the goggles UI: 160×90, ~59 fps (verified).

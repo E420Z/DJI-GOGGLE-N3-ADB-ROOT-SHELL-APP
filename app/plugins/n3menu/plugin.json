@@ -4,8 +4,10 @@
   "version": "0.2",
   "type": "app",
   "description": "In-goggles menu with live pages. Push-time composited, no frame suppression.",
-  "risk": "low",
+  "risk": "medium",
+  "status": "experimental/beta",
+  "experimental": true,
+  "notes": "A previous displayFrame-hook build black-screened on 2026-11-25; those hooks are disabled in this build. If the screen goes black, use Recover stock UI.",
   "so": "files/n3menu.so",
-  "filename": "n3menu.so",
-  "experimental": false
+  "filename": "n3menu.so"
 }

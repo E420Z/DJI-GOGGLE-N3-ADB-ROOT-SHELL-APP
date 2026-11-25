@@ -4,8 +4,10 @@
   "version": "0.1",
   "type": "debug",
   "description": "Minimal window painter used to prove safe dmabuf compositing.",
-  "risk": "low",
+  "risk": "medium",
+  "status": "experimental proof",
+  "experimental": true,
+  "notes": "Demo only. It writes a small panel into the live buffer; hide it or recover stock UI if anything looks wrong.",
   "so": "files/n3paint.so",
-  "filename": "n3paint.so",
-  "experimental": true
+  "filename": "n3paint.so"
 }

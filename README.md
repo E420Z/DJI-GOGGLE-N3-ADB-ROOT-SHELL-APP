@@ -6,6 +6,16 @@ in-goggles menu apps, a live USB debug preview, and an in-goggles app SDK.
 
 ![N3 ROOT connection page](docs/screenshot.png)
 
+> ## ⚠️ Experimental software
+>
+> The **custom menu/overlay** and **display-engine hooks** can break rendering.
+> A previous `displayFrame` hook build **black-screened** on 2026-11-25; those
+> hooks are now compile-time **off**. If the screen ever goes black:
+> **Connection → Recover stock UI**, or power-cycle the goggles.
+>
+> Read **[docs/EXPERIMENTAL.md](docs/EXPERIMENTAL.md)** before using the menu
+> mod or enabling any experimental hook.
+
 > **Session-only and reversible.** Nothing is written to `/system`, dm-verity is
 > not touched, and OTP/RPMB/bootloader are never used. A reboot restores the
 > stock UI. The app has a one-click **Recover stock UI** escape hatch.
@@ -149,10 +159,22 @@ no frame suppression.
 
 ---
 
+## Stability
+
+See **[docs/EXPERIMENTAL.md](docs/EXPERIMENTAL.md)** for the full table.
+
+| Area | Status |
+|---|---|
+| Control deck, live preview, screenshots, root/ADB | **Stable** |
+| Themes / background | **Low risk**, reversible |
+| **N3 Menu app** | **Experimental/beta** — a prior build black-screened; display hooks disabled in this build |
+| Experimental `DisplayEngine` hooks | **Off — do not enable yet** |
+| Legacy G3 menu/popen/template mods | **Removed** (unsafe on N3) |
+
 ## Mods and the in-goggles SDK
 
 - `mods/n3menu` — custom in-goggles menu (window composited into the live
-  buffer, key/touch suppression, long-press OK/exit).
+  buffer, key/touch suppression, long-press OK/exit). **Experimental/beta.**
 - `mods/n3live` — live preview source.
 - `mods/capture` — safe screenshots.
 - `mods/paint` — minimal overlay proof.

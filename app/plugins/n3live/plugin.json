@@ -5,7 +5,9 @@
   "type": "debug",
   "description": "Downscaled dmabuf stream over a FIFO for the app's live preview.",
   "risk": "low",
+  "status": "stable",
+  "experimental": false,
+  "notes": "Read-only. Verified 160x90 at ~59 fps.",
   "so": "files/n3live.so",
-  "filename": "n3live.so",
-  "experimental": false
+  "filename": "n3live.so"
 }

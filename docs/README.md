@@ -8,6 +8,7 @@
 | [`ADB-ROOT.md`](ADB-ROOT.md) | ADB enable path and root breakthrough notes. |
 | [`SELINUX.md`](SELINUX.md) | SELinux domain findings. |
 | [`SAFETY.md`](SAFETY.md) | Scope, recovery, legal. |
+| [`EXPERIMENTAL.md`](EXPERIMENTAL.md) | **Stability table, black-screen history, what is experimental.** |
 | [`LIVE-STREAM.md`](LIVE-STREAM.md) | 160×90/57 fps UI stream, Toolya/H.264 comparison. |
 | [`OVERLAY-SDK.md`](OVERLAY-SDK.md) | In-goggles window compositing and the SDK. |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Why an in-process mod SDK, not an Android app. |
