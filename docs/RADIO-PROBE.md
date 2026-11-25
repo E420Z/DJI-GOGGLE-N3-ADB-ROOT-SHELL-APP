@@ -134,6 +134,28 @@ O4 modem through the AP.
 3. **Do not** enable `sdr_dump`, flash modem images, or touch OTP/keys chasing
    IQ. The AP has no readback and the images are encrypted.
 
+## C5VRX / “C5” name collision
+
+`Twotoz/C5VRX` is an **ESP32-C5** project, not a DJI C5 modem project:
+
+- Hardware: Seeed Studio XIAO **ESP32-C5** + 6-bit resistor DAC.
+- It uses the ESP32-C5’s **own Wi-Fi/5 GHz radio** to take IQ samples and
+  demodulate analog 5.8 GHz FPV video to **CVBS PAL/NTSC**.
+- It is a tiny receiver board that can be installed **inside** goggles
+  (the README shows it in a Fat Shark module bay).
+
+The DJI goggles’ “C5” is a **Sparrow2 modem** (`2ca3:1020`) with encrypted
+firmware and no AP readback. The two “C5” names are unrelated.
+
+**Therefore:** a self-contained “only the goggles” analog mod most likely has an
+**ESP32-C5 (or similar) receiver board inside the shell**, using the goggles’
+antennas and feeding CVBS/video into the goggles’ video input or display. It is
+not sampling the DJI O4 modem.
+
+Stock N3 evidence: no Espressif USB/SPI device, no CVBS/PAL/NTSC/TVP/ADV7
+decoder in I²C/V4L2, and `/dev/dji_video_in` is a DUSS video-frame input, not
+an RF sampler. An internal mod would add its own receiver/decoder hardware.
+
 ## Public mod check (Visor / analog)
 
 - The G3 **Visor Mod** (Cosmostreamer) is described as outputting/streaming the
