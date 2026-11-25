@@ -185,6 +185,23 @@ path.
 Reading AP RAM or extracting/using AMT keys would not produce C5 IQ, and
 extracting/bypassing keys is a security bypass we will not do.
 
+## Hidden factory surface: MA Channel / AMT
+
+- C5 interface **3** is named **“MA Channel”** (bulk ep `04` out / `84` in,
+  1024-byte MPS) and is **unclaimed** (`Driver=none`).
+- `dji_sys` holds **three** `/dev/bus/usb/002/002` fds; `dji_amt` is a DUSS
+  service (`amt_get_nonce`, `amt_get_sn_from_cmdline`, `duss_event_*`), i.e.
+  **nonce/serial manufacturing auth**, not an RF sample API.
+- `dji.json` has `start_factory` / `stop_factory` events (`system_service`,
+  action `P3`, `lpc_client 0x1C07`) and `amt_service` routes to
+  `test`, `vt_gnd`, `ve_gnd`; `test`/`diag` routes exist.
+- No `IQ`, `ADC`, `spectrum`, `analog`, or `demod` command names appear in the
+  AMT/test/MA configuration. MA is manufacturing/measurement/calibration.
+
+Using MA Channel would require the factory/AMT USB protocol (or triggering
+`start_factory` and capturing DUSS), which is undocumented and risky. It is not
+a documented IQ source. We have not triggered factory mode or fuzzed MA.
+
 ## Exhaustive process/FD audit
 
 Only **one** process has a direct path to the C5:
