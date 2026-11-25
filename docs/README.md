@@ -15,6 +15,7 @@
 | [`DEBUG-TOOLKIT.md`](DEBUG-TOOLKIT.md) | Screenshots, logs, diffs, watchdog, key injection. |
 | [`SCREENSHOTS.md`](SCREENSHOTS.md) | Safe dmabuf capture details. |
 | [`GFSK.md`](GFSK.md) | GFSK link-metrics provider notes. |
+| [`RADIO-PROBE.md`](RADIO-PROBE.md) | **N3 radio/video probe: no readable internal IQ; display video-plane path exists.** |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history. |
 | [`RELEASE-v1.0.0.md`](RELEASE-v1.0.0.md) | Published prerelease notes + SHA256. |
 
