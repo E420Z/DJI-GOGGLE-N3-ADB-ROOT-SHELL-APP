@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased — Sparrow2 research (2026-11-25)
+
+- Added the **Sparrow2** app page (read-only): firmware inventory, shipped
+  console/test tools, `sdr_shell help` probe, and the factory-PC gating
+  explanation.
+- Documented the full Sparrow2 investigation in [`SPARROW2.md`](SPARROW2.md):
+  naming, firmware inventory, `sdr_shell` protocol, factory test suite, DUSS
+  routing (`-1002`/`-1007`), the factory-flag attempt + recovery, channel
+  inventory (logs/dumps only), and the AMT surface (manufacturing/calibration/
+  file/auth, not IQ).
+- Result: **no exposed AP-side IQ/ADC channel.** The console is a factory-PC
+  tool; the practical analog route is an external receiver into the display
+  video plane.
+- Added portable probes: `probe_n3_factory_*.py`, `probe_n3_amt_proto.py`,
+  `probe_n3_sdr_console*.py`.
+
 ## 1.0.0 — 2026-11-25
 
 - Labelled experimental/crash-prone areas in the app, plugin manifests, README,

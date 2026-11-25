@@ -16,6 +16,7 @@
 | [`SCREENSHOTS.md`](SCREENSHOTS.md) | Safe dmabuf capture details. |
 | [`GFSK.md`](GFSK.md) | GFSK link-metrics provider notes. |
 | [`RADIO-PROBE.md`](RADIO-PROBE.md) | **N3 radio/video probe: no readable internal IQ; display video-plane path exists.** |
+| [`SPARROW2.md`](SPARROW2.md) | **Sparrow2 deep dive: console (`sdr_shell`), factory suite, DUSS routing, channel inventory, AMT — no IQ path.** |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history. |
 | [`RELEASE-v1.0.0.md`](RELEASE-v1.0.0.md) | Published prerelease notes + SHA256. |
 

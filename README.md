@@ -36,9 +36,12 @@ in-goggles menu apps, a live USB debug preview, and an in-goggles app SDK.
   actions for theme/background/menu.
 - **Sparrow2 page** — read-only radio research panel. Shows the firmware
   inventory and the shipped Sparrow2 console/test tools, and can send the
-  read-only `sdr_shell help` query. It explains why the console is factory-mode
-  gated (`-1002`/`-1007`) instead of pretending it works. No writes, no factory
-  mode, no IQ claim. Details in [`docs/RADIO-PROBE.md`](docs/RADIO-PROBE.md).
+  read-only `sdr_shell help` query. It explains why the console is a
+  **factory-PC** tool (`test:7` host, `-1002`/`-1007`) instead of pretending it
+  works, and it records that the AP-side channels are logs/dumps only — no IQ.
+  No writes, no factory mode, no IQ claim. Details in
+  [`docs/SPARROW2.md`](docs/SPARROW2.md) and
+  [`docs/RADIO-PROBE.md`](docs/RADIO-PROBE.md).
 - **Root Shell page** — an embedded console. Type commands, see output, keep
   history. Runs as uid 0 in `dji_services`.
 - **Mods & UI page** — install/remove `/vendor` mods, apply purple or

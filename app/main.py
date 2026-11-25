@@ -742,8 +742,10 @@ class SparrowPage(ctk.CTkFrame):
               12, wraplength=900, justify="left").pack(
             anchor="w", padx=16, pady=(0, 4))
         muted(head, "The AP has no IQ/ADC device. A shipped console exists "
-                    "(/system/bin/sdr_shell) but it is factory-mode gated: "
-                    "normal mode returns DUSS -1002/-1007.", 12,
+                    "(/system/bin/sdr_shell), but the test:7 DUSS host is the "
+                    "factory PC fixture. A factory-flag attempt did not register "
+                    "it (queries return -1002/-1007). AP-side Sparrow2 channels "
+                    "are logs/dumps only.", 12,
               wraplength=900, justify="left").pack(
             anchor="w", padx=16, pady=(0, 14))
 
@@ -755,7 +757,8 @@ class SparrowPage(ctk.CTkFrame):
         btn(row, "List Sparrow2 tools", self.tools).pack(side="left", padx=6)
         btn(row, "Console help (read-only)", self.console_help,
             accent=True).pack(side="left", padx=6)
-        btn(row, "Open doc", self.open_doc).pack(side="left")
+        btn(row, "Sparrow2 summary", self.open_summary).pack(side="left")
+        btn(row, "Radio probe doc", self.open_doc).pack(side="left", padx=6)
 
         body = card(self)
         body.grid(row=2, column=0, padx=7, pady=7, sticky="nsew")
@@ -797,20 +800,26 @@ class SparrowPage(ctk.CTkFrame):
 
     def console_help(self):
         self.append("\n[console] sending sdr_shell 'help' (read-only). "
-                    "If you see -1002/-1007, factory/test mode is required.")
+                    "On-device this is expected to return -1002/-1007: the "
+                    "test:7 host is the factory PC fixture, not a local service.")
         self._run("timeout 12 /system/bin/sdr_shell help 2>&1; "
                   "echo '--- raw ---'; "
                   "dji_mb_ctrl -S test -R diag -m 2304 -o 3000000 -g 14 -t 0 "
                   "-s 9 -c 0x55 0064001868656c700d 2>&1 | tail -6",
                   "sdr_shell help", timeout=45)
 
-    def open_doc(self):
-        path = os.path.abspath(os.path.join(APP_DIR, "..", "docs",
-                                            "RADIO-PROBE.md"))
+    def _open(self, name):
+        path = os.path.abspath(os.path.join(APP_DIR, "..", "docs", name))
         try:
             os.startfile(path)  # type: ignore[attr-defined]
         except Exception as exc:  # noqa: BLE001
             self.app.log("Open doc: %s" % exc)
+
+    def open_doc(self):
+        self._open("RADIO-PROBE.md")
+
+    def open_summary(self):
+        self._open("SPARROW2.md")
 
 
 class App(ctk.CTk):

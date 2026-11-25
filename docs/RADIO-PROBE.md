@@ -25,9 +25,10 @@ Evidence: `device-evidence/2026-11-25_19-42-02/`
   **cannot read its memory or IQ**. There is no `/dev` IQ/ADC/FFT interface.
 - There **is** a shipped Sparrow2 text console, `/system/bin/sdr_shell`, and a
   full factory test suite (`test_sparrow2_*.sh`, `test_rf.sh`, …). This is the
-  real analogue of the ESP32-C5 `MODEM_DIAG` lead. However it is **gated behind
-  factory/test mode**: in normal mode the DUSS send is rejected (`-1002`/`-1007`)
-  because the `test:7` host is not registered. See the console section below.
+  closest analogue to the ESP32-C5 `MODEM_DIAG` lead. However it is not an
+  on-device API: the `test:7` DUSS host is the **factory PC fixture**. A
+  factory-flag + `dji_amt` restart did **not** register it, and all queries
+  returned `-1007`. See the console section below.
 - The N3 **does** have a real **display video path**: `/proc/display/testcmd`,
   a **video plane 4 (NV12)**, gfx planes 5/6, a writeback plane 7, `test_disp`,
   `/data/disp_fifo`, `/dev/dji_video_in`, `/dev/dji_vtx`, and hardware
@@ -148,29 +149,28 @@ O4/Sparrow2 modem through the AP.
 
 ## Safe next steps
 
-1. **Factory-mode console experiment** (needs explicit owner approval): enter
-   factory/test mode so the `test:7` DUSS host is registered, then run
-   `sdr_shell help` / `?` / a few read-only queries and capture responses. This
-   is the only way to learn whether the Sparrow2 console exposes sample/IQ/ADC
-   commands. Risks: `us.db` swap (suspend/shutdown disabled), factory subnode
-   notifications, possible UI/behaviour changes. Reversible with
-   `stop_factory` + `prepare_factory_test.sh exit`.
-2. **In-process DUSS client** (alternate to factory mode): a small hook inside
-   an already-registered DJI process could use the same `0x55` channel without
-   entering factory mode. Also non-read-only, and only worth doing if step 1
-   shows the console is useful.
+1. **Factory-mode console — attempted, on-device path exhausted.** Creating
+   `in_factory` and restarting `dji_amt` did **not** register `test:7`; every
+   query stayed at `-1007`. The remaining route is the **PC↔AMT/gadget
+   protocol**, which is manufacturing/calibration/file/auth (including OTP file
+   receive and secure-debug auth) and is **not IQ**. Not recommended.
+2. **In-process DUSS client** (hooking): code inside an already-registered DJI
+   process could use the `0x55` channel. Non-read-only, high effort, and still
+   no evidence of an IQ command. Only worth revisiting if a command table
+   surfaces.
 3. **Controlled display test** (needs owner approval): use `test_disp` with a
    known ARGB frame on a non-critical plane, with a recovery plan
    (`start_stock_ui` / power-cycle). This proves the display-injection path.
-4. **External video pipeline**: external 5.8 GHz receiver → host/Pi → MJPEG/H.264
-   → N3 overlay/display plane. We can build the software side with `n3sdk`.
-5. **Do not** enable `sdr_dump`, flash modem images, or touch OTP/keys chasing
-   IQ. The AP has no readback and the images are encrypted.
+4. **External video pipeline**: external 5.8 GHz analog receiver → host/Pi →
+   MJPEG/H.264 → N3 overlay/display plane. We can build the software side with
+   `n3sdk`. This is the practical analog route.
+5. **Do not** enable `sdr_dump`, flash modem images, or touch OTP/keys/AMT
+   secure-debug chasing IQ. The AP has no readback and the images are
+   encrypted.
 
-**Recommended order:** step 1 (with approval) is the highest-value next move,
-because it is the only in-goggles way to test the "undocumented console" theory
-that worked for ESP32-C5. If the console has no IQ command, fall back to steps
-3–4 (display injection / external receiver).
+**Recommended order:** the on-device console theory has been tested and closed.
+Go with steps 3–4 (display injection / external receiver). Keep the console and
+AMT findings as documentation of what was ruled out.
 
 ## AP ↔ Sparrow2 control path (DUSS) — checked
 
@@ -280,23 +280,88 @@ duss_event_send_sync_v2() error: -1002   (no machine route)
   (sync send rejected). Even the `cmdset 9 / cmd 0x43` ping that `dji_glasses`
   sends successfully every 500 ms fails from our transient shell.
 
-So the blocker is **host registration**, not the command text: the `test:7`
-host (and the ack route back to it) is only registered in **factory/test mode**.
-That is why the factory scripts use `-S test -R diag` and work there.
+So the blocker is **host registration**, not the command text. A socket audit
+(`/proc/net/unix`) shows the local DUSS hosts that exist in normal mode:
+`0x1c00…0x1c07`, `0x1d02`, `0x1f00`, `0xe03/0xe04/0xe07`, `0x1704`, `0x0500`.
+There is **no `@/duss/mb/0x1e07`**. `dji_amt` is `0x1c02` and `dji_sys` is
+`0x1c01`. The `test:7` host is the **factory PC fixture**, not an on-device
+service. `sdr_shell` is therefore a PC-factory tool that happens to ship in
+`/system/bin`.
+
+### Factory-mode attempt (2026-11-25)
+
+With owner approval we tried the least-persistent path and fully recovered:
+
+1. snapshot: `us.db` md5 `386db554…`, UI stock, USB normal.
+2. create `/data/dji/cfg/in_factory`.
+3. restart `dji_amt` (`setprop dji.amt_service 0`, then `1`; PID 929→7355).
+4. run `sdr_shell help`, `?`, `version`, `info`, `peer help`, plus a raw `0x55`.
+
+Result: **no factory log, no `0x1e07` host, every query still `-1007`**. The
+file alone does not register the PC test host; the real entry is the PC AMT
+request (`factory_debug: get request from PC, cmd is [%s]`).
+
+Recovery: removed `in_factory`, restarted `dji_amt` (PID 7556), UI stock,
+`us.db` md5 unchanged, USB `rndis,mass_storage,bulk,acm`. No calibration,
+OTP/RPMB, secure-debug, or firmware operation was performed.
 
 ### What this means for IQ
 
-- A Sparrow2 console definitely exists, and IQ/sample commands may exist in
-  firmware, but we have **no evidence of an IQ command** and cannot enumerate
-  the command table (encrypted images, no response in normal mode).
-- Reaching the console requires entering factory mode (`in_factory` /
-  `start_factory` / `prepare_factory_test.sh enter`), which changes system
-  state (`us.db` swap, suspend disabled, subnode notifications) and is
-  **not read-only**. It is reversible (`stop_factory`,
-  `prepare_factory_test.sh exit`) but needs explicit owner approval and a
-  recovery plan. We have **not** entered factory mode.
-- Alternatively, code running *inside* an already-registered DJI process could
-  use the same DUSS channel. That is a hooking/modding step, also not read-only.
+- A Sparrow2 console exists, but it is **PC-fixture-hosted**, not an on-device
+  API. Reaching it means implementing the PC↔AMT/gadget protocol.
+- The AMT command surface is manufacturing/calibration/file/auth, not IQ
+  (see the AMT section below).
+- The AP-side Sparrow2 channels are logs/dumps only (see channel inventory).
+- IQ/samples exist inside Sparrow2's DSP/L1C, but **no exposed AP path** was
+  found. The C5VRX analogy does not map cleanly: ESP32-C5 has a ROM
+  `MODEM_DIAG` path; Sparrow2's firmware is encrypted and its debug console is
+  host-gated.
+
+## Sparrow2 channel inventory (from `dji.json`)
+
+`sdrs_agent_service.configuration.sdrs_log.channel`:
+
+| channel | transport | endpoint | purpose |
+|---|---|---|---|
+| `uart_log_in` | `/dev/ttyS1` 921600 | — | Sparrow2 UART log |
+| `uart_log_store` | dls | — | log store |
+| `modem_da_log` | bulk_single | `/bulk/s2_da`, iface 7, ep 88/08 | DA/modem log |
+| `da_log_out` | socket | → `modem_da_log` | socket feed |
+| `sdr_dump` | bulk_single | `/bulk/s2_sdrdump`, iface 6, ep 87/07 | crash/RAM dump (status 0) |
+| `dump_store` | dump_v1 | — | dump sink |
+| `ap/cp/l1c/dsp_crash_store` | dls | — | crash stores (status 0) |
+
+Other HAL bulk devices: `/bulk/s2`, `/bulk/e3t_sys-s2_hs`,
+`/bulk/s2_remotefile`, `/bulk/pc`. **None is an IQ/ADC/FFT channel.** The
+`modem_da_log` and `sdr_dump` endpoints are logs/dumps, and `sdr_dump` is
+disabled.
+
+Firmware boot inventory (`sdrs_agent_service.configuration.bootctrl.image`):
+`bootarea`, `scp`, `share_info`, `amt`, `pwr`, `cp_nvram`, `rf_nvram`, `ipc`,
+`dsp`, `l1c`, `cp`, `ap` — flashed to `modem-sparrow-*` partitions every boot.
+The user-space images are encrypted/signed, so no static command table is
+recoverable without breaking vendor protection.
+
+## AMT is manufacturing/calibration/file/auth, not IQ
+
+`dji_amt` is the AMT service (DUSS host `glass:2` = `0x1c02`). Its PC-facing
+commands, from readable strings, are:
+
+- `sys_amt_get_serial_number` / `sys_amt_set_serial_number`
+- `sys_amt_task_get_log`, `sys_amt_task_get_result`
+- `sys_amt_file_recv_req_proc`, `sys_amt_file_send_proc` (file transfer with
+  CRC32, including OTP file receive)
+- `sys_amt_audio_factory_test` (speaker CALIB / Play / Stop)
+- `sys_amt_task_check_securedebug_auth`, `sec_cmd_act_send_onetime_auth`,
+  `sec_cmd_verify_onetime_msg`, nonce / onetime auth
+- `start_factory`, `start_factory_oneshot`, `stop_factory`,
+  `set_ssd_from_factory`, `reset_ssd_from_factory`
+- `sys_amt_task_generate_auth_msg`, `dji_command_security_module_general`
+
+There is **no** `iq`, `sample`, `adc`, `spectrum`, `rf_read`, or `dump_iq`
+command. The protocol also includes OTP/file writes and secure-debug auth,
+which we will not exercise. So the AMT/PC route is not an IQ path and carries
+real security risk.
 
 ## `dji_engpc` is LTE/WCN engineering, not Sparrow2
 
