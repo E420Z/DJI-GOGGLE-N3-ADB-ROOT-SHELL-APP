@@ -1,0 +1,18 @@
+# Documentation
+
+| File | What |
+|---|---|
+| [`APP.md`](APP.md) | App pages, workflows, troubleshooting, development. |
+| [`ROOT-EXPLOIT.md`](ROOT-EXPLOIT.md) | Detailed root-shell / blackbox exploit notes. |
+| [`REPRODUCE.md`](REPRODUCE.md) | Reproduction steps. |
+| [`ADB-ROOT.md`](ADB-ROOT.md) | ADB enable path and root breakthrough notes. |
+| [`SELINUX.md`](SELINUX.md) | SELinux domain findings. |
+| [`SAFETY.md`](SAFETY.md) | Scope, recovery, legal. |
+| [`LIVE-STREAM.md`](LIVE-STREAM.md) | 160×90/57 fps UI stream, Toolya/H.264 comparison. |
+| [`OVERLAY-SDK.md`](OVERLAY-SDK.md) | In-goggles window compositing and the SDK. |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Why an in-process mod SDK, not an Android app. |
+| [`DEBUG-TOOLKIT.md`](DEBUG-TOOLKIT.md) | Screenshots, logs, diffs, watchdog, key injection. |
+| [`SCREENSHOTS.md`](SCREENSHOTS.md) | Safe dmabuf capture details. |
+| [`GFSK.md`](GFSK.md) | GFSK link-metrics provider notes. |
+
+Start with `APP.md` for usage and `ROOT-EXPLOIT.md` for the transport.

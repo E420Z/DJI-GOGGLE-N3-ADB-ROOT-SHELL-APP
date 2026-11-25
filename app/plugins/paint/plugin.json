@@ -1,0 +1,11 @@
+{
+  "id": "paint",
+  "name": "Paint Overlay",
+  "version": "0.1",
+  "type": "debug",
+  "description": "Minimal window painter used to prove safe dmabuf compositing.",
+  "risk": "low",
+  "so": "files/n3paint.so",
+  "filename": "n3paint.so",
+  "experimental": true
+}

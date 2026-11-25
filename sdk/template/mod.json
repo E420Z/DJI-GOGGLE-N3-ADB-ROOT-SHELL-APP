@@ -1,0 +1,8 @@
+{
+  "id": "n3hello",
+  "name": "Hello N3",
+  "version": "0.1",
+  "type": "preload",
+  "so": "n3hello.so",
+  "description": "SDK template app: window, text, animation, BACK exit."
+}

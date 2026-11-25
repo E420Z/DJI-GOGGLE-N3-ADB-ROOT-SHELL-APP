@@ -1,0 +1,11 @@
+{
+  "id": "n3menu",
+  "name": "N3 Menu",
+  "version": "0.2",
+  "type": "app",
+  "description": "In-goggles menu with live pages. Push-time composited, no frame suppression.",
+  "risk": "low",
+  "so": "files/n3menu.so",
+  "filename": "n3menu.so",
+  "experimental": false
+}

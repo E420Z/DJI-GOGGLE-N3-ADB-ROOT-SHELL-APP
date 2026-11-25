@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Runtime state / captures
+app/state/
+debug/
+shots/
+*.apng
+*.gif
+
+# DJI stock binaries: keep these local only. They are extracted from the
+# device/firmware and are not redistributed in this repo.
+app/assets/libew_gls_stock.so
+app/assets/dji_glasses_vendor
+app/assets/background_reference.jpg
+
+# Toolchain outputs
+sdk/dist/
+mods/**/*.o
+.pytest_cache/

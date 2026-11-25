@@ -1,0 +1,8 @@
+{
+  "id": "n3paint",
+  "name": "N3 Paint Overlay",
+  "version": "0.1",
+  "type": "preload",
+  "so": "n3paint.so",
+  "description": "Paints a small panel into the live dmabuf; never suppresses frames."
+}

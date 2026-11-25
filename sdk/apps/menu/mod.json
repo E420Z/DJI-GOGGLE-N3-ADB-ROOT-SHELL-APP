@@ -1,0 +1,8 @@
+{
+  "id": "n3menu",
+  "name": "N3 Menu",
+  "version": "0.1",
+  "type": "preload",
+  "so": "n3menu.so",
+  "description": "SDK menu demo: swipe to move, tap/ENTER select, BACK back/exit."
+}

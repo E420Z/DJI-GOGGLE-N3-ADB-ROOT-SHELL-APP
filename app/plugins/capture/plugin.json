@@ -1,0 +1,11 @@
+{
+  "id": "capture",
+  "name": "Safe Capture",
+  "version": "0.2",
+  "type": "debug",
+  "description": "Thread-only dmabuf capture for screenshots. No display detour.",
+  "risk": "low",
+  "so": "files/hook_capture.so",
+  "filename": "hook_capture.so",
+  "experimental": false
+}

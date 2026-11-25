@@ -1,0 +1,11 @@
+{
+  "id": "n3live",
+  "name": "N3 Live Stream",
+  "version": "0.1",
+  "type": "debug",
+  "description": "Downscaled dmabuf stream over a FIFO for the app's live preview.",
+  "risk": "low",
+  "so": "files/n3live.so",
+  "filename": "n3live.so",
+  "experimental": false
+}
