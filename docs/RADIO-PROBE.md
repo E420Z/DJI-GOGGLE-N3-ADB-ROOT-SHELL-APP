@@ -100,6 +100,21 @@ act as a display; the O4 modem is not involved.
 receiver board and feed the **display/video plane**; it cannot be sampling the
 O4 modem through the AP.
 
+## Factory/test surface (also checked)
+
+- `/system/bin/amt_test_cmd` (8 KB), `dji_engpc` (137 KB), `dji_mb_ctrl` (18 KB),
+  and `dji_sdrs_agent` (385 KB) contain **no readable** `analog`, `FM`, `IQ`,
+  `ADC`, `spectrum`, or `demod` strings. `dji_sdrs_agent` is packed/stripped
+  enough that even printable-string extraction is empty.
+- `/system/bin/dji_mb_ctrl_safe.sh` is an **aging-test lock wrapper** around
+  `dji_mb_ctrl`, not an RF mode.
+- `/system/etc/dji_autotest/` exists, but has no analog/RF/SDR hits.
+- `dji_wlm` readable strings are trace/link (`sdr_enable`, `lte_enable`,
+  `test_air_send`), not sample capture.
+- SDRUART is pairing/role/link control; `dji_bb_dls.json` stores are crash dumps.
+- Public G3 sources also state G3/N3 only support the O4 digital link; analog
+  needs an added receiver/module (or a Cosmostreamer-style external box).
+
 ## What is *not* present
 
 - No HDMI/DP input (`hdmi_dp_in=false`).
