@@ -925,6 +925,12 @@ class App(ctk.CTk):
                 "Theme", "Missing stock lib:\n%s\n\nPlace the stock "
                 "libew_gls.so there (it is intentionally not in git)." % STOCK_LIB)
             return
+        loader = os.path.join(APP_DIR, "assets", "dji_glasses_vendor")
+        if not os.path.exists(loader):
+            messagebox.showerror(
+                "Theme", "Missing UI loader:\n%s\n\nPlace dji_glasses_vendor "
+                "there (extracted from your device; not in git)." % loader)
+            return
         if not messagebox.askyesno(
                 "Apply theme", "Build and install the '%s' theme?\n"
                 "The UI will restart." % preset):
