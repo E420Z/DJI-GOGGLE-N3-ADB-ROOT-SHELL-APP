@@ -243,20 +243,7 @@ testing, and we did test it (`sdr_shell`). The result is that Sparrow2's version
 of that path is host-gated and its command vocabulary is encrypted. No
 equivalent on-device IQ door was found.
 
-## 10. Practical analog route
-
-If the goal is analog 5.8 GHz video in the goggles, the supported path is
-external:
-
-1. **5.8 GHz analog receiver** module (a standard FPV VRX with CVBS out).
-2. **CVBS → USB** capture (or a small MCU) → H.264 / MJPEG.
-3. Feed the N3 **display/video plane** via `test_disp` / `/data/disp_fifo` or the
-   overlay SDK (`n3sdk`).
-
-This uses the goggles as a display and leaves Sparrow2 / O4 untouched. It is a
-hardware + software add-on, not an internal IQ tap.
-
-## 11. Conclusion
+## 10. Conclusion
 
 - Sparrow2 definitely produces IQ internally, but the AP has **no exposed
   IQ/ADC/FFT interface** and no documented sample command.
@@ -266,13 +253,13 @@ hardware + software add-on, not an internal IQ tap.
   touches OTP/secure-debug — out of scope.
 - The C5VRX analogy does **not** map cleanly: ESP32-C5 has a ROM `MODEM_DIAG`
   path; Sparrow2's firmware is encrypted and its console is host-gated.
-- The practical analog-video route is **external**: a 5.8 GHz analog receiver
-  feeding the N3 display/video plane, which the app already supports
-  (`test_disp`, `/data/disp_fifo`, video plane).
+- **No on-goggles software path was found.** Further work would require
+  vendor-internal access (the encrypted firmware / factory fixture) or added
+  hardware, both outside this project's scope.
 
 ---
 
-## 12. What was NOT done
+## 11. What was NOT done
 
 - No `/system` writes, dm-verity/partition changes.
 - No OTP, RPMB, fuse, bootloader, or SPI/NVRAM writes.
@@ -283,7 +270,7 @@ hardware + software add-on, not an internal IQ tap.
 
 ---
 
-## 13. Evidence and tools
+## 12. Evidence and tools
 
 - Master summary: `SDR findings/N3-RADIO-PROBE.md`
 - Evidence: `SDR findings/device-evidence/2026-11-25_19-42-02/`

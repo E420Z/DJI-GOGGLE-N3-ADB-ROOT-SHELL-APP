@@ -16,8 +16,8 @@
 - Added the in-app **Load findings** view and `n3_sparrow2_report.py` for a
   one-command read-only report.
 - Result: **no exposed AP-side IQ/ADC channel.** The console is a factory-PC
-  tool; the practical analog route is an external receiver into the display
-  video plane.
+  tool. The remaining on-goggles leads are the bulk/AMT channels
+  (logs/file/auth), not IQ.
 - Added portable probes: `probe_n3_factory_*.py`, `probe_n3_amt_proto.py`,
   `probe_n3_sdr_console*.py`.
 

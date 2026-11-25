@@ -32,10 +32,8 @@ Evidence: `device-evidence/2026-11-25_19-42-02/`
 - The N3 **does** have a real **display video path**: `/proc/display/testcmd`,
   a **video plane 4 (NV12)**, gfx planes 5/6, a writeback plane 7, `test_disp`,
   `/data/disp_fifo`, `/dev/dji_video_in`, `/dev/dji_vtx`, and hardware
-  H.264/H.265/JPEG encoders.
-- That display path is the likely mechanism behind an “analog mod”: add a
-  5.8 GHz **analog receiver**, decode its video, and feed the goggles’ display
-  plane. It does **not** sample the O4 modem.
+  H.264/H.265/JPEG encoders. It is a display/video path only — not an RF
+  sampler.
 
 ## Radio evidence
 
@@ -89,10 +87,6 @@ Media service: liveview + local/remote playback supported;
 - `dji_video_in` is a platform driver (`video_in_probe success`); likely the
   decoded-video input path, not an RF sampler.
 
-**This is the practical “analog mod” path:** external 5.8 GHz receiver →
-composite/decoded video → ARGB/NV12/H.264 → `test_disp`/video plane. The goggles
-act as a display; the O4 modem is not involved.
-
 ## Deep check of the C5 (Sparrow2) USB interfaces
 
 - The C5 exposes **11 vendor interfaces**, all `class ff / subclass 43 / proto 01`,
@@ -119,9 +113,8 @@ act as a display; the O4 modem is not involved.
   frame input**, not an RF sampler.
 
 **Conclusion (updated):** there is no exposed analog/IQ path from the built-in
-Sparrow2 modem. A G3-style "internal-only" analog mod would have to add a
-receiver board and feed the **display/video plane**; it cannot be sampling the
-O4/Sparrow2 modem through the AP.
+Sparrow2 modem. No on-goggles sampling/console path has been found. The display
+path is a display/video path only; it does not sample the O4/Sparrow2 modem.
 
 ## Factory/test surface (also checked)
 
@@ -157,23 +150,21 @@ O4/Sparrow2 modem through the AP.
    query stayed at `-1007`. The remaining route is the **PC↔AMT/gadget
    protocol**, which is manufacturing/calibration/file/auth (including OTP file
    receive and secure-debug auth) and is **not IQ**. Not recommended.
-2. **In-process DUSS client** (hooking): code inside an already-registered DJI
-   process could use the `0x55` channel. Non-read-only, high effort, and still
-   no evidence of an IQ command. Only worth revisiting if a command table
-   surfaces.
-3. **Controlled display test** (needs owner approval): use `test_disp` with a
-   known ARGB frame on a non-critical plane, with a recovery plan
-   (`start_stock_ui` / power-cycle). This proves the display-injection path.
-4. **External video pipeline**: external 5.8 GHz analog receiver → host/Pi →
-   MJPEG/H.264 → N3 overlay/display plane. We can build the software side with
-   `n3sdk`. This is the practical analog route.
-5. **Do not** enable `sdr_dump`, flash modem images, or touch OTP/keys/AMT
+2. **In-process DUSS client / host registration** (hooking): code inside an
+   already-registered DJI process could use the `0x55` channel or bind the
+   `test:7` host. Non-read-only, high effort, and still no evidence of an IQ
+   command. Only worth revisiting if a command table surfaces.
+3. **Alternate on-device surfaces** (static/read-only): `/bulk/s2_remotefile`,
+   `/bulk/s2_da`, and the AMT/USB gadget protocol are the remaining
+   AP↔Sparrow2 channels. They are logs/file/auth, not IQ, but they are the only
+   on-goggles software left to inspect.
+4. **Do not** enable `sdr_dump`, flash modem images, or touch OTP/keys/AMT
    secure-debug chasing IQ. The AP has no readback and the images are
    encrypted.
 
 **Recommended order:** the on-device console theory has been tested and closed.
-Go with steps 3–4 (display injection / external receiver). Keep the console and
-AMT findings as documentation of what was ruled out.
+The only remaining on-goggles software leads are the bulk/AMT channels; treat
+them as read-only research, not an IQ claim.
 
 ## AP ↔ Sparrow2 control path (DUSS) — checked
 
@@ -475,29 +466,10 @@ test.
 The DJI goggles’ “C5” is a **Sparrow2 modem** (`2ca3:1020`) with encrypted
 firmware and no AP readback. The two “C5” names are unrelated.
 
-**Therefore:** a self-contained “only the goggles” analog mod most likely has an
-**ESP32-C5 (or similar) receiver board inside the shell**, using the goggles’
-antennas and feeding CVBS/video into the goggles’ video input or display. It is
-not sampling the DJI O4 modem.
+**Therefore:** the C5VRX trick does not map to Sparrow2 as-is. Its enabler is a
+reachable PHY debug path; Sparrow2's equivalent is encrypted and/or
+factory-hosted. No on-goggles IQ/sample door was found.
 
-Stock N3 evidence: no Espressif USB/SPI device, no CVBS/PAL/NTSC/TVP/ADV7
-decoder in I²C/V4L2, and `/dev/dji_video_in` is a DUSS video-frame input, not
-an RF sampler. An internal mod would add its own receiver/decoder hardware.
-
-## Public mod check (Visor / analog)
-
-- The G3 **Visor Mod** (Cosmostreamer) is described as outputting/streaming the
-  **original video received from the drone** and PiP/network features. It is not
-  evidence of the C5 modem producing analog/IQ samples.
-- G3/N3 documentation and community reports say the goggles only support the
-  **O4 digital link**; analog needs an added receiver/module or an external
-  box. No public teardown shows a C5 IQ/sample interface.
-- A self-contained “all inside the goggles” analog mod still has to add a
-  receiver board or tap the modem/display hardware. That is a hardware mod, not
-  an exposed AP software path.
-
-## If the G3 mod is real
-
-It most likely uses the **display/video plane** (or an added receiver), not the
-O4 IQ. Send the link/photos; the key question is whether it connects to a
-receiver board or to the display/DSI/video plane.
+Stock N3 evidence: no Espressif USB/SPI device and no CVBS/PAL/NTSC/TVP/ADV7
+decoder in I²C/V4L2. `/dev/dji_video_in` is a DUSS video-frame input, not an RF
+sampler.
