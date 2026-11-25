@@ -219,7 +219,44 @@ which we will not exercise.
 
 ---
 
-## 9. Conclusion
+## 9. Why this is not the C5VRX trick
+
+C5VRX (Twotoz) uses an **ESP32-C5** and an undocumented **MODEM_DIAG /
+BitScrambler** path to pull IQ from the ESP32-C5's own Wi-Fi/5 GHz PHY, then a
+6-bit resistor DAC to make CVBS. The enabler is that the ESP32-C5 has a debug
+path reachable from software.
+
+Sparrow2 is different:
+
+- Its AP/CP/DSP/L1C images are encrypted/signed; there is no readable command
+  table or register map.
+- Its text console (`sdr_shell`) is a **factory-PC** channel (`test:7` =
+  `0x1e07`), not an on-device API.
+- The AP-side "SDR" configuration is the **digital link**, not IQ:
+  `sdr_agent_host_id 0x0e00`, `sdrs_agent_host_id 0x0e04`,
+  `sdr_threshold_kbps 4000`, `SDR_ONLY` / `HYBRID_LTE_SDR` link modes, and
+  `sdr_rpt_tunnel_map`. These are throughput/tunnel settings.
+- The AP-side channels are UART/DA logs and a disabled crash dump.
+
+So the C5VRX *idea* (find the vendor's undocumented debug path) was worth
+testing, and we did test it (`sdr_shell`). The result is that Sparrow2's version
+of that path is host-gated and its command vocabulary is encrypted. No
+equivalent on-device IQ door was found.
+
+## 10. Practical analog route
+
+If the goal is analog 5.8 GHz video in the goggles, the supported path is
+external:
+
+1. **5.8 GHz analog receiver** module (a standard FPV VRX with CVBS out).
+2. **CVBS → USB** capture (or a small MCU) → H.264 / MJPEG.
+3. Feed the N3 **display/video plane** via `test_disp` / `/data/disp_fifo` or the
+   overlay SDK (`n3sdk`).
+
+This uses the goggles as a display and leaves Sparrow2 / O4 untouched. It is a
+hardware + software add-on, not an internal IQ tap.
+
+## 11. Conclusion
 
 - Sparrow2 definitely produces IQ internally, but the AP has **no exposed
   IQ/ADC/FFT interface** and no documented sample command.
@@ -235,7 +272,7 @@ which we will not exercise.
 
 ---
 
-## 10. What was NOT done
+## 12. What was NOT done
 
 - No `/system` writes, dm-verity/partition changes.
 - No OTP, RPMB, fuse, bootloader, or SPI/NVRAM writes.
@@ -246,7 +283,7 @@ which we will not exercise.
 
 ---
 
-## 11. Evidence and tools
+## 13. Evidence and tools
 
 - Master summary: `SDR findings/N3-RADIO-PROBE.md`
 - Evidence: `SDR findings/device-evidence/2026-11-25_19-42-02/`

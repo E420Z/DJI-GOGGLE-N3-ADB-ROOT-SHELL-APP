@@ -104,7 +104,10 @@ act as a display; the O4 modem is not involved.
   not sample streams.
 - `wlm_cfg.json` has link/video keys (`support_dual_chnl_video`,
   `video_4d_slice_hdr`, `video_5d_slice_hdr`) — digital link configuration, no
-  analog/FM/IQ mode.
+  analog/FM/IQ mode. The `sdr` keys there mean the **digital link**, not IQ:
+  `sdr_agent_host_id 0x0e00`, `sdrs_agent_host_id 0x0e04`,
+  `sdr_threshold_kbps 4000`, `sdr_rpt_tunnel_map`, and `SDR_ONLY` /
+  `HYBRID_LTE_SDR` link modes. They are throughput/tunnel settings.
 - `gfsk_agent_cfg.json` has a `gfsk_crash_dump` channel only.
 - The SDRUART log is pairing/role/link control (`cp_role`, `sdr state`,
   `pair cmd`), not samples.
@@ -282,7 +285,8 @@ duss_event_send_sync_v2() error: -1002   (no machine route)
 
 So the blocker is **host registration**, not the command text. A socket audit
 (`/proc/net/unix`) shows the local DUSS hosts that exist in normal mode:
-`0x1c00…0x1c07`, `0x1d02`, `0x1f00`, `0xe03/0xe04/0xe07`, `0x1704`, `0x0500`.
+`0x1c00`, `0x1c01`, `0x1c02`, `0x1c04`–`0x1c07`, `0x1d02`, `0x1f00`,
+`0x0e03/0x0e04/0x0e07`, `0x1704`, `0x0500`, `0x0`.
 There is **no `@/duss/mb/0x1e07`**. `dji_amt` is `0x1c02` and `dji_sys` is
 `0x1c01`. The `test:7` host is the **factory PC fixture**, not an on-device
 service. `sdr_shell` is therefore a PC-factory tool that happens to ship in
