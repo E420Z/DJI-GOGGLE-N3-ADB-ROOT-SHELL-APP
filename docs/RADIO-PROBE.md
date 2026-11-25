@@ -166,6 +166,25 @@ path.
 - `dji_wifi_cli` is a station scan/connect CLI, not an SDR/IQ tool.
 - So the built-in Wi-Fi/BT path is not an accessible raw-IQ receiver either.
 
+## Memory / RAM / AMT keys — checked
+
+- `/dev/mem` exists, root-only (`crw-------`), and SELinux is enforcing.
+  `/dev/kmem`, `/dev/port`, and `/proc/kcore` are absent.
+- `/dev/mem` maps **AP DRAM** (`System RAM 0x00000000-0x3b9fffff`), not the C5
+  modem’s RAM. The C5 is a separate USB modem; its RAM is not in the AP physical
+  map.
+- The only AP-visible modem memory path is `s2_sdrdump` — a **crash/RAM dump**
+  channel (`AP/CP/L1C/DSP_crash.bin`), off by default and event-triggered. It is
+  not a live IQ/sample stream.
+- `dji_amt` config is **modem calibration/NVRAM**:
+  `modem-pub_key` + `/cali/sdr/nvram/amt.bin` (vendor/original/backup).
+  It is the PRAK public key and RF calibration, not an IQ or analog key.
+- `dji_amt` strings contain only normal libc/pthread symbols; no key material is
+  exposed in the binary.
+
+Reading AP RAM or extracting/using AMT keys would not produce C5 IQ, and
+extracting/bypassing keys is a security bypass we will not do.
+
 ## Exhaustive process/FD audit
 
 Only **one** process has a direct path to the C5:
