@@ -50,8 +50,9 @@ def main() -> int:
     s2 = open(os.path.join(docs, "SPARROW2.md"), encoding="utf-8",
               errors="replace").read().lower()
     for needle in ("sdr_shell", "0x1e07", "-1002", "-1007", "amt",
-                   "no exposed", "external"):
+                   "no exposed", "on-goggles", "bulk"):
         assert needle in s2, "SPARROW2.md missing: %s" % needle
+    assert "external receiver" not in s2, "SPARROW2.md must not recommend hardware"
     print("sparrow2 docs: ok")
 
     print("smoke OK")
