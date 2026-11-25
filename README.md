@@ -6,6 +6,10 @@ in-goggles menu apps, a live USB debug preview, and an in-goggles app SDK.
 
 ![N3 ROOT connection page](docs/screenshot.png)
 
+> **Private repository.** Keep it private. It contains root/exploit research and
+> device-specific notes. Do not publish tokens, DJI binaries, or personal data.
+> Unauthenticated access to the repo, release, and asset returns 404.
+
 > ## ⚠️ Experimental software
 >
 > The **custom menu/overlay** and **display-engine hooks** can break rendering.

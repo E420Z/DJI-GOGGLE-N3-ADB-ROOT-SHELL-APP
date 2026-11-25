@@ -16,5 +16,6 @@
 | [`SCREENSHOTS.md`](SCREENSHOTS.md) | Safe dmabuf capture details. |
 | [`GFSK.md`](GFSK.md) | GFSK link-metrics provider notes. |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history. |
+| [`RELEASE-v1.0.0.md`](RELEASE-v1.0.0.md) | Published prerelease notes + SHA256. |
 
 Start with `APP.md` for usage and `ROOT-EXPLOIT.md` for the transport.

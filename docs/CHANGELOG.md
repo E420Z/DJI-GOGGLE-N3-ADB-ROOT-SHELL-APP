@@ -5,7 +5,9 @@
 - Labelled experimental/crash-prone areas in the app, plugin manifests, README,
   and `docs/EXPERIMENTAL.md`. The N3 Menu is **experimental/beta**; the
   `displayFrame` hooks that black-screened are compile-time **off**.
-- Marked the GitHub release as a **prerelease** and included recovery steps.
+- Published **v1.0.0 as a private experimental prerelease** with
+  `N3-ROOT-v1.0.0.zip`.
+- Verified privacy: repo/release/asset return 404 without authentication.
 
 - New CustomTkinter control deck: Connection, E42OZ, Root Shell, Mods & UI,
   Logs, Settings.
