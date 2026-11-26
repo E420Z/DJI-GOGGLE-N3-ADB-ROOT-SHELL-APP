@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased - PC stream working (2026-11-26)
+
+- **PC screen to goggles works**, verified end to end: 11.8 fps sustained at
+  1280x720 with only 2 frames over budget in a 20 s run.
+- Latency fixed by dropping stale frames: the receiver skips to the newest
+  queued frame before decoding and caps `SO_RCVBUF` at 256 KB. `pcstream.py`
+  paces to what the goggles can consume (12 fps at 720p, 5 at 1080p).
+- Anti burn-in (`DuScreenSaver`) identified: a bitmap slideshow that steps
+  every ~1.6 s and is dismissed by **key input, not motion**. While `fb_hold`
+  exists the hook sends a BACK key every ~20 s, invisibly under the stream.
+- Hook fixes: the push detour re-asserts the frame while `fb_hold` exists,
+  cleanup no longer deletes `fb_shared` or kills `fb_receiver`, and a stale
+  `fb_stop` is cleared at receiver startup (it silently disabled injection).
+- New `app/tools/pcstream.py` sender (size/fps/quality, TCP_NODELAY, small
+  SO_SNDBUF) and a rewritten `mods/stream/README.md` with the working recipe.
+
 ## Unreleased - Stage 2 groundwork: hardware H.264 (2026-11-26)
 
 - PC side proven: h264_nvenc encodes 1080p60 at **8x realtime** (300 frames in
