@@ -45,19 +45,19 @@ class SafetyBadge(ctk.CTkLabel):
         kwargs.setdefault("padx", 7 if compact else 8)
         super().__init__(
             parent,
-            text=self._label(),
+            text=self._badge_text(),
             font=theme.font(9 if compact else 10, True),
             text_color=theme.safety_color(self.level),
             fg_color=theme.safety_bg(self.level),
             **kwargs,
         )
 
-    def _label(self) -> str:
+    def _badge_text(self) -> str:
         return self.level if self.compact else "●  " + self.level
 
     def set_level(self, level: str) -> None:
         self.level = normalize_level(level)
-        self.configure(text=self._label(),
+        self.configure(text=self._badge_text(),
                        text_color=theme.safety_color(self.level),
                        fg_color=theme.safety_bg(self.level))
 
