@@ -52,6 +52,28 @@ More captures: [`docs/screenshots/`](docs/screenshots/).
 
 ---
 
+## New app base (in progress)
+
+The desktop control deck is moving from CustomTkinter to **Python + HTML/CSS/JS**
+hosted by `pywebview` (WebView2). Same backend, real animations and a more
+professional shell.
+
+```powershell
+py -3.12 -m pip install -r requirements.txt
+py -3.12 app/webapp.py      # new web UI
+py -3.12 app/main.py        # classic Tk fallback
+```
+
+The web UI calls a narrow API in [`app/webapp.py`](app/webapp.py); the static
+files under `app/web/` never touch ADB or the root shell. See
+[`docs/WEB-UI.md`](docs/WEB-UI.md) and
+[`app/web/API.md`](app/web/API.md).
+
+OpenDesign is used as a **design reference** for the dashboard layout; it is
+not a runtime dependency. Claude/OpenDesign work is restricted to `app/web/`.
+
+---
+
 ## What it does
 
 - **Connection page** — live USB / root shell / ADB status, with buttons to

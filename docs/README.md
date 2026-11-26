@@ -3,6 +3,7 @@
 | File | What |
 |---|---|
 | [`APP.md`](APP.md) | App pages, workflows, troubleshooting, development. |
+| [`WEB-UI.md`](WEB-UI.md) | **New pywebview + HTML/CSS/JS app base: API, architecture, safety boundary.** |
 | [`ROOT-EXPLOIT.md`](ROOT-EXPLOIT.md) | Detailed root-shell / blackbox exploit notes. |
 | [`REPRODUCE.md`](REPRODUCE.md) | Reproduction steps. |
 | [`ADB-ROOT.md`](ADB-ROOT.md) | ADB enable path and root breakthrough notes. |

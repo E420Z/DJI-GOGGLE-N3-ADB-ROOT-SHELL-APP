@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>N3 ROOT</title>
+<style>
+  :root {
+    --bg: #08060d;
+    --panel: rgba(22, 18, 32, .78);
+    --line: rgba(255,255,255,.08);
+    --text: #f4f0ff;
+    --muted: #9d93b8;
+    --accent: #b44bff;
+    --safe: #4ade80;
+    --warn: #fbbf24;
+    --bad: #f87171;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background:
+      radial-gradient(900px 600px at 80% -10%, rgba(180,75,255,.18), transparent 65%),
+      radial-gradient(700px 500px at -10% 110%, rgba(90,40,180,.14), transparent 70%),
+      var(--bg);
+    color: var(--text);
+    font: 14px/1.45 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    overflow: hidden;
+  }
+  .shell { display: flex; height: 100%; }
+  .side {
+    width: 248px; padding: 26px 18px;
+    background: linear-gradient(180deg, rgba(20,16,30,.92), rgba(12,9,18,.96));
+    border-right: 1px solid var(--line);
+    display: flex; flex-direction: column;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .mark {
+    width: 42px; height: 42px; border-radius: 13px;
+    background: conic-gradient(from 210deg, #b44bff, #6d28d9, #b44bff);
+    box-shadow: 0 0 28px rgba(180,75,255,.45);
+    display: grid; place-items: center; font-weight: 800;
+  }
+  .brand h1 { font-size: 19px; margin: 0; letter-spacing: .2px; }
+  .brand small { color: var(--muted); font-size: 9px; letter-spacing: 1.6px; }
+  .nav-label { color: #6f6686; font-size: 9px; letter-spacing: 1.6px; margin: 16px 10px 6px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: 12px; color: var(--muted);
+    border: 1px solid transparent;
+  }
+  .nav-item.active {
+    color: var(--text);
+    background: linear-gradient(90deg, rgba(180,75,255,.18), rgba(180,75,255,.03));
+    border-color: rgba(180,75,255,.28);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .spacer { flex: 1; }
+  .foot { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--panel); }
+  .foot b { color: var(--safe); font-size: 12px; }
+  .foot span { color: var(--muted); font-size: 10px; }
+  .main { flex: 1; padding: 30px 34px; overflow: auto; }
+  .top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
+  .top h2 { margin: 0; font-size: 28px; letter-spacing: -.4px; }
+  .top p { margin: 4px 0 0; color: var(--muted); }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 999px; padding: 4px 10px; font-size: 10px; font-weight: 700;
+    letter-spacing: .6px; border: 1px solid rgba(255,255,255,.12);
+    color: var(--warn); background: rgba(251,191,36,.08);
+  }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card {
+    background: linear-gradient(180deg, rgba(28,23,41,.86), rgba(17,13,25,.9));
+    border: 1px solid var(--line); border-radius: 18px; padding: 18px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.25);
+    transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
+  }
+  .card:hover { transform: translateY(-2px); border-color: rgba(180,75,255,.32); box-shadow: 0 22px 50px rgba(0,0,0,.35); }
+  .card h3 { margin: 0 0 8px; font-size: 11px; letter-spacing: 1.4px; color: var(--muted); font-weight: 700; }
+  .value { font-size: 22px; font-weight: 700; }
+  .value.green { color: var(--safe); }
+  .value.red { color: var(--bad); }
+  .value.dim { color: var(--muted); }
+  .sub { color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .panel {
+    margin-top: 16px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 18px; padding: 18px;
+  }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--safe); animation: pulse 1.8s infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(74,222,128,.45); } 50% { box-shadow: 0 0 0 7px rgba(74,222,128,0); } }
+  pre { color: var(--muted); font: 11px/1.5 "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  button {
+    border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04);
+    color: var(--text); padding: 9px 14px; border-radius: 10px; cursor: pointer;
+    font: inherit; transition: background .2s, transform .2s;
+  }
+  button:hover { background: rgba(180,75,255,.16); transform: translateY(-1px); }
+  button.primary { background: linear-gradient(135deg, #c05cff, #7a2be0); border-color: transparent; font-weight: 700; }
+  @media (max-width: 1000px) { .grid { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <div class="mark">N3</div>
+      <div><h1>N3 ROOT</h1><small>GOGGLES N3 · CONTROL DECK</small></div>
+    </div>
+    <div class="nav-label">DEVICE</div>
+    <div class="nav-item active"><span class="dot"></span>Connection</div>
+    <div class="nav-item">E42OZ</div>
+    <div class="nav-item">Sparrow2</div>
+    <div class="nav-label">SYSTEM</div>
+    <div class="nav-item">Root Shell</div>
+    <div class="nav-item">Mods &amp; UI</div>
+    <div class="nav-item">Logs</div>
+    <div class="nav-item">Settings</div>
+    <div class="spacer"></div>
+    <div class="foot">
+      <b id="sideStatus">checking…</b><br>
+      <span>USB · ROOT · ADB</span>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="top">
+      <div>
+        <h2>Connection</h2>
+        <p>Device link, root session and recovery</p>
+      </div>
+      <span class="badge">● RISKY</span>
+    </div>
+    <div class="grid">
+      <div class="card"><h3>USB DEVICE</h3><div class="value dim" id="usb">…</div><div class="sub">libusb0 · dji_blackbox</div></div>
+      <div class="card"><h3>ROOT SHELL</h3><div class="value dim" id="root">…</div><div class="sub">port 4444 · uid 0</div></div>
+      <div class="card"><h3>ADB</h3><div class="value dim" id="adb">…</div><div class="sub">USB composition</div></div>
+    </div>
+    <div class="panel">
+      <div style="display:flex;align-items:center;gap:8px"><span class="pulse"></span><b>Web UI shell is live</b></div>
+      <p class="sub">The full designed UI will replace this placeholder. The Python host is already wired to the backend API.</p>
+      <pre id="raw">waiting for pywebview…</pre>
+      <div class="row">
+        <button class="primary" onclick="refresh()">Refresh status</button>
+        <button onclick="apiCall('enable_adb')">Enable ADB</button>
+        <button onclick="apiCall('start_root')">Start root</button>
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const mock = {ui:true, patched:true, root:true, adb:true, usb:true, transport:"ADB + root", version:"1.0"};
+  async function status() {
+    const api = window.pywebview && window.pywebview.api;
+    if (!api) return mock;
+    try { return await api.status(); } catch (e) { return {error:String(e)}; }
+  }
+  function setv(id, v, good) {
+    const el = $(id); if (!el) return;
+    el.textContent = v; el.className = "value " + (good ? "green" : "red");
+  }
+  async function refresh() {
+    const s = await status();
+    setv("usb", s.usb ? "CONNECTED" : "OFFLINE", s.usb);
+    setv("root", s.root ? "OPEN" : "CLOSED", s.root);
+    setv("adb", s.adb ? "ONLINE" : "OFFLINE", s.adb);
+    $("sideStatus").textContent = s.transport || "offline";
+    $("raw").textContent = JSON.stringify(s, null, 2);
+  }
+  async function apiCall(name) {
+    const api = window.pywebview && window.pywebview.api;
+    if (!api) return alert("This action needs the pywebview host.");
+    $("raw").textContent = "running " + name + "…";
+    try { const r = await api[name](); $("raw").textContent = JSON.stringify(r, null, 2); }
+    catch (e) { $("raw").textContent = String(e); }
+    refresh();
+  }
+  window.addEventListener("pywebviewready", refresh);
+  refresh();
+</script>
+</body>
+</html>
