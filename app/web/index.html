@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -107,11 +107,11 @@
   <aside class="side">
     <div class="brand">
       <div class="mark">N3</div>
-      <div><h1>N3 ROOT</h1><small>GOGGLES N3 · CONTROL DECK</small></div>
+      <div><h1>N3 ROOT</h1><small>GOGGLES N3 Â· CONTROL DECK</small></div>
     </div>
     <div class="nav-label">DEVICE</div>
     <div class="nav-item active"><span class="dot"></span>Connection</div>
-    <div class="nav-item">E42OZ</div>
+    <div class="nav-item">E420Z</div>
     <div class="nav-item">Sparrow2</div>
     <div class="nav-label">SYSTEM</div>
     <div class="nav-item">Root Shell</div>
@@ -120,8 +120,8 @@
     <div class="nav-item">Settings</div>
     <div class="spacer"></div>
     <div class="foot">
-      <b id="sideStatus">checking…</b><br>
-      <span>USB · ROOT · ADB</span>
+      <b id="sideStatus">checkingâ€¦</b><br>
+      <span>USB Â· ROOT Â· ADB</span>
     </div>
   </aside>
   <main class="main">
@@ -130,17 +130,17 @@
         <h2>Connection</h2>
         <p>Device link, root session and recovery</p>
       </div>
-      <span class="badge">● RISKY</span>
+      <span class="badge">â— RISKY</span>
     </div>
     <div class="grid">
-      <div class="card"><h3>USB DEVICE</h3><div class="value dim" id="usb">…</div><div class="sub">libusb0 · dji_blackbox</div></div>
-      <div class="card"><h3>ROOT SHELL</h3><div class="value dim" id="root">…</div><div class="sub">port 4444 · uid 0</div></div>
-      <div class="card"><h3>ADB</h3><div class="value dim" id="adb">…</div><div class="sub">USB composition</div></div>
+      <div class="card"><h3>USB DEVICE</h3><div class="value dim" id="usb">â€¦</div><div class="sub">libusb0 Â· dji_blackbox</div></div>
+      <div class="card"><h3>ROOT SHELL</h3><div class="value dim" id="root">â€¦</div><div class="sub">port 4444 Â· uid 0</div></div>
+      <div class="card"><h3>ADB</h3><div class="value dim" id="adb">â€¦</div><div class="sub">USB composition</div></div>
     </div>
     <div class="panel">
       <div style="display:flex;align-items:center;gap:8px"><span class="pulse"></span><b>Web UI shell is live</b></div>
       <p class="sub">The full designed UI will replace this placeholder. The Python host is already wired to the backend API.</p>
-      <pre id="raw">waiting for pywebview…</pre>
+      <pre id="raw">waiting for pywebviewâ€¦</pre>
       <div class="row">
         <button class="primary" onclick="refresh()">Refresh status</button>
         <button onclick="apiCall('enable_adb')">Enable ADB</button>
@@ -172,7 +172,7 @@
   async function apiCall(name) {
     const api = window.pywebview && window.pywebview.api;
     if (!api) return alert("This action needs the pywebview host.");
-    $("raw").textContent = "running " + name + "…";
+    $("raw").textContent = "running " + name + "â€¦";
     try { const r = await api[name](); $("raw").textContent = JSON.stringify(r, null, 2); }
     catch (e) { $("raw").textContent = String(e); }
     refresh();
