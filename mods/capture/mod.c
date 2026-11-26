@@ -426,6 +426,7 @@ static int g_inject_fd = -1;
 static volatile unsigned int g_inject_last_counter = 0;
 static volatile int g_inject_active = 0;
 static volatile int g_inject_frames = 0;
+static int g_saver_ticks = 0;
 
 /* experiment instrumentation (used by cleanup + hook) */
 static volatile int g_exited_once = 0;
@@ -434,6 +435,7 @@ static volatile int g_post_exit_pushes = 0;
 static int g_push_count = 0;
 
 static void start_inject_thread(void);
+static void dismiss_saver(void);
 
 /* Write one key press+release (with SYN reports) to /dev/input/event0. */
 static void emit_key(int fd, unsigned short code) {
@@ -505,9 +507,7 @@ static void overlay_cleanup(void) {
      * process and holds an EVIOCGRAB on the input device, so until it dies our
      * synthetic input is swallowed instead of reaching the GUI. */
     sys_fn("kill -9 $(pidof doom_goggles) 2>/dev/null; "
-           "kill -9 $(pidof fb_receiver) 2>/dev/null; "
-           "rm -f /data/local/tmp/fb_override /data/local/tmp/fb_shared "
-           "/data/local/tmp/fb_stop; "
+           "rm -f /data/local/tmp/fb_override /data/local/tmp/fb_stop; "
            "i=0; while pidof doom_goggles >/dev/null 2>&1 && [ $i -lt 40 ]; "
            "do usleep 25000; i=$((i+1)); done");
     g_post_exit_pushes = 0;
@@ -572,10 +572,19 @@ static void *inject_thread_fn(void *arg) {
         int hold = sys_faccessat(AT_FDCWD, "/data/local/tmp/fb_hold", 0) == 0;
         if (counter == 0) continue;
         if (!hold && counter == g_inject_last_counter) continue;
+        if (hold) {
+            /* Keep the goggles' OLED screen saver away: it is dismissed by
+             * key input, and it otherwise steps every ~1.6 s over the stream. */
+            g_saver_ticks++;
+            if (g_saver_ticks >= 1200) {      /* ~20 s at 60 Hz */
+                g_saver_ticks = 0;
+                dismiss_saver();
+                NTLOG("inject: saver dismissed");
+            }
+        }
         g_inject_last_counter = counter;
-        /* With fb_hold the push detour does the copy on every presented frame,
-         * which is tighter than this 60 Hz tick. Stay out of its way. */
-        if (hold) continue;
+        /* fb_hold: also copy here every tick, in addition to the push detour,
+         * so a missed detour can never leave the UI showing instead. */
 
         /* Read the published FRONT slot (counter & 1); fb_receiver wrote the
          * other slot, so this copy can't catch a frame mid-write. */
@@ -910,6 +919,29 @@ static void copy_shared_frame(void) {
     g_inject_frames++;
 }
 
+/* ---- Saver dismissal ---------------------------------------------------- */
+
+/* The goggles' OLED screen saver (DuScreenSaver) is dismissed by input, not by
+ * motion. While a PC stream holds the display, send a BACK key every ~20 s so
+ * the saver cannot stay on screen. Invisible: the PC frame covers the UI. */
+static void dismiss_saver(void) {
+    int fd = (int)sys_openat(AT_FDCWD, "/dev/input/event0", 1 /*O_WRONLY*/, 0);
+    if (fd < 0) return;
+    struct input_event_t ev[4] = {
+        { 0, 0, EV_KEY, KEY_BACK, 1 },
+        { 0, 0, 0 /*EV_SYN*/, 0, 0 },
+        { 0, 0, EV_KEY, KEY_BACK, 0 },
+        { 0, 0, 0, 0, 0 },
+    };
+    sys_write(fd, &ev[0], sizeof(ev[0]));
+    sys_write(fd, &ev[1], sizeof(ev[1]));
+    struct timespec_t hold = { 0, 30000000 };
+    sys_nanosleep(&hold, 0);
+    sys_write(fd, &ev[2], sizeof(ev[2]));
+    sys_write(fd, &ev[3], sizeof(ev[3]));
+    sys_close(fd);
+}
+
 int duss_hal_display_push_frame(void *display_handle, int plane_id, void *frame_buf) {
     g_push_count++;
     natartos_health_signal++;
@@ -920,8 +952,8 @@ int duss_hal_display_push_frame(void *display_handle, int plane_id, void *frame_
     (void)frame_buf;
 
     /* While a PC stream holds the display, re-assert our frame on the very
-     * frame the UI is about to present. This is what stops the animated
-     * DuScreenSaver dialog from interleaving with the injected picture. */
+     * frame the UI is about to present, so the UI (and its DuScreenSaver
+     * dialog) cannot interleave with the injected picture. */
     if (g_inject_active &&
         sys_faccessat(AT_FDCWD, "/data/local/tmp/fb_hold", 0) == 0) {
         copy_shared_frame();

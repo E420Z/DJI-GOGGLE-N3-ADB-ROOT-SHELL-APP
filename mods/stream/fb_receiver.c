@@ -51,6 +51,12 @@
 #define LOG_PATH   "/data/local/tmp/fb_receiver.log"
 #define PORT 5570
 #define MAX_FRAME (4 * 1024 * 1024)
+#ifndef MSG_DONTWAIT
+#define MSG_DONTWAIT 0x40
+#endif
+#ifndef MSG_PEEK
+#define MSG_PEEK 0x2
+#endif
 
 static int g_shm_fd = -1;
 static unsigned char *g_shm = NULL;
@@ -175,8 +181,13 @@ static int serve_client(int fd) {
     unsigned char *rgba = malloc((size_t)FB_W * FB_H * 4);
     if (!jpg || !rgba) { free(jpg); free(rgba); return -1; }
 
+    /* Bound how much can queue up: a big socket buffer is what turns a slow
+     * decoder into seconds of delay. */
+    int rcvbuf = 256 * 1024;
+    setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf));
+
     logmsg("client connected\n");
-    unsigned long frames = 0;
+    unsigned long frames = 0, dropped = 0;
     double dec_ms = 0, blit_ms = 0;
     struct timespec t0, t1, t2;
     while (!g_stop) {
@@ -185,6 +196,20 @@ static int serve_client(int fd) {
         if (ok <= 0) break;
         if (len == 0 || len > MAX_FRAME) { logmsg("bad frame len %u\n", len); break; }
         if (read_full(fd, jpg, len) <= 0) break;
+
+        /* If newer frames are already queued, skip straight to the newest so
+         * latency stays at one decode instead of growing without bound. */
+        for (;;) {
+            uint32_t peek = 0;
+            ssize_t pr = recv(fd, &peek, 4, MSG_PEEK | MSG_DONTWAIT);
+            if (pr < 4) break;
+            if (peek == 0 || peek > MAX_FRAME) break;
+            uint32_t nl = 0;
+            if (read_full(fd, &nl, 4) <= 0) break;
+            if (read_full(fd, jpg, nl) <= 0) break;
+            len = nl;
+            dropped++;
+        }
 
         clock_gettime(CLOCK_MONOTONIC, &t0);
         int w = 0, h = 0, comp = 0;
@@ -229,6 +254,7 @@ int main(void) {
     signal(SIGPIPE, SIG_IGN);
 
     if (shm_init() != 0) return 1;
+    unlink(STOP_PATH);               /* clear a stale stop from a killed run */
     publish_idle(0);                 /* valid frame BEFORE anyone can inject */
 
     int srv = socket(AF_INET, SOCK_STREAM, 0);

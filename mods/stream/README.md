@@ -1,16 +1,13 @@
 # mods/stream — PC screen into the goggles
 
-The device half lives in `mods/capture/mod.c` (built as `hook_overlay.so`): it
-watches `/data/local/tmp/fb_override` and copies frames from
-`/data/local/tmp/fb_shared` into the live display buffer.
+Working configuration, verified on the owner's N3 (2026-11-26).
 
-This folder adds the other half: `fb_receiver`, a small aarch64 binary that
-listens for JPEG frames and publishes them into that shared buffer.
+## Architecture
 
 ```
-PC (PIL ImageGrab -> JPEG)  --TCP 5570-->  fb_receiver
+PC (PIL ImageGrab -> JPEG)  --TCP 5570-->  fb_receiver  (runs as su)
     -> /data/local/tmp/fb_shared (64-byte header, counter at 0, 2 x 8,294,400 B BGRA)
-    -> hook_overlay.so inject thread -> display
+    -> hook_overlay.so inject thread / push detour -> display
 ```
 
 ## Frame format
@@ -21,43 +18,54 @@ PC (PIL ImageGrab -> JPEG)  --TCP 5570-->  fb_receiver
 
 The receiver scales/letterboxes any size to 1920x1080 and converts RGB -> BGRA.
 
-## Build
+## Latency
 
-```powershell
-zig cc -target aarch64-linux-musl -static -O2 `
-  -I "C:\N3 goggles\natartos-src\include" `
-  -o mods\stream\fb_receiver mods\stream\fb_receiver.c -lm
-```
+The goggles decodes one 1080p frame in ~122 ms plus ~80 ms to publish it, so
+1080p tops out near 5 fps. Sending faster than that only builds a queue.
 
-`stb_image.h` (public domain) comes from the natartos include folder and is
-compiled in; the resulting binary is ~1.7 MB and fully static.
+Two things keep latency low:
+
+- `fb_receiver` **drops stale frames**: when several frames are already queued it
+  skips to the newest before decoding, and it sets `SO_RCVBUF` to 256 KB so a
+  backlog cannot grow into seconds.
+- `pcstream.py` **paces** to the rate the goggles can actually consume.
+
+Practical settings:
+
+| Size | Device per frame | Sender setting |
+|---|---|---|
+| 1280×720 | ~45 ms | `--fps 12` (comfortable) |
+| 960×540 | ~25 ms | `--fps 15` |
+| 1920×1080 | ~200 ms | `--fps 5` |
+
+## Anti burn-in (DuScreenSaver)
+
+The goggles runs an OLED screen saver: a bitmap slideshow that steps every
+~1.6 s. It is dismissed by **key input**, not by motion. While `fb_hold` exists
+the hook sends a BACK key every ~20 s, which keeps it off the screen; the PC
+frame covers the UI, so the key is invisible.
 
 ## Run
 
-The binary must run in the `u:r:su:s0` domain, i.e. over root ADB — the
-`dji_services` root shell cannot execute ELF files from `/data` (see
-`docs/ADB-ROOT.md`). The file must keep its default `system_data_file` label.
+```powershell
+# on the goggles (su/adb), file must be labelled system_data_file:
+adb push mods/stream/fb_receiver /data/local/tmp/fb_receiver_new
+adb shell su 0 chcon u:object_r:system_data_file:s0 /data/local/tmp/fb_receiver_new
+adb shell su 0 chmod 755 /data/local/tmp/fb_receiver_new
+adb shell 'cd /data/local/tmp && setsid ./fb_receiver_new >/dev/null 2>&1 &'
 
-```sh
-adb shell 'cd /data/local/tmp && setsid ./fb_receiver >/dev/null 2>&1 &'
+# on the PC
+py -3.12 app/tools/pcstream.py --size 1280x720 --fps 12
 ```
 
-Stop with `pkill -TERM fb_receiver`: it removes `fb_override`, touches
-`fb_stop` so the hook stops injecting, and the live UI repaints.
+Stop with `pkill -TERM fb_receiver_new`: it removes `fb_override`/`fb_hold`,
+touches `fb_stop` so the hook stops injecting, and the live UI repaints.
 
-## Safety
+## Gotchas (all cost time)
 
-- Writes only `/data/local/tmp/fb_shared`, `fb_override`, `fb_stop`, `fb_receiver.log`.
-- Publishes a valid idle frame before setting `fb_override`, so the first frame
-  the goggles shows is never uninitialised memory.
-- Never touches `/system`, `/vendor`, verity or partitions.
-
-## Anti-burn-in flicker fix (2026-11-26)
-
-The inject thread only copied when the producer incremented the counter, so
-between PC frames the goggles’ own UI (including its anti-burn-in overlay)
-painted over the injected picture - visible as flicker.
-
-b_receiver now also creates /data/local/tmp/fb_hold. While that file
-exists the inject thread re-asserts the last frame on every 60 Hz tick, so the
-UI cannot paint over it. Removing fb_hold restores the old cheap behaviour.
+- Binary must run in `u:r:su:s0` (root ADB); `dji_services` cannot exec `/data`.
+- File label must be `system_data_file`; `shell_data_file` is unreadable to `su`.
+- A stale `/data/local/tmp/fb_stop` silently disables injection; the receiver
+  clears it at startup.
+- The hook's cleanup used to delete `fb_shared` and kill the receiver, which
+  broke every restart. It no longer does.
