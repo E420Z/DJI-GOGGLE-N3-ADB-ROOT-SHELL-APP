@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased - Stage 2 groundwork: hardware H.264 (2026-11-26)
+
+- PC side proven: h264_nvenc encodes 1080p60 at **8x realtime** (300 frames in
+  5 s of content, 8 Mbps ~ 1 MB/s) on the RTX 4070 SUPER.
+- New mods/h264 probe mod: loads libOmxCore.so inside dji_glasses and
+  enumerates components. Works: **57 components, 5 decoders, 3 encoders**,
+  including OMX.dji.video_decoder.avc.ffmpeg and the VC8000 family.
+- Learned and documented the mod contract: export 
+atartos_mod_init(dlsym),
+  never reference dlopen directly, install 755, and write the file through the
+  dji_services push path (su cannot write endor_file).
+
 ## Unreleased - PC screen into the goggles (2026-11-26)
 
 - **Working:** PC desktop -> goggles over the RNDIS link. New b_receiver
