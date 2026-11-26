@@ -203,3 +203,84 @@ the UI process staying alive.
 3. Build a patched `libew_gls.so` via the theme builder, install, and test with
    Recover stock UI ready.
 4. Then add a visible stock row (label + action) rather than repurposing one.
+
+### Album/Gallery caveat (2026-11-26)
+
+The Gallery action was patched as a static launcher, but the stock UI **greys
+out Album when no SD card is inserted**, so its action never runs. That route is
+inert; the real target must be a visible entry or a real added row.
+
+---
+
+## 8. UI launch chain (2026-11-26)
+
+This is the important discovery: the stock UI is not one binary. It is a
+**generic host loader + a UI library**.
+
+`/vendor/dji_glasses_patched` (from `dji_glasses_vendor`) is the host. Its
+`gs_start` (`0x3b0f0`) does:
+
+```
+dlopen("/vendor/libew_gls.so")
+dlsym("ew_gui_start")              -> ctx+0x70
+dlsym("ew_gui_stop")               -> ctx+0x78
+dlsym("ew_gui_enable_key_event")   -> ctx+0x80
+dlsym("ew_gui_disable_key_event")  -> ctx+0x88
+build a 0x2298-byte context (0x256f0), set callbacks at +0x50/+0x60
+call ew_gui_start(ctx)
+```
+
+The stock `libew_gls.so` implements the UI entry:
+
+```
+ew_gui_start        0x5dd9de0  (992 bytes)
+ew_gui_stop         0x5dda530
+ew_gui_enable_key_event  0x5dda5c0
+ew_gui_disable_key_event 0x5dda600
+ew_gui_init_pushes  0x5ddac30  (10,400 bytes)
+ew_gui_deinit_pushes 0x5ddd4d0
+EwBspKeyEventProcess 0x6168b70
+EwBspTouchEventProcess 0x6168c90
+```
+
+`ew_gui_start` sequence (from imports):
+
+```
+duss_osal_mutex_create
+property_get ×3 / strcasecmp        (display/mode config)
+EwGuiBspInitFromFile
+EwRegisterGlobalConfig
+DjiGuiMwAdapterInit
+EwGuiInit
+EwGuiRegisterKeyHandler
+EwGuiRegisterMwInitHandler
+EwGuiRegisterMwMsgHandler
+DjiGuiMwDeviceAutoObjectInit
+DjiGuiMwStreamInit
+DjiGuiMwTaskInit
+EwGuiRun
+ew_gui_init_pushes
+```
+
+`ew_gui_stop`: `EwGuiStop`, mutex destroy, `ew_gui_deinit_pushes`, image loader
+stop/destroy. `ew_gui_enable/disable_key_event`: `EwBspEnableKeyInput`.
+
+### Consequence: replace the UI library
+
+The host is generic. A custom `/vendor/libew_gls.so` can export the same four
+`ew_gui_*` symbols, ignore EW entirely, and run **our own full-screen UI** using
+the host's display/input context (or `duss_hal_display_*` + `/dev/input`).
+
+That is the clean path to “our own UI”:
+
+- no EW menu model, no overlay window, no input-suppression hooks;
+- our own page/tab stack and input mapping;
+- recovery is simply restoring the stock `libew_gls.so`.
+
+Open items before writing the shim:
+
+1. Reverse the 0x2298-byte context from `0x256f0` (and callbacks `0x3a0ce0`,
+   `0x3b030`) to find the display/input entry points.
+2. Confirm the `ew_gui_start(ctx)` signature and return/semaphore expectations.
+3. Implement a minimal shim that draws a test frame and reads input.
+4. Then build the real pages/tabs.
