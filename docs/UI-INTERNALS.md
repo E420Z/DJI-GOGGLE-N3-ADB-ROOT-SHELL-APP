@@ -284,3 +284,106 @@ Open items before writing the shim:
 2. Confirm the `ew_gui_start(ctx)` signature and return/semaphore expectations.
 3. Implement a minimal shim that draws a test frame and reads input.
 4. Then build the real pages/tabs.
+
+---
+
+## 9. Native stock-menu row (works, 2026-11-26)
+
+Toolya itself does not contain a UI; the custom menu comes from the
+**natartos `menu` mod** (installed through Toolya). Its source is in
+`natartos-src/mods/menu/mod.c` and its method is:
+
+1. Patch the menu's `Reload` slot.
+2. On each menu open, clone the last stock item and call
+   `MxBindableAbstractMenu_AddItemFromData`.
+3. Re-layout with `CoreVerticalList_OnSetNoOfItems` + `Postreload`.
+
+On the N3 the same primitives exist, but the details differ:
+
+### Real vtables
+
+`__vmt_DuThemedControlsMainMenu` / `__vmt_DuThemedControlsMoreMenu` are
+**class descriptors**, not object vtables. The real vtable pointers are GOT
+slots loaded by the `__Init` functions:
+
+```
+0x6316bf0  -> DuThemedControlsMainMenu  (stock left sidebar)
+0x6319460  -> DuThemedControlsMoreMenu
+```
+
+The GOT slots are valid as soon as the library is mapped; the method slots
+inside the vtable are filled at EW init time, so patch from a delayed thread.
+
+### N3 slot map (from `MxBindableAbstractMenu_Reload`)
+
+```
+55  Reload        (ldr [vmt,#0x1b8] in __Reload)
+56  RemoveItems   (0x1c0)
+59  Prereload     (0x1d8)
+60  Postreload    (0x1e0)
+62  AddItem       (0x1f0)
+data source: 11 = Size   (0x58)   12 = At (0x60)
+```
+
+### Adding a visible row
+
+The simplest stable result is to replace the disabled **Album** entry
+(index 1), not append. Clone an always-enabled stock item (Settings, index 3),
+then replace:
+
+```
+d[4]  = action object (64-byte clone, [4]=object, [5]=method)
+d[5]  = stock ResourcesBitmap icon (or a custom one)
+d[16] = title XString (EwNewStringAnsi("N3"))
+d[17] = subtitle XString
+d[18] = type (keep the template's type)
+```
+
+…and return that item from the data source's `At(1)`.
+
+### Important: copy the data-source vtable
+
+The data-source vtable is **shared** by other menus. Patching its `Size`/`At`
+slots directly also hits the camera-parameter toolbar and crashes in
+`EwCompString` (`MxBindableMenuItem_OnSetCaption`). Give the target data source
+its own vtable copy and point only that object at it.
+
+### Result
+
+- Left sidebar: Status, **N3**, Transmission, Settings
+- No input hooks, no overlay, no frame compositing
+- `/vendor/libew_gls.so` is not modified; reboot restores Album
+- Implementation: `mods/menuinject/mod.c`
+- Loader aliases: `__n3_main_menu_vmt`, `__n3_more_menu_vmt`
+  (`modloader/n3mods.c`)
+- Deploy/test: `app/tools/deploy_menu_inject.py`
+
+### Native E420Z page (same menu control)
+
+The stock sidebar is reused as the E420Z page.  The data source has two
+modes:
+
+```
+mode 0: E420Z (new) + all original stock rows
+mode 1: STATUS / SDR SCAN / DISPLAY TEST / ABOUT / BACK
+```
+
+Pressing E420Z sets mode 1 and calls the stock `Reload`; BACK sets mode 0.
+EW strings for the submenu are recreated in the same frame as the reload
+(the previous frame's strings are garbage-collected; using them panics in
+`EwCompString`).  The Dismiss slot resets mode 0 so the next open is stock.
+
+No overlay window and no input hooks are needed for this page.
+
+### Icon / layout limits (open)
+
+- `EwCreateBitmap` + `ResourcesBitmap` on this N3 build accepts the bitmap
+  but the menu renders it blank; cloning the stock wrapper also renders
+  blank.  `EwLoadBitmap(path)` panics when given a filesystem path.
+- The stock theme chooses the row glyph from the item's action/type, so a
+  custom action gets the default glyph.  The E420Z row currently uses the
+  stock hexagon glyph as the closest match to the E420Z logo.
+- Changing `CoreVerticalList` item height (field +0x150 / `OnSetItemHeight`)
+  stores the value but the following reload panics.  Five rows therefore
+  need a theme-level layout patch; the stock four-row layout is kept for
+  stability.

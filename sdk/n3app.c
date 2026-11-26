@@ -474,7 +474,7 @@ static void draw_window(unsigned int *canvas) {
     };
     if (g_app->on_tick) g_app->on_tick(&app, g_frame);
 
-    n3_text(&win, 16, g_h - 22, "UP/DOWN MOVE   HOLD DOWN OK   HOLD UP EXIT", 2, C_DIM);
+    n3_text(&win, 16, g_h - 22, "UP/DOWN MOVE   CENTER OK   BACK EXIT", 2, C_DIM);
 }
 
 static void blit_window(unsigned int *base, const unsigned int *canvas) {
@@ -538,32 +538,23 @@ static int key_hook(void *root, int key, int ch, int down) {
         return 0;
     }
     /* Swallow every key while the app is open, even unknown codes, so no stock
-     * panel/bar can open from a key. */
+     * panel/bar can open from a key.  Always pass key-up events through: the
+     * stock UI saw the matching down before the page opened, and swallowing
+     * the up leaves its key state stuck (the sidebar then refuses to reopen
+     * after the page closes). */
     if (!handled) return 0;
+    if (!down) {
+        if (g_real_key) return g_real_key(root, key, ch, 0);
+        return 0;
+    }
     log3("key", key, down, ch);
-    if (key == 1) {                       /* physical UP */
-        if (down) g_k_up_ms = now_ms();
-        else {
-            long held = now_ms() - g_k_up_ms;
-            if (held >= 700) hide_app();
-            else if (g_app->on_swipe) g_app->on_swipe(0, 100);
-        }
-        return 0;
-    }
-    if (key == 2) {                       /* physical DOWN */
-        if (down) g_k_down_ms = now_ms();
-        else {
-            long held = now_ms() - g_k_down_ms;
-            if (held >= 700) { if (g_app->on_key) g_app->on_key(N3_KEY_ENTER); }
-            else if (g_app->on_swipe) g_app->on_swipe(0, -100);
-        }
-        return 0;
-    }
+
+    /* Directions are handled once, by the event3 reader (down events are
+     * reliable; CoreRoot does not always deliver the matching release). */
+    if (key == 1 || key == 2 || key == 3 || key == 4) return 0;
 
     if (down) {
         switch (key) {
-        case 3: if (g_app->on_swipe) g_app->on_swipe(-100, 0); break;
-        case 4: if (g_app->on_swipe) g_app->on_swipe(100, 0); break;
         case 6: if (g_app->on_key) g_app->on_key(N3_KEY_ENTER); break;
         case 19:
             if (g_app->on_key) g_app->on_key(N3_KEY_BACK);
@@ -608,7 +599,9 @@ static int app_active(void) {
  * stock UI processes neither keys nor touch while our app is open. Our app
  * reads the raw /dev/input devices directly. */
 static int bsp_key_hook(void *arg) {
-    if (app_active()) return 0;
+    /* Always let the BSP advance its 5D/ADC state.  Suppression happens at the
+     * final CoreRoot dispatch (key_hook), otherwise the stock UI is left with a
+     * stuck 5D value and the sidebar will not reopen after the page closes. */
     return g_real_bsp_key ? g_real_bsp_key(arg) : 0;
 }
 
@@ -620,7 +613,7 @@ static int bsp_touch_hook(void *arg) {
 /* EW's platform event processors. Skipping these stops the stock UI from
  * seeing any key or touch while our app is open. */
 static long key_proc_hook(void *a, void *b, void *c, void *d, void *e, void *f) {
-    if (app_active()) return 0;
+    /* Pass through (see bsp_key_hook): key_hook does the actual suppression. */
     return g_real_key_proc ? g_real_key_proc(a, b, c, d, e, f) : 0;
 }
 
@@ -753,21 +746,11 @@ static void *app_thread_fn(void *arg) {
             struct input_event_t ev;
             while (sys_read(wfd, &ev, sizeof(ev)) == (long)sizeof(ev)) {
                 if (ev.type != EV_KEY) continue;
-                if (ev.code == 103) {
-                    if (ev.value == 1) {
-                        g_up_ms = now_ms();
-                    } else if (ev.value == 0) {
-                        long held = now_ms() - g_up_ms;
-                        if (held >= 600) {
-                            menu_toggle();
-                        } else if (on && g_app->on_swipe) {
-                            g_app->on_swipe(0, 100);
-                        }
-                    }
-                    continue;
-                }
                 if (ev.value != 1 || !on) continue;
-                if (ev.code == 108) {
+                if (ev.code == 103) {
+                    if (g_app->on_swipe) g_app->on_swipe(0, 100);
+                    NTLOG("5way up");
+                } else if (ev.code == 108) {
                     if (g_app->on_swipe) g_app->on_swipe(0, -100);
                     NTLOG("5way down");
                 } else if (ev.code == 105) {
@@ -980,11 +963,14 @@ int n3_start(const n3_app *app, void *(*loader_dlsym)(void *, const char *)) {
      * EwBspGetKeyCommand+104). The process hooks above suppress stock input
      * while the app is open; the app reads /dev/input directly. */
 
-    if (!g_bsp_key) {
+    /* Always hook the final CoreRoot dispatch.  The BSP hooks above are now
+     * pass-through so the platform 5D/ADC state stays consistent; key_hook is
+     * the single place that suppresses keys while our page is open. */
+    {
         void *key = g_dlsym ? g_dlsym(RTLD_DEFAULT, "CoreRoot_DriveKeyboardHitting") : 0;
         if (key) {
             void *tr = install_hook(key, (void *)key_hook);
-            if (tr) { g_real_key = (key_fn_t)tr; g_key_hooked = 1; NTLOG("key hook ok (fallback)"); }
+            if (tr) { g_real_key = (key_fn_t)tr; g_key_hooked = 1; NTLOG("key hook ok"); }
             else NTLOG("key hook failed");
         } else {
             NTLOG("key dispatch not found");

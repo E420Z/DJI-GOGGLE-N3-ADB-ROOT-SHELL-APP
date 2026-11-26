@@ -246,6 +246,7 @@ class GogglesPage(ctk.CTkFrame):
         for i, (text, cmd, acc) in enumerate([
                 ("Purple theme", lambda: self.apply_theme("Purple"), True),
                 ("Menu-only theme", lambda: self.apply_theme("Menu only"), False),
+                ("E420Z stock row", self.install_stock_row, False),
                 ("Custom menu", self.install_menu, False),
                 ("Menu toggle", self.toggle_menu, False),
                 ("Choose background", self.pick_background, False),
@@ -390,6 +391,31 @@ class GogglesPage(ctk.CTkFrame):
 
     def apply_theme(self, preset):
         self.app.apply_theme(preset)
+
+    def install_stock_row(self):
+        if not messagebox.askyesno(
+                "E420Z stock row",
+                "Install a native E420Z row in the stock goggles menu?\n\n"
+                "It adds a new E420Z row at the top and keeps Status, Album, "
+                "Transmission and Settings. Opening it shows a native E420Z "
+                "page in the same stock sidebar. No overlay, no input hooks. "
+                "A reboot restores the original menu.\n\n"
+                "The row is added at runtime by /vendor/n3menuinject.so, so "
+                "/vendor/libew_gls.so is not modified."):
+            return
+
+        def work():
+            ok = modman.install("n3menuinject", log=self.app.log)
+            if not ok:
+                return False
+            n3ctl.ensure_adb(log=self.app.log)
+            n3ctl.run_root("touch /data/local/tmp/n3menuinject_on",
+                           timeout=8, retries=1)
+            n3ctl.start_ui(log=self.app.log, mods=modman.mods_for_ui())
+            return True
+
+        self.app.run_task(work, "Install E420Z stock row",
+                          on_done=lambda *_: self.app.refresh_status())
 
     def install_menu(self):
         if not messagebox.askyesno(

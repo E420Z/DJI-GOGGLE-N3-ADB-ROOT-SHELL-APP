@@ -1,0 +1,13 @@
+{
+  "id": "n3menuinject",
+  "name": "E420Z stock row",
+  "version": "0.3",
+  "type": "hook",
+  "description": "Adds a native E420Z row to the stock goggles sidebar. Opening it switches the same stock menu control to a native E420Z page (STATUS / SDR SCAN / DISPLAY TEST / ABOUT / BACK). No overlay window, no input hooks, no frame compositing.",
+  "risk": "medium",
+  "status": "experimental/beta",
+  "experimental": true,
+  "notes": "The stock UI renderer, focus and input are reused unchanged. If the menu ever misbehaves, use Recover stock UI or reboot; /vendor/libew_gls.so is not modified.",
+  "so": "files/n3menuinject.so",
+  "filename": "n3menuinject.so"
+}
