@@ -278,7 +278,7 @@ static void decode_worker(void) {
 
 #define SEND_AU(ptr, len) do {                                                 \
         int wait = 0;                                                          \
-        while (wait < 1000 && (sent - g_empty_calls) >= n_in) {                \
+        while (wait < 4000 && (sent - g_empty_calls) >= n_in) {                \
             struct timespec_t ts = { 0, 5000000 };                             \
             sys_nanosleep(&ts, 0);                                             \
             wait += 5;                                                         \
