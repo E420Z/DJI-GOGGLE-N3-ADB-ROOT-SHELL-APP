@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased - 1080p video out (2026-11-26)
+
+- Found the goggles **already encoding 1920x1080 H.264 at 50 fps** (logcat:
+  OMXVC8000Enc [Graph1] ... resolution:1920*1080, FPS: 50000/1000), fed by
+  LCDC writeback at 60 fps. The encoded stream goes to the internal MDC channel
+  zv900_app_liveview_chn.
+- Raw frame mirroring (E420Z) cannot do 1080p over ADB (~6 MB/frame); the
+  encoded path is ~1.5 MB/s, so 1080p30 is a plumbing problem, not a speed one.
+- Inventoried the components: ideo_reader.lcdc, ideo_reader.mdc/
+  .avc.mdc, ideo_encoder.avc|hevc.vc8000e, ile_writer.binary,
+  container_muxer.ffmuxer, and ideo_writer.uvc (USB webcam sink).
+- Documented three routes in docs/VIDEO-OUT.md. Route B (omx_recordtest)
+  needs a DUML route change plus an I2C mux write, so it is not run blind.
+- natartos stream is PC -> goggles, the opposite direction; its device half
+  already exists here as hook_overlay.so.
+
 ## Unreleased — board/firmware naming (2026-11-26)
 
 - Searched firmware for the board markings: **`IE1000`, `ACG2430`, `NBSK39`,

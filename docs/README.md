@@ -25,3 +25,4 @@
 | [`RELEASE-v1.0.0.md`](RELEASE-v1.0.0.md) | Published prerelease notes + SHA256. |
 
 Start with `APP.md` for usage and `ROOT-EXPLOIT.md` for the transport.
+| [VIDEO-OUT.md](VIDEO-OUT.md) | **1080p out to the PC: the goggles already encodes H.264 at 50 fps.** |
