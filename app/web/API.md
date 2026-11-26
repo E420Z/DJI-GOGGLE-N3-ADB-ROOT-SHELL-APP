@@ -38,6 +38,7 @@ stop_root()
 start_ui()
 recover_stock()
 open_terminal()
+open_doc(path: string) -> { ok, message }        // read-only, docs/ only
 run_shell(command) -> { ok, message, output }  // RISKY, /system is blocked
 ```
 
@@ -66,7 +67,8 @@ logs() -> {
   natartos: string,
   n3mods: string,
   ui: string,
-  capture: string
+  capture: string,
+  web: string        // Python host notes
 }
 ```
 

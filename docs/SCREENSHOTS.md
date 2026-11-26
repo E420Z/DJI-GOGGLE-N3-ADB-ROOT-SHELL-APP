@@ -51,7 +51,7 @@ PNGs land in `SDR findings/debug/<timestamp>/screencap0.png` (primary) and
 - One-shot run: exit 0, both slots pulled, valid 1920×1080 PNGs.
 - `--redeploy` run: new `hook_capture.so` (sha256 `39b76cde9520…`) loaded;
   log shows `capture watcher: start` and `capture watcher: pthread_create ret=0`.
-- Full-OSD screenshot captured (theme, `E42OZ`, `NO Storage`, connection banner,
+- Full-OSD screenshot captured (theme, `E420Z`, `NO Storage`, connection banner,
   battery) with the UI still visible the whole time. See
   `debug/2026-11-25_16-20-10/screencap0.png`.
 - Open-menu screenshot captured: sidebar (Status/Album/Transmission/Settings),

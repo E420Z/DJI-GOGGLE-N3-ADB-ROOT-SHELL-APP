@@ -19,7 +19,7 @@ if (-not (Test-Path $edge)) { throw "Edge not found at $edge" }
 $index = Join-Path $root "app\web\index.html"
 if (-not (Test-Path $index)) { throw "missing UI: $index" }
 
-$url = "file:///" + ($index -replace '\\', '/' -replace ' ', '%20') + "?mock=1"
+$url = "file:///" + ($index -replace '\\', '/' -replace ' ', '%20') + "?mock=1&motion=0"
 if ($Page) { $url += "&page=$Page" }
 
 $profile = Join-Path $env:TEMP ("n3shot-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
@@ -29,7 +29,7 @@ Remove-Item $Out -Force -ErrorAction SilentlyContinue
 # for the output file instead.
 & $edge --headless=new --disable-gpu --hide-scrollbars --no-first-run `
     --user-data-dir="$profile" `
-    --window-size="$Width,$Height" --virtual-time-budget=4000 `
+    --window-size="$Width,$Height" --virtual-time-budget=9000 `
     --allow-file-access-from-files --screenshot="$Out" $url 2>$null | Out-Null
 
 if (-not (Test-Path $Out)) { throw "screenshot failed: $Out" }

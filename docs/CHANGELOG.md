@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased — pywebview control deck (2026-11-26)
+
+- Replaced the CustomTkinter shell with a **pywebview (WebView2) + HTML/CSS/JS**
+  desktop app: `app/webapp.py` host, `app/web/{index.html,styles.css,app.js}`.
+  The Tk app stays as a fallback and `Start N3 ROOT.cmd` / `run.ps1` choose
+  automatically.
+- Seven pages wired to the real backend: Connection, E420Z, Sparrow2, Root
+  Shell, Mods & UI, Logs, Settings. Sidebar pill, sticky header, command
+  palette (Ctrl K), toasts, count-up numbers, styled risk confirmations.
+- Safety is visible in the UI: every action carries SAFE / EXPERIMENTAL / RISKY,
+  risky confirmations focus **Cancel**, and Settings shows the `/system` /
+  dm-verity / no-unbrick warning.
+- New backend methods: `live_resolutions()` (the UI no longer hardcodes scales)
+  and `open_doc(path)` (read-only, `docs/` only).
+- `run_shell` blocks `/system`, verity, partitions, bootloader, flashing and raw
+  block writes before anything reaches the goggles.
+- `status()` probes libusb and the UI process in parallel and caches for 2 s.
+- `webapp.py --selftest` boots the real window and reports the rendered page,
+  scale list, themes, palette and any uncaught JS error.
+- `app/tools/ui_shot.ps1` captures any page headlessly at any size; screenshots
+  added under `docs/screenshots/web_*.png` and `docs/screenshot.png`.
+- Fixed the `E42OZ` → **E420Z** typo across the app and docs.
+
 ## Unreleased — live preview fix + resolutions (2026-11-26)
 
 - Fixed the live preview freeze after ~10 s:
@@ -56,7 +79,7 @@
   `N3-ROOT-v1.0.0.zip`.
 - Verified privacy: repo/release/asset return 404 without authentication.
 
-- New CustomTkinter control deck: Connection, E42OZ, Root Shell, Mods & UI,
+- New CustomTkinter control deck: Connection, E420Z, Root Shell, Mods & UI,
   Logs, Settings.
 - Embedded live preview from the goggles UI: 160×90, ~59 fps (verified).
 - Full-resolution screenshots from the app (safe thread-only capture).

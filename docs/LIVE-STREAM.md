@@ -73,7 +73,7 @@ faster than Toolya's UI mirror for debugging.
 
 ## In the app
 
-The app's **E42OZ → Start live** path uses this same stream through
+The app's **E420Z → Start live** path uses this same stream through
 `app/ui/live.py`. The live panel has a resolution selector (160×90 …
 1920×1080). Changing it writes `n3live.cfg`; the mod applies it within ~2 s.
 Verified on 2026-11-26: 160×90 ~58 fps, 640×360 ~8 fps, 1920×1080 ~0.9 fps,

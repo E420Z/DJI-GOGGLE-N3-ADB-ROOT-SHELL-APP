@@ -61,6 +61,7 @@ class Api:
         self._frames = 0
         self._fps_t0 = time.time()
         self._log = []
+        self._status_cache = None
 
     # ---------------------------------------------------------------- helper
     def _note(self, message: str) -> None:
@@ -82,9 +83,19 @@ class Api:
 
     # ---------------------------------------------------------------- status
     def status(self) -> dict:
+        # Both probes take 1-2 s (libusb scan, adb query), so run them together
+        # and keep the answer for a couple of seconds.  The UI polls every 5 s.
+        now = time.time()
+        with self._lock:
+            cached = self._status_cache
+            if cached and now - cached[0] < 2.0:
+                return dict(cached[1])
         try:
-            st = n3ctl.status()
-            ui = n3ctl.ui_state()
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                st_f = pool.submit(n3ctl.status)
+                ui_f = pool.submit(n3ctl.ui_state)
+                st, ui = st_f.result(), ui_f.result()
         except Exception as exc:  # noqa: BLE001
             self._note("status: %s" % exc)
             st, ui = {}, {}
@@ -97,7 +108,7 @@ class Api:
                         modman.find("n3menuinject").get("installed"))
         except Exception:
             menu = False
-        return {
+        out = {
             "version": VERSION,
             "ui": bool(patched or pid),
             "patched": patched,
@@ -114,6 +125,9 @@ class Api:
             "serial": "••••••••",
             "device": "DJI Goggles N3",
         }
+        with self._lock:
+            self._status_cache = (time.time(), dict(out))
+        return out
 
     # --------------------------------------------------------------- actions
     def enable_adb(self) -> dict:
@@ -144,6 +158,33 @@ class Api:
             return _ok("Opened a root terminal.")
         except Exception as exc:  # noqa: BLE001
             return _fail("Terminal: %s" % exc)
+
+    # ------------------------------------------------------------------ docs
+    _DOC_ROOT = os.path.dirname(APP_DIR)
+
+    def open_doc(self, path: str) -> dict:
+        """Open a file under docs/ in the desktop's default application.
+
+        Read-only: the file is handed to the OS, never modified.
+        """
+        rel = (path or "").replace("\\", "/").strip()
+        if not rel.startswith("docs/") or ".." in rel:
+            return _fail("Only files under docs/ can be opened.")
+        root = os.path.abspath(self._DOC_ROOT)
+        full = os.path.abspath(os.path.join(root, rel))
+        if not full.startswith(root + os.sep):
+            return _fail("Refusing to open %s" % rel)
+        if not os.path.isfile(full):
+            return _fail("Missing file: %s" % rel)
+        try:
+            if hasattr(os, "startfile"):
+                os.startfile(full)  # noqa: S606 - user-requested local doc
+            else:
+                import subprocess
+                subprocess.Popen(["xdg-open", full])
+            return _ok("Opened %s." % rel)
+        except Exception as exc:  # noqa: BLE001
+            return _fail("Could not open %s: %s" % (rel, exc))
 
     # ------------------------------------------------------------- root shell
     # Hard block: the app must never write /system or touch verity/partitions.
@@ -401,13 +442,76 @@ class Api:
         return _ok("Closing.")
 
 
+_SELFTEST_JS = r"""
+(function () {
+  const text = (sel) => {
+    const el = document.querySelector(sel);
+    return el ? el.textContent.replace(/\s+/g, " ").trim() : null;
+  };
+  const active = document.querySelector(".page.is-active");
+  return JSON.stringify({
+    mode: document.body.dataset.mode || null,
+    activePage: active ? active.id : null,
+    navItems: document.querySelectorAll(".nav-item").length,
+    usb: text("#stat-usb [data-field=value]"),
+    root: text("#stat-root [data-field=value]"),
+    adb: text("#stat-adb [data-field=value]"),
+    usbCard: text("#stat-usb"),
+    deviceCard: text(".device-summary, #devVersion"),
+    scales: Array.from(document.querySelectorAll("#scaleGrid .scale-opt")).map((b) => b.dataset.scale),
+    selectedScale: (document.getElementById("scaleSelect") || {}).value || null,
+    themes: Array.from(document.querySelectorAll("#themeList .theme-opt")).map((b) => b.dataset.theme),
+    hostApi: Boolean(window.pywebview && window.pywebview.api),
+    errors: window.__n3errors || [],
+  });
+})()
+"""
+
+
+_SELFTEST_SETTINGS_JS = r"""
+(function () {
+  go("settings");
+  openPalette();
+  const items = document.querySelectorAll("#paletteList .palette-item");
+  return JSON.stringify({
+    page: (document.querySelector(".page.is-active") || {}).id || null,
+    scaleOptions: document.getElementById("scaleSelect").options.length,
+    themeOptions: document.querySelectorAll("#themeList .theme-opt").length,
+    accentSelected: (document.querySelector('#accentGroup [aria-checked="true"]') || {}).dataset?.accent || null,
+    paletteOpen: !document.getElementById("paletteOverlay").hidden,
+    paletteItems: items.length,
+    paletteFirst: items.length ? items[0].textContent.replace(/\s+/g, " ").trim() : null,
+    errors: window.__n3errors || [],
+  });
+})()
+"""
+
+
+def _selftest(window) -> None:
+    """Open the UI, let it boot, dump what it actually rendered, then close."""
+    time.sleep(11)
+    try:
+        print("SELFTEST " + str(window.evaluate_js(_SELFTEST_JS)), flush=True)
+        window.evaluate_js("go('settings')")
+        time.sleep(2.5)
+        print("SELFTEST2 " + str(window.evaluate_js(_SELFTEST_SETTINGS_JS)), flush=True)
+    except Exception as exc:  # noqa: BLE001
+        print("SELFTEST FAILED: %s" % exc, flush=True)
+    finally:
+        try:
+            window.destroy()
+        except Exception:
+            pass
+
+
 def main() -> int:
     api = Api()
     index = os.path.join(APP_DIR, "web", "index.html")
     if not os.path.exists(index):
         print("missing UI:", index)
         return 1
-    webview.create_window(
+    selftest = "--selftest" in sys.argv
+    window = webview.create_window(
         "N3 ROOT — DJI Goggles N3",
         url=index,
         js_api=api,
@@ -417,7 +521,9 @@ def main() -> int:
         background_color="#0B0710",
         text_select=True,
     )
-    webview.start(http_server=True, debug=False, private_mode=False)
+    webview.start(_selftest if selftest else None, window,
+                  http_server=True, debug="--debug" in sys.argv,
+                  private_mode=False)
     return 0
 
 

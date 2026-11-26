@@ -11,7 +11,7 @@
 - **Recover stock UI** restarts `dji_glasses` (the black-screen escape hatch).
 - **Restart patched UI** starts the themed UI with the installed mods.
 
-### E42OZ
+### E420Z
 - **Start live** restarts the goggles UI with `n3live` and `hook_capture`, then
   streams into the app. The resolution menu selects 160×90 … 1920×1080
   (~58 fps at 160×90, ~8 fps at 640×360, ~0.9 fps at 1080p). Changing it while
@@ -49,7 +49,7 @@ Paths, auto-refresh, restore-USB-on-exit, version/safety notes.
 1. Power the goggles and connect USB.
 2. Connection → **Start root**.
 3. Connection → **Enable ADB** (needed for live/screenshot).
-4. E42OZ → **Start live**.
+4. E420Z → **Start live**.
 
 ### Purple theme
 Mods & UI → **Apply Purple theme**. The app builds a patched
@@ -57,7 +57,7 @@ Mods & UI → **Apply Purple theme**. The app builds a patched
 `libew_gls_stock.so` is not committed to git; put it in `app/assets/`.
 
 ### Custom background
-Mods & UI or E42OZ → **Choose background** → pick a 16:9 image. The app creates
+Mods & UI or E420Z → **Choose background** → pick a 16:9 image. The app creates
 normal + idle JPEGs and the `n3bg` hook.
 
 ### In-goggles menu
@@ -66,7 +66,7 @@ window is composited into the live buffer. Buttons: short up/down move, hold
 DOWN = OK, hold UP = exit. Stock keys/touch are suppressed while it is open.
 
 ### Screenshots
-Use **E42OZ → Screenshot**. Full 1920×1080 PNGs land in `app/state/shots/`.
+Use **E420Z → Screenshot**. Full 1920×1080 PNGs land in `app/state/shots/`.
 The capture is a thread-only dmabuf read; it never suppresses a display frame.
 
 ---

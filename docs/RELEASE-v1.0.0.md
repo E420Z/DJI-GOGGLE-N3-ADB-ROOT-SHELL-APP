@@ -35,7 +35,7 @@ Full table: [`EXPERIMENTAL.md`](EXPERIMENTAL.md).
 1. Install Python 3.12 and `pip install -r requirements.txt`.
 2. Double-click **Start N3 ROOT.cmd** (Windows).
 3. Connection → **Start root** → **Enable ADB**.
-4. E42OZ → **Start live**.
+4. E420Z → **Start live**.
 
 ## Not included (add locally)
 

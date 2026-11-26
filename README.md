@@ -52,25 +52,29 @@ More captures: [`docs/screenshots/`](docs/screenshots/).
 
 ---
 
-## New app base (in progress)
+## The app
 
-The desktop control deck is moving from CustomTkinter to **Python + HTML/CSS/JS**
-hosted by `pywebview` (WebView2). Same backend, real animations and a more
-professional shell.
+![N3 ROOT control deck](docs/screenshots/web_connection.png)
+
+The desktop control deck is **Python + HTML/CSS/JS** hosted by `pywebview`
+(WebView2). Same backend as always, with real animations and a professional
+shell.
 
 ```powershell
 py -3.12 -m pip install -r requirements.txt
-py -3.12 app/webapp.py      # new web UI
+py -3.12 app/webapp.py      # web UI (default)
 py -3.12 app/main.py        # classic Tk fallback
 ```
 
-The web UI calls a narrow API in [`app/webapp.py`](app/webapp.py); the static
-files under `app/web/` never touch ADB or the root shell. See
-[`docs/WEB-UI.md`](docs/WEB-UI.md) and
-[`app/web/API.md`](app/web/API.md).
+`Start N3 ROOT.cmd` and `run.ps1` pick the web UI and fall back to Tk on their
+own. The web UI calls a narrow API in [`app/webapp.py`](app/webapp.py); the
+static files under `app/web/` never touch ADB or the root shell. See
+[`docs/WEB-UI.md`](docs/WEB-UI.md) and [`app/web/API.md`](app/web/API.md).
 
 OpenDesign is used as a **design reference** for the dashboard layout; it is
 not a runtime dependency. Claude/OpenDesign work is restricted to `app/web/`.
+
+More captures: [`docs/screenshots/`](docs/screenshots/).
 
 ---
 
@@ -79,7 +83,7 @@ not a runtime dependency. Claude/OpenDesign work is restricted to `app/web/`.
 - **Connection page** — live USB / root shell / ADB status, with buttons to
   enable ADB, start/stop the root shell, restart the patched UI, or recover the
   stock UI.
-- **E42OZ page** — the goggles side: a **live preview** of the UI over USB
+- **E420Z page** — the goggles side: a **live preview** of the UI over USB
   (selectable 160×90 up to 1920×1080; ~58 fps at 160×90, lower at higher
   resolutions), full-resolution screenshots, GIF recording, and quick actions
   for theme/background/menu.
@@ -163,7 +167,7 @@ py -3.12 app\main.py
 2. Open **Connection** → **Start root** (the blackbox RCE listens on
    `192.168.60.2:4444`).
 3. **Enable ADB** if you want the live preview / screenshots / file pulls.
-4. Open **E42OZ** → **Start live** for the live UI preview.
+4. Open **E420Z** → **Start live** for the live UI preview.
 5. Use **Mods & UI** for theme, background, and the custom menu.
 
 ### Recover from a black screen
@@ -205,7 +209,7 @@ installed.
 
 ## Live preview (why it is faster than other tools)
 
-![E42OZ page](docs/goggles.png)
+![E420Z page](docs/screenshots/web_e420z.png)
 
 The app loads `n3live.so`, which reads the live 1920×1080 dmabuf, downscales it
 by an integer factor (12 … 1), and writes framed pixels to a FIFO. The PC reads

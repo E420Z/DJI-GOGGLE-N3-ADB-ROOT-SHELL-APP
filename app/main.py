@@ -1,6 +1,6 @@
 """N3 ROOT — modern control deck for DJI Goggles N3.
 
-Pages: Connection, E42OZ (goggles/live debug), Sparrow2 (5.8 GHz radio),
+Pages: Connection, E420Z (goggles/live debug), Sparrow2 (5.8 GHz radio),
 Root Shell, Mods & UI, Logs, Settings. Reuses the proven n3ctl / mods /
 background / theme_builder modules.
 """
@@ -42,7 +42,7 @@ VERSION = "1.0.0"
 # Page title, one-line description and the highest safety level on the page.
 PAGE_META = {
     "connection": ("Connection", "Device link, root session and recovery", "RISKY"),
-    "goggles": ("E42OZ — Goggles", "Live preview, screenshots and UI mods", "EXPERIMENTAL"),
+    "goggles": ("E420Z — Goggles", "Live preview, screenshots and UI mods", "EXPERIMENTAL"),
     "sparrow": ("Sparrow2 — 5.8 GHz radio", "Read-only radio diagnostics", "RISKY"),
     "shell": ("Root Shell", "Interactive uid 0 console on the goggles", "RISKY"),
     "mods": ("Mods & UI", "Themes, backgrounds and /vendor mods", "EXPERIMENTAL"),
@@ -142,7 +142,7 @@ class ConnectionPage(ctk.CTkFrame):
         steps = [
             ("1", "Connect USB and power on the goggles."),
             ("2", "Start root (blackbox RCE), then enable ADB."),
-            ("3", "Open E42OZ for live preview, screenshots and mods."),
+            ("3", "Open E420Z for live preview, screenshots and mods."),
             ("4", "Recover stock UI is always kept available."),
         ]
         for number, text in steps:
@@ -1221,7 +1221,7 @@ class App(ctk.CTk):
         self.nav_bars = {}
         groups = [
             ("DEVICE", [("connection", "Connection", "◈"),
-                        ("goggles", "E42OZ", "◉"),
+                        ("goggles", "E420Z", "◉"),
                         ("sparrow", "Sparrow2", "✦")]),
             ("SYSTEM", [("shell", "Root Shell", "▣"),
                         ("mods", "Mods & UI", "◆"),

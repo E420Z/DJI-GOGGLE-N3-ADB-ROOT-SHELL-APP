@@ -1,184 +1,598 @@
-﻿<!doctype html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-accent="purple" data-density="comfortable">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>N3 ROOT</title>
-<style>
-  :root {
-    --bg: #08060d;
-    --panel: rgba(22, 18, 32, .78);
-    --line: rgba(255,255,255,.08);
-    --text: #f4f0ff;
-    --muted: #9d93b8;
-    --accent: #b44bff;
-    --safe: #4ade80;
-    --warn: #fbbf24;
-    --bad: #f87171;
-  }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; }
-  body {
-    background:
-      radial-gradient(900px 600px at 80% -10%, rgba(180,75,255,.18), transparent 65%),
-      radial-gradient(700px 500px at -10% 110%, rgba(90,40,180,.14), transparent 70%),
-      var(--bg);
-    color: var(--text);
-    font: 14px/1.45 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-    overflow: hidden;
-  }
-  .shell { display: flex; height: 100%; }
-  .side {
-    width: 248px; padding: 26px 18px;
-    background: linear-gradient(180deg, rgba(20,16,30,.92), rgba(12,9,18,.96));
-    border-right: 1px solid var(--line);
-    display: flex; flex-direction: column;
-  }
-  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
-  .mark {
-    width: 42px; height: 42px; border-radius: 13px;
-    background: conic-gradient(from 210deg, #b44bff, #6d28d9, #b44bff);
-    box-shadow: 0 0 28px rgba(180,75,255,.45);
-    display: grid; place-items: center; font-weight: 800;
-  }
-  .brand h1 { font-size: 19px; margin: 0; letter-spacing: .2px; }
-  .brand small { color: var(--muted); font-size: 9px; letter-spacing: 1.6px; }
-  .nav-label { color: #6f6686; font-size: 9px; letter-spacing: 1.6px; margin: 16px 10px 6px; }
-  .nav-item {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 12px; border-radius: 12px; color: var(--muted);
-    border: 1px solid transparent;
-  }
-  .nav-item.active {
-    color: var(--text);
-    background: linear-gradient(90deg, rgba(180,75,255,.18), rgba(180,75,255,.03));
-    border-color: rgba(180,75,255,.28);
-    box-shadow: inset 3px 0 0 var(--accent);
-  }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
-  .spacer { flex: 1; }
-  .foot { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--panel); }
-  .foot b { color: var(--safe); font-size: 12px; }
-  .foot span { color: var(--muted); font-size: 10px; }
-  .main { flex: 1; padding: 30px 34px; overflow: auto; }
-  .top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
-  .top h2 { margin: 0; font-size: 28px; letter-spacing: -.4px; }
-  .top p { margin: 4px 0 0; color: var(--muted); }
-  .badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    border-radius: 999px; padding: 4px 10px; font-size: 10px; font-weight: 700;
-    letter-spacing: .6px; border: 1px solid rgba(255,255,255,.12);
-    color: var(--warn); background: rgba(251,191,36,.08);
-  }
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-  .card {
-    background: linear-gradient(180deg, rgba(28,23,41,.86), rgba(17,13,25,.9));
-    border: 1px solid var(--line); border-radius: 18px; padding: 18px;
-    box-shadow: 0 18px 40px rgba(0,0,0,.25);
-    transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
-  }
-  .card:hover { transform: translateY(-2px); border-color: rgba(180,75,255,.32); box-shadow: 0 22px 50px rgba(0,0,0,.35); }
-  .card h3 { margin: 0 0 8px; font-size: 11px; letter-spacing: 1.4px; color: var(--muted); font-weight: 700; }
-  .value { font-size: 22px; font-weight: 700; }
-  .value.green { color: var(--safe); }
-  .value.red { color: var(--bad); }
-  .value.dim { color: var(--muted); }
-  .sub { color: var(--muted); font-size: 11px; margin-top: 4px; }
-  .panel {
-    margin-top: 16px; background: var(--panel); border: 1px solid var(--line);
-    border-radius: 18px; padding: 18px;
-  }
-  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--safe); animation: pulse 1.8s infinite; }
-  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(74,222,128,.45); } 50% { box-shadow: 0 0 0 7px rgba(74,222,128,0); } }
-  pre { color: var(--muted); font: 11px/1.5 "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-  button {
-    border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04);
-    color: var(--text); padding: 9px 14px; border-radius: 10px; cursor: pointer;
-    font: inherit; transition: background .2s, transform .2s;
-  }
-  button:hover { background: rgba(180,75,255,.16); transform: translateY(-1px); }
-  button.primary { background: linear-gradient(135deg, #c05cff, #7a2be0); border-color: transparent; font-weight: 700; }
-  @media (max-width: 1000px) { .grid { grid-template-columns: 1fr 1fr; } }
-</style>
+<link rel="stylesheet" href="styles.css">
 </head>
-<body>
-<div class="shell">
-  <aside class="side">
+<body data-mode="pending">
+
+<!-- Icon sprite: 24px grid, 1.75 stroke, round joins -->
+<svg xmlns="http://www.w3.org/2000/svg" class="sprite" aria-hidden="true">
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 2.5v5M15 2.5v5M6 7.5h12v3.5a6 6 0 0 1-12 0V7.5zM12 17v4.5"/></symbol>
+  <symbol id="i-goggles" viewBox="0 0 24 24"><rect x="2.5" y="6.5" width="19" height="11" rx="4.5"/><circle cx="8" cy="12" r="2.2"/><circle cx="16" cy="12" r="2.2"/><path d="M10.2 12h3.6"/></symbol>
+  <symbol id="i-radio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3.5"/><path d="M7.5 9.5l3 2.5-3 2.5M13 15h3.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3.5l9 4.75-9 4.75-9-4.75 9-4.75z"/><path d="M3 12.75l9 4.75 9-4.75"/><path d="M3 16.75l9 4.75 9-4.75" opacity=".5"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h7M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M5 20v-6M5 10V4M12 20v-8M12 8V4M19 20v-4M19 12V4M2.5 14h5M9.5 8h5M16.5 16h5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.5 10.5A7.5 7.5 0 0 0 6 7.2M4.5 4v4h4M4.5 13.5A7.5 7.5 0 0 0 18 16.8M19.5 20v-4h-4"/></symbol>
+  <symbol id="i-usb" viewBox="0 0 24 24"><circle cx="12" cy="19" r="2.2"/><path d="M12 16.8V3M12 3l-2 2.6M12 3l2 2.6M12 13.5l-4.5-2.4V8.5M12 11.5l4.5-2.2V7.2"/><path d="M15.5 5.2h2v2h-2z"/><circle cx="7.5" cy="7.6" r="1"/></symbol>
+  <symbol id="i-root" viewBox="0 0 24 24"><path d="M12 3l7.5 2.8v5.7c0 4.4-3.1 8.1-7.5 9.5-4.4-1.4-7.5-5.1-7.5-9.5V5.8L12 3z"/><path d="M12.8 7.8L10 12.4h4l-2.8 4.6"/></symbol>
+  <symbol id="i-bug" viewBox="0 0 24 24"><rect x="5.5" y="9" width="13" height="11" rx="4"/><path d="M8.5 9a3.5 3.5 0 0 1 7 0M9 4.5l1.4 2M15 4.5l-1.4 2M9.8 14h.01M14.2 14h.01"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5L8 5.5z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4.5 8h2.8l1.8-2.5h5.8L16.7 8h2.8A1.5 1.5 0 0 1 21 9.5v8A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5v-8A1.5 1.5 0 0 1 4.5 8z"/><circle cx="12" cy="13.5" r="3.5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M15 9V6.5A2.5 2.5 0 0 0 12.5 4h-6A2.5 2.5 0 0 0 4 6.5v6A2.5 2.5 0 0 0 6.5 15H9"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M10 11v6M14 11v6M6.5 7l.9 11.5A2 2 0 0 0 9.4 20.5h5.2a2 2 0 0 0 2-1.9L17.5 7M9.5 7V4.5h5V7"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 4.3L2.9 17.5A2 2 0 0 0 4.6 20.5h14.8a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4.5M12 17h.01"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.8h.01"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3.5v8M6.6 6.6a7.5 7.5 0 1 0 10.8 0"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14.5L4 9.5l5-5"/><path d="M4 9.5h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2.5L4.5 13.5H11l-1 8 8.5-11H12l1-8z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3M12 14.5v2"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5"/><path d="M9.5 9.5h5v5h-5zM9 2.5V6M15 2.5V6M9 18v3.5M15 18v3.5M2.5 9H6M2.5 15H6M18 9h3.5M18 15h3.5"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3.5"/><circle cx="9" cy="10" r="1.8"/><path d="M21 15.5l-4.8-4.8L7 20"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 5h16l-6.2 7.6v5.9l-3.6 1.8v-7.7L4 5z"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8l-5-5z"/><path d="M14 3v5h5M8.5 13h7M8.5 16.5h4.5"/></symbol>
+  <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 4.5v14M6.5 13l5.5 5.5 5.5-5.5"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M11 3.5l1.7 4.8 4.8 1.7-4.8 1.7L11 16.5l-1.7-4.8L4.5 10l4.8-1.7L11 3.5z"/><path d="M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8L18 15z"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.8 1.7-1.6 0-.5-.2-.8-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7.3" r="1"/><circle cx="14.8" cy="7.3" r="1"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8.5 8.5M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></symbol>
+  <symbol id="i-command" viewBox="0 0 24 24"><path d="M9 6.5a2.5 2.5 0 1 0-2.5 2.5h11A2.5 2.5 0 1 0 15 6.5v11a2.5 2.5 0 1 0 2.5-2.5h-11A2.5 2.5 0 1 0 9 17.5v-11z"/></symbol>
+</svg>
+
+<div class="app">
+  <!-- ============ Sidebar ============ -->
+  <aside class="sidebar" aria-label="Primary">
     <div class="brand">
-      <div class="mark">N3</div>
-      <div><h1>N3 ROOT</h1><small>GOGGLES N3 Â· CONTROL DECK</small></div>
+      <span class="brand-mark" aria-hidden="true">N3</span>
+      <div>
+        <div class="brand-name">N3 ROOT</div>
+        <div class="brand-sub">Goggles control deck</div>
+      </div>
     </div>
-    <div class="nav-label">DEVICE</div>
-    <div class="nav-item active"><span class="dot"></span>Connection</div>
-    <div class="nav-item">E420Z</div>
-    <div class="nav-item">Sparrow2</div>
-    <div class="nav-label">SYSTEM</div>
-    <div class="nav-item">Root Shell</div>
-    <div class="nav-item">Mods &amp; UI</div>
-    <div class="nav-item">Logs</div>
-    <div class="nav-item">Settings</div>
-    <div class="spacer"></div>
-    <div class="foot">
-      <b id="sideStatus">checkingâ€¦</b><br>
-      <span>USB Â· ROOT Â· ADB</span>
+
+    <nav class="nav" id="nav">
+      <span class="nav-indicator" id="navIndicator" aria-hidden="true"></span>
+
+      <div class="nav-label">Device</div>
+      <button class="nav-item" data-go="connection"><svg class="i"><use href="#i-plug"/></svg><span>Connection</span><kbd>Alt 1</kbd></button>
+      <button class="nav-item" data-go="live"><svg class="i"><use href="#i-goggles"/></svg><span>E420Z</span><kbd>Alt 2</kbd></button>
+      <button class="nav-item" data-go="sparrow"><svg class="i"><use href="#i-radio"/></svg><span>Sparrow2</span><kbd>Alt 3</kbd></button>
+
+      <div class="nav-label">System</div>
+      <button class="nav-item" data-go="shell"><svg class="i"><use href="#i-terminal"/></svg><span>Root Shell</span><kbd>Alt 4</kbd></button>
+      <button class="nav-item" data-go="mods"><svg class="i"><use href="#i-layers"/></svg><span>Mods &amp; UI</span><kbd>Alt 5</kbd></button>
+      <button class="nav-item" data-go="logs"><svg class="i"><use href="#i-list"/></svg><span>Logs</span><kbd>Alt 6</kbd></button>
+      <button class="nav-item" data-go="settings"><svg class="i"><use href="#i-sliders"/></svg><span>Settings</span><kbd>Alt 7</kbd></button>
+    </nav>
+
+    <div class="side-foot">
+      <div class="side-device">
+        <span class="dot" id="sideDot" data-on="false"></span>
+        <div class="side-device-text">
+          <div class="side-device-name">DJI Goggles N3</div>
+          <div class="side-device-sub" id="sideSub">Connecting…</div>
+        </div>
+      </div>
+      <div class="side-mock" id="sideMock" hidden>
+        <svg class="i"><use href="#i-info"/></svg>Mock data · browser preview
+      </div>
     </div>
   </aside>
-  <main class="main">
-    <div class="top">
-      <div>
-        <h2>Connection</h2>
-        <p>Device link, root session and recovery</p>
+
+  <!-- ============ Main ============ -->
+  <main class="main" id="main">
+    <header class="topbar" id="topbar">
+      <div class="topbar-title" id="pageHead">
+        <div class="crumbs"><span id="crumbGroup">Device</span><svg class="i"><use href="#i-chevron"/></svg><span id="crumbPage">Connection</span></div>
+        <div class="title-row">
+          <h1 id="pageTitle">Connection</h1>
+          <span class="badge" id="pageRisk" data-risk="RISKY">Risky</span>
+        </div>
+        <p class="subtitle" id="pageSubtitle"></p>
       </div>
-      <span class="badge">â— RISKY</span>
-    </div>
-    <div class="grid">
-      <div class="card"><h3>USB DEVICE</h3><div class="value dim" id="usb">â€¦</div><div class="sub">libusb0 Â· dji_blackbox</div></div>
-      <div class="card"><h3>ROOT SHELL</h3><div class="value dim" id="root">â€¦</div><div class="sub">port 4444 Â· uid 0</div></div>
-      <div class="card"><h3>ADB</h3><div class="value dim" id="adb">â€¦</div><div class="sub">USB composition</div></div>
-    </div>
-    <div class="panel">
-      <div style="display:flex;align-items:center;gap:8px"><span class="pulse"></span><b>Web UI shell is live</b></div>
-      <p class="sub">The full designed UI will replace this placeholder. The Python host is already wired to the backend API.</p>
-      <pre id="raw">waiting for pywebviewâ€¦</pre>
-      <div class="row">
-        <button class="primary" onclick="refresh()">Refresh status</button>
-        <button onclick="apiCall('enable_adb')">Enable ADB</button>
-        <button onclick="apiCall('start_root')">Start root</button>
+
+      <div class="topbar-tools">
+        <span class="chip-mock" id="mockChip" hidden title="No pywebview host — showing deterministic mock data">MOCK</span>
+        <div class="pills" role="group" aria-label="Link status">
+          <span class="pill" id="pill-usb" data-on="false"><span class="dot" data-on="false"></span>USB</span>
+          <span class="pill" id="pill-root" data-on="false"><span class="dot" data-on="false"></span>ROOT</span>
+          <span class="pill" id="pill-adb" data-on="false"><span class="dot" data-on="false"></span>ADB</span>
+        </div>
+        <button class="search-btn" id="openPalette" aria-label="Open command palette (Ctrl+K)">
+          <svg class="i"><use href="#i-search"/></svg><span>Search or run…</span><kbd>Ctrl K</kbd>
+        </button>
+        <button class="icon-btn" id="refreshBtn" data-busy-key="status" aria-label="Refresh status (Ctrl+R)" title="Refresh status (Ctrl+R)">
+          <svg class="i"><use href="#i-refresh"/></svg>
+        </button>
       </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ============ Connection ============ -->
+      <section class="page" id="page-connection" aria-labelledby="pageTitle">
+        <div class="grid cols-3 stagger">
+          <article class="card lift stat" id="stat-usb" data-on="false">
+            <div class="stat-top">
+              <span class="tile-icon"><svg class="i"><use href="#i-usb"/></svg></span>
+              <span class="label">USB device</span>
+              <span class="dot" data-on="false"></span>
+            </div>
+            <div class="stat-value" data-field="value"><span class="skeleton" style="--w:132px"></span></div>
+            <div class="stat-sub" data-field="sub"><span class="skeleton" style="--w:180px"></span></div>
+          </article>
+          <article class="card lift stat" id="stat-root" data-on="false">
+            <div class="stat-top">
+              <span class="tile-icon"><svg class="i"><use href="#i-root"/></svg></span>
+              <span class="label">Root shell</span>
+              <span class="dot" data-on="false"></span>
+            </div>
+            <div class="stat-value" data-field="value"><span class="skeleton" style="--w:96px"></span></div>
+            <div class="stat-sub" data-field="sub"><span class="skeleton" style="--w:160px"></span></div>
+          </article>
+          <article class="card lift stat" id="stat-adb" data-on="false">
+            <div class="stat-top">
+              <span class="tile-icon"><svg class="i"><use href="#i-bug"/></svg></span>
+              <span class="label">ADB</span>
+              <span class="dot" data-on="false"></span>
+            </div>
+            <div class="stat-value" data-field="value"><span class="skeleton" style="--w:110px"></span></div>
+            <div class="stat-sub" data-field="sub"><span class="skeleton" style="--w:150px"></span></div>
+          </article>
+        </div>
+
+        <div class="grid conn-mid section stagger">
+          <article class="card device">
+            <header class="card-head">
+              <div class="device-id">
+                <span class="device-art"><svg class="i"><use href="#i-goggles"/></svg></span>
+                <div class="min0">
+                  <div class="label">Device</div>
+                  <h2 class="device-name" id="devName">DJI Goggles N3</h2>
+                  <div class="device-serial mono" id="devSerial"><span class="skeleton" style="--w:120px"></span></div>
+                </div>
+              </div>
+              <span class="badge" data-tone="accent" id="devVersion">v—</span>
+            </header>
+            <div class="metrics">
+              <div class="metric"><div class="label">Links up</div><div class="metric-value"><span id="mLinks">0</span><small>/3</small></div></div>
+              <div class="metric"><div class="label">UI PID</div><div class="metric-value"><span id="mPid">—</span></div></div>
+              <div class="metric"><div class="label">Mods installed</div><div class="metric-value"><span id="mMods">—</span></div></div>
+            </div>
+            <dl class="kv" id="devKv">
+              <div class="kv-row"><dt><span class="skeleton" style="--w:70px"></span></dt><dd><span class="skeleton" style="--w:60px"></span></dd></div>
+              <div class="kv-row"><dt><span class="skeleton" style="--w:60px"></span></dt><dd><span class="skeleton" style="--w:50px"></span></dd></div>
+              <div class="kv-row"><dt><span class="skeleton" style="--w:80px"></span></dt><dd><span class="skeleton" style="--w:56px"></span></dd></div>
+              <div class="kv-row"><dt><span class="skeleton" style="--w:64px"></span></dt><dd><span class="skeleton" style="--w:70px"></span></dd></div>
+            </dl>
+          </article>
+
+          <article class="card checklist">
+            <header class="card-head">
+              <div>
+                <div class="label">First run</div>
+                <h2 class="card-title">Setup checklist</h2>
+              </div>
+              <span class="step-count mono" id="stepCount">0 of 4</span>
+            </header>
+            <div class="progress" aria-hidden="true"><span id="stepBar"></span></div>
+            <ol class="steps" id="steps">
+              <li class="step" data-step="usb">
+                <span class="step-mark">1</span>
+                <div class="min0"><div class="step-title">Connect USB</div><div class="step-hint">USB-C data cable to the goggles.</div></div>
+              </li>
+              <li class="step" data-step="root">
+                <span class="step-mark">2</span>
+                <div class="min0"><div class="step-title">Start root</div><div class="step-hint">Opens the uid 0 shell.</div></div>
+                <button class="btn btn-sm btn-danger" data-action="start_root">Start</button>
+              </li>
+              <li class="step" data-step="adb">
+                <span class="step-mark">3</span>
+                <div class="min0"><div class="step-title">Enable ADB</div><div class="step-hint">Device re-enumerates once.</div></div>
+                <button class="btn btn-sm btn-warn" data-action="enable_adb">Enable</button>
+              </li>
+              <li class="step" data-step="live">
+                <span class="step-mark">4</span>
+                <div class="min0"><div class="step-title">Open E420Z</div><div class="step-hint">Mirror the goggles display.</div></div>
+                <button class="btn btn-sm" data-go="live">Open</button>
+              </li>
+            </ol>
+          </article>
+        </div>
+
+        <div class="section-head">
+          <div>
+            <h2>Actions</h2>
+            <p>Every action carries its safety level. Experimental and risky actions ask before they run.</p>
+          </div>
+        </div>
+        <div class="grid actions-grid stagger" id="actionsGrid"></div>
+
+        <div class="section-head">
+          <div>
+            <h2>Safety legend</h2>
+            <p>The same three levels are used on every page, button and confirmation.</p>
+          </div>
+        </div>
+        <div class="grid cols-3 stagger" data-safety-key="cards"></div>
+      </section>
+
+      <!-- ============ E420Z ============ -->
+      <section class="page" id="page-live" aria-labelledby="pageTitle">
+        <div class="grid live-layout stagger">
+          <div class="card stage-card">
+            <div class="stage" id="stage" data-state="idle">
+              <div class="stage-frames">
+                <img class="stage-frame is-front" alt="Live goggles display">
+                <img class="stage-frame" alt="">
+              </div>
+              <div class="stage-empty">
+                <div class="stage-empty-inner">
+                  <span class="empty-icon"><svg class="i"><use href="#i-goggles"/></svg></span>
+                  <h3 id="stageTitle">Live preview is off</h3>
+                  <p id="stageText">Start live to mirror the goggles display.</p>
+                </div>
+              </div>
+              <div class="stage-corners" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+              <div class="hud">
+                <span class="chip chip-live" id="chipLive" data-on="false"><span class="dot" data-on="false"></span><span>OFF</span></span>
+                <span class="chip" id="chipRes">—</span>
+                <span class="chip" id="chipFps">— fps</span>
+                <span class="chip hud-end" id="chipFrames">0 frames</span>
+              </div>
+            </div>
+            <div class="stage-note">
+              <svg class="i"><use href="#i-info"/></svg>
+              <span>Starting live restarts the goggles UI — the headset screen blanks for a few seconds. Frames are pulled over USB and never leave this PC.</span>
+            </div>
+          </div>
+
+          <aside class="side-stack">
+            <div class="card">
+              <header class="card-head">
+                <div><div class="label">Stream</div><h2 class="card-title">Live control</h2></div>
+                <span class="badge" data-risk="EXPERIMENTAL">Experimental</span>
+              </header>
+              <div class="field-label">Resolution</div>
+              <div class="scale-grid" id="scaleGrid" role="radiogroup" aria-label="Live resolution"></div>
+              <div class="btn-row">
+                <button class="btn btn-primary grow" id="liveStart" data-busy-key="live_start"><svg class="i"><use href="#i-play"/></svg>Start live</button>
+                <button class="btn" id="liveStop" data-busy-key="live_stop" disabled><svg class="i"><use href="#i-stop"/></svg>Stop</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <header class="card-head">
+                <div><div class="label">Capture</div><h2 class="card-title">Screenshot</h2></div>
+                <span class="badge" data-risk="SAFE">Safe</span>
+              </header>
+              <button class="shot" id="shotThumb" disabled aria-label="Open last screenshot">
+                <img id="shotImg" alt="" hidden>
+                <span class="shot-empty" id="shotEmpty"><svg class="i"><use href="#i-image"/></svg>No screenshot yet</span>
+              </button>
+              <div class="shot-meta mono" id="shotMeta">Captures are saved on the goggles.</div>
+              <button class="btn grow full" id="shotBtn" data-busy-key="capture_screen"><svg class="i"><use href="#i-camera"/></svg>Capture screen</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ============ Sparrow2 ============ -->
+      <section class="page" id="page-sparrow" aria-labelledby="pageTitle">
+        <div class="stagger">
+          <div class="banner banner-info">
+            <span class="banner-icon"><svg class="i"><use href="#i-lock"/></svg></span>
+            <div>
+              <h3>Read-only radio inspection <span class="badge" data-tone="accent">Read-only</span></h3>
+              <p>Sparrow2 is the goggles' radio subsystem. This page only reads reports and tool inventories. There is no transmit, no jamming and no IQ capture — the backend does not expose them.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid cols-3 stagger">
+          <article class="card lift tool">
+            <span class="tile-icon"><svg class="i"><use href="#i-radio"/></svg></span>
+            <h3>Radio report</h3>
+            <p>Link state, firmware and capability flags as structured data.</p>
+            <button class="btn btn-sm" data-sparrow="sparrow_report" data-busy-key="sparrow_report"><svg class="i"><use href="#i-play"/></svg>Run report</button>
+          </article>
+          <article class="card lift tool">
+            <span class="tile-icon"><svg class="i"><use href="#i-cpu"/></svg></span>
+            <h3>Tool inventory</h3>
+            <p>Radio binaries and device nodes present on the goggles.</p>
+            <button class="btn btn-sm" data-sparrow="sparrow_tools" data-busy-key="sparrow_tools"><svg class="i"><use href="#i-list"/></svg>List tools</button>
+          </article>
+          <article class="card lift tool">
+            <span class="tile-icon"><svg class="i"><use href="#i-terminal"/></svg></span>
+            <h3>Console help</h3>
+            <p>Read-only commands accepted by the Sparrow2 console.</p>
+            <button class="btn btn-sm" data-sparrow="sparrow_console" data-busy-key="sparrow_console"><svg class="i"><use href="#i-info"/></svg>Show help</button>
+          </article>
+        </div>
+
+        <div class="grid sparrow-bottom section stagger">
+          <article class="card">
+            <header class="card-head">
+              <div class="min0"><div class="label">Output</div><h2 class="card-title" id="sparrowSource">Nothing loaded yet</h2></div>
+              <button class="icon-btn" id="sparrowCopy" aria-label="Copy output" title="Copy output"><svg class="i"><use href="#i-copy"/></svg></button>
+            </header>
+            <pre class="console sparrow-out" id="sparrowOut">Run a report, tool inventory or console help to see output here.</pre>
+          </article>
+          <article class="card">
+            <header class="card-head">
+              <div><div class="label">Reference</div><h2 class="card-title">Documentation</h2></div>
+            </header>
+            <p class="hint">Shipped in the app folder. Paths are relative to the project root.</p>
+            <ul class="doc-list">
+              <li>
+                <span class="doc-icon"><svg class="i"><use href="#i-file"/></svg></span>
+                <div class="min0"><button class="doc-link mono" data-doc="docs/SPARROW2.md">docs/SPARROW2.md</button><div class="hint">Subsystem overview and read-only interface</div></div>
+                <button class="icon-btn sm" data-copy="docs/SPARROW2.md" aria-label="Copy path docs/SPARROW2.md"><svg class="i"><use href="#i-copy"/></svg></button>
+              </li>
+              <li>
+                <span class="doc-icon"><svg class="i"><use href="#i-file"/></svg></span>
+                <div class="min0"><button class="doc-link mono" data-doc="docs/SPARROW2-EVIDENCE.md">docs/SPARROW2-EVIDENCE.md</button><div class="hint">Captured evidence and findings</div></div>
+                <button class="icon-btn sm" data-copy="docs/SPARROW2-EVIDENCE.md" aria-label="Copy path docs/SPARROW2-EVIDENCE.md"><svg class="i"><use href="#i-copy"/></svg></button>
+              </li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============ Root Shell ============ -->
+      <section class="page" id="page-shell" aria-labelledby="pageTitle">
+        <div class="stagger">
+          <div class="banner banner-risky">
+            <span class="banner-icon"><svg class="i"><use href="#i-alert"/></svg></span>
+            <div>
+              <h3>Commands run as uid 0 <span class="badge" data-risk="RISKY">Risky</span></h3>
+              <p>Writes to <code>/system</code>, dm-verity changes, partition and bootloader operations are blocked by the backend. Everything else runs exactly as typed — read it before you press Run.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid shell-layout stagger">
+          <article class="card terminal">
+            <div class="term-bar">
+              <span class="dot" id="shellDot" data-on="false"></span>
+              <span class="mono term-host">root@n3 <span class="muted">· uid 0</span></span>
+              <span class="spacer"></span>
+              <button class="icon-btn sm" id="shellCopy" aria-label="Copy shell output" title="Copy output"><svg class="i"><use href="#i-copy"/></svg></button>
+              <button class="icon-btn sm" id="shellClear" aria-label="Clear shell output" title="Clear output"><svg class="i"><use href="#i-trash"/></svg></button>
+            </div>
+            <div class="console term-out" id="shellOut" role="log" aria-live="polite" aria-label="Shell output"></div>
+            <form class="term-input" id="shellForm" autocomplete="off">
+              <span class="prompt" aria-hidden="true">#</span>
+              <label class="sr-only" for="shellInput">Command</label>
+              <input id="shellInput" type="text" spellcheck="false" placeholder="Type a command  ·  ↑ ↓ history">
+              <button type="submit" class="btn btn-sm btn-danger" data-busy-key="run_shell"><svg class="i"><use href="#i-play"/></svg>Run</button>
+            </form>
+          </article>
+
+          <aside class="side-stack">
+            <div class="card">
+              <header class="card-head">
+                <div><div class="label">Read-only</div><h2 class="card-title">Quick commands</h2></div>
+              </header>
+              <p class="hint">Inserts into the prompt. Nothing runs until you press Run.</p>
+              <div class="quick-list" id="quickList"></div>
+            </div>
+            <div class="card">
+              <header class="card-head">
+                <div><div class="label">This session</div><h2 class="card-title">History</h2></div>
+                <svg class="i muted"><use href="#i-history"/></svg>
+              </header>
+              <div class="history-list" id="historyList"></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ============ Mods & UI ============ -->
+      <section class="page" id="page-mods" aria-labelledby="pageTitle">
+        <div class="toolbar">
+          <span class="muted" id="modsSummary">Loading mods…</span>
+          <button class="btn btn-sm" id="modsRefresh" data-busy-key="mods_list"><svg class="i"><use href="#i-refresh"/></svg>Refresh</button>
+        </div>
+        <div class="grid mods-grid stagger" id="modsGrid"></div>
+        <div class="empty" id="modsEmpty" hidden>
+          <span class="empty-icon"><svg class="i"><use href="#i-layers"/></svg></span>
+          <h3 id="modsEmptyTitle">No mods found</h3>
+          <p id="modsEmptyText">The backend reported an empty mod list. Connect the goggles and refresh.</p>
+          <button class="btn btn-sm" data-busy-key="mods_list" id="modsEmptyRefresh"><svg class="i"><use href="#i-refresh"/></svg>Refresh</button>
+        </div>
+      </section>
+
+      <!-- ============ Logs ============ -->
+      <section class="page" id="page-logs" aria-labelledby="pageTitle">
+        <div class="stagger">
+          <article class="card logs-card">
+            <div class="logs-toolbar">
+              <div class="tabs" role="tablist" aria-label="Log source" id="logTabs">
+                <button class="tab" role="tab" data-log="natartos" aria-selected="true">NATARTOS</button>
+                <button class="tab" role="tab" data-log="n3mods" aria-selected="false" tabindex="-1">N3MODS</button>
+                <button class="tab" role="tab" data-log="ui" aria-selected="false" tabindex="-1">UI</button>
+                <button class="tab" role="tab" data-log="capture" aria-selected="false" tabindex="-1">CAPTURE</button>
+                <button class="tab" role="tab" data-log="web" aria-selected="false" tabindex="-1">WEB</button>
+              </div>
+              <label class="field">
+                <svg class="i"><use href="#i-filter"/></svg>
+                <span class="sr-only">Filter lines</span>
+                <input id="logFilter" type="search" placeholder="Filter lines" spellcheck="false">
+              </label>
+              <button class="btn btn-sm toggle" id="autoScroll" aria-pressed="true"><svg class="i"><use href="#i-arrow-down"/></svg>Auto-scroll</button>
+              <button class="icon-btn" id="logCopy" aria-label="Copy visible lines" title="Copy visible lines"><svg class="i"><use href="#i-copy"/></svg></button>
+              <button class="icon-btn" id="logClear" aria-label="Clear view (client-side only)" title="Clear view (client-side only)"><svg class="i"><use href="#i-trash"/></svg></button>
+            </div>
+            <div class="logs-stage">
+              <div class="console logs-console" id="logOut" role="log" aria-label="Log output"></div>
+              <div class="empty logs-empty" id="logEmpty" hidden>
+                <span class="empty-icon"><svg class="i"><use href="#i-list"/></svg></span>
+                <h3 id="logEmptyTitle">No log output yet</h3>
+                <p id="logEmptyText">Lines appear here as soon as the backend reports them.</p>
+              </div>
+            </div>
+            <div class="logs-meta">
+              <span class="live-tag"><span class="dot" id="logDot" data-on="false"></span>Auto-refresh · 3 s</span>
+              <span class="mono" id="logCount">0 lines</span>
+              <span class="spacer"></span>
+              <span id="logUpdated">Not updated yet</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============ Settings ============ -->
+      <section class="page" id="page-settings" aria-labelledby="pageTitle">
+        <div class="grid settings-grid stagger">
+          <article class="card">
+            <header class="card-head">
+              <div><div class="label">Interface</div><h2 class="card-title">Preferences</h2></div>
+              <span class="badge" data-risk="SAFE">Safe</span>
+            </header>
+            <div class="pref">
+              <div><div class="pref-title">Accent</div><div class="hint">Highlight colour across the deck.</div></div>
+              <div class="swatches" id="accentGroup" role="radiogroup" aria-label="Accent colour">
+                <button class="swatch" role="radio" data-accent="purple" style="--sw:#B44BFF" aria-label="Purple" title="Purple"></button>
+                <button class="swatch" role="radio" data-accent="cyan" style="--sw:#22D3EE" aria-label="Cyan" title="Cyan"></button>
+                <button class="swatch" role="radio" data-accent="amber" style="--sw:#F59E0B" aria-label="Amber" title="Amber"></button>
+                <button class="swatch" role="radio" data-accent="rose" style="--sw:#FB7185" aria-label="Rose" title="Rose"></button>
+              </div>
+            </div>
+            <div class="pref">
+              <div><div class="pref-title">Motion</div><div class="hint">Transitions, count-ups and live effects.</div></div>
+              <button class="switch" id="motionSwitch" role="switch" aria-checked="true" aria-label="Motion"></button>
+            </div>
+            <div class="pref">
+              <div><div class="pref-title">Density</div><div class="hint">Spacing of cards and controls.</div></div>
+              <div class="segmented" id="densityGroup" role="radiogroup" aria-label="Density">
+                <button role="radio" data-density="comfortable" aria-checked="true">Comfortable</button>
+                <button role="radio" data-density="compact" aria-checked="false">Compact</button>
+              </div>
+            </div>
+            <div class="pref">
+              <div><div class="pref-title">Default live scale</div><div class="hint">Preselected on E420Z.</div></div>
+              <select class="select" id="scaleSelect" aria-label="Default live scale"></select>
+            </div>
+          </article>
+
+          <article class="card">
+            <header class="card-head">
+              <div><div class="label">Goggles</div><h2 class="card-title">Theme</h2></div>
+              <span class="badge" data-risk="EXPERIMENTAL">Experimental</span>
+            </header>
+            <p class="hint">Applying a theme rewrites UI assets in <code>/vendor</code> and restarts the goggles UI.</p>
+            <div class="theme-list" id="themeList" role="radiogroup" aria-label="Goggles theme">
+              <div class="theme-skel"><span class="skeleton" style="--w:100%"></span></div>
+              <div class="theme-skel"><span class="skeleton" style="--w:100%"></span></div>
+              <div class="theme-skel"><span class="skeleton" style="--w:100%"></span></div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-warn" id="themeApply" data-busy-key="apply_theme" disabled><svg class="i"><use href="#i-sparkle"/></svg>Apply theme</button>
+              <button class="btn btn-ghost btn-sm" id="themeReload" data-busy-key="themes"><svg class="i"><use href="#i-refresh"/></svg>Reload</button>
+            </div>
+          </article>
+
+          <article class="card">
+            <header class="card-head">
+              <div><div class="label">Reference</div><h2 class="card-title">Safety key</h2></div>
+            </header>
+            <div class="safety-list" data-safety-key="list"></div>
+          </article>
+
+          <article class="card danger-card">
+            <header class="card-head">
+              <div><div class="label">Danger</div><h2 class="card-title">Hard limits</h2></div>
+              <span class="badge" data-risk="RISKY">Read this</span>
+            </header>
+            <ul class="danger-list">
+              <li><svg class="i"><use href="#i-x"/></svg><span><strong>Never write to <code>/system</code>.</strong> It is verified on every boot.</span></li>
+              <li><svg class="i"><use href="#i-x"/></svg><span><strong>dm-verity mode 2 bricks the goggles</strong> on the next reboot.</span></li>
+              <li><svg class="i"><use href="#i-x"/></svg><span><strong>There is no known unbrick</strong> for the N3. Treat every write as permanent.</span></li>
+              <li class="is-ok"><svg class="i"><use href="#i-check"/></svg><span>This app only writes to <code>/vendor</code> and <code>/data/local/tmp</code>.</span></li>
+            </ul>
+          </article>
+
+          <article class="card about span-2">
+            <div class="about-main">
+              <div class="about-brand">
+                <span class="brand-mark" aria-hidden="true">N3</span>
+                <div><h2 class="card-title">N3 ROOT</h2><div class="hint">Local-first control deck for DJI Goggles N3</div></div>
+              </div>
+              <dl class="kv about-kv">
+                <div class="kv-row"><dt>Backend</dt><dd class="mono" id="aboutBackend">—</dd></div>
+                <div class="kv-row"><dt>Web UI</dt><dd class="mono">1.0.0</dd></div>
+                <div class="kv-row"><dt>Data source</dt><dd id="aboutMode">—</dd></div>
+                <div class="kv-row"><dt>Runtime</dt><dd>pywebview · WebView2</dd></div>
+              </dl>
+            </div>
+            <div class="about-side">
+              <p class="session-note"><svg class="i"><use href="#i-info"/></svg><span><strong>Session only.</strong> Shell history, cleared log views and the WEB log live in memory and reset when the app closes. Preferences are saved by the host.</span></p>
+              <div class="shortcuts">
+                <div><span><kbd>Ctrl</kbd><kbd>K</kbd></span>Command palette</div>
+                <div><span><kbd>Alt</kbd><kbd>1–7</kbd></span>Switch page</div>
+                <div><span><kbd>Ctrl</kbd><kbd>R</kbd></span>Refresh status</div>
+                <div><span><kbd>Esc</kbd></span>Close dialog</div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
     </div>
   </main>
 </div>
-<script>
-  const $ = (id) => document.getElementById(id);
-  const mock = {ui:true, patched:true, root:true, adb:true, usb:true, transport:"ADB + root", version:"1.0"};
-  async function status() {
-    const api = window.pywebview && window.pywebview.api;
-    if (!api) return mock;
-    try { return await api.status(); } catch (e) { return {error:String(e)}; }
-  }
-  function setv(id, v, good) {
-    const el = $(id); if (!el) return;
-    el.textContent = v; el.className = "value " + (good ? "green" : "red");
-  }
-  async function refresh() {
-    const s = await status();
-    setv("usb", s.usb ? "CONNECTED" : "OFFLINE", s.usb);
-    setv("root", s.root ? "OPEN" : "CLOSED", s.root);
-    setv("adb", s.adb ? "ONLINE" : "OFFLINE", s.adb);
-    $("sideStatus").textContent = s.transport || "offline";
-    $("raw").textContent = JSON.stringify(s, null, 2);
-  }
-  async function apiCall(name) {
-    const api = window.pywebview && window.pywebview.api;
-    if (!api) return alert("This action needs the pywebview host.");
-    $("raw").textContent = "running " + name + "â€¦";
-    try { const r = await api[name](); $("raw").textContent = JSON.stringify(r, null, 2); }
-    catch (e) { $("raw").textContent = String(e); }
-    refresh();
-  }
-  window.addEventListener("pywebviewready", refresh);
-  refresh();
-</script>
+
+<!-- ============ Toasts ============ -->
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<!-- ============ Command palette ============ -->
+<div class="overlay palette-overlay" id="paletteOverlay" aria-hidden="true">
+  <div class="palette" role="dialog" aria-modal="true" aria-label="Command palette">
+    <div class="palette-input">
+      <svg class="i"><use href="#i-search"/></svg>
+      <input id="paletteInput" type="text" role="combobox" aria-expanded="true" aria-controls="paletteList" aria-autocomplete="list" placeholder="Search pages and actions…" spellcheck="false" autocomplete="off">
+      <kbd>Esc</kbd>
+    </div>
+    <ul class="palette-list" id="paletteList" role="listbox" aria-label="Results"></ul>
+    <div class="palette-foot">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+      <span><kbd>Enter</kbd> run</span>
+      <span><kbd>Esc</kbd> close</span>
+      <span class="spacer"></span>
+      <span class="palette-brand"><svg class="i"><use href="#i-command"/></svg>N3 ROOT</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Modal ============ -->
+<div class="overlay modal-overlay" id="modalOverlay" aria-hidden="true">
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalBody">
+    <div class="modal-head">
+      <span class="modal-icon" id="modalIcon"></span>
+      <div class="modal-heading">
+        <span class="badge" id="modalBadge" hidden></span>
+        <h2 id="modalTitle">Confirm</h2>
+      </div>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="modalCancel">Cancel</button>
+      <button class="btn modal-confirm" id="modalConfirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>
