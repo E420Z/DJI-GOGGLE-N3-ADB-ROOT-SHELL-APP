@@ -564,10 +564,14 @@ static void *inject_thread_fn(void *arg) {
 
         unsigned int counter = 0;
         sys_pread64(g_inject_fd, &counter, 4, 0);
-        /* Only lift a frame when the producer published a NEW one. Without this
-         * the thread re-copied ~8MB + fan-out every 16.6ms (60Hz) even when
-         * fb_receiver sent nothing, wasting ~2GB/s and widening the tear window. */
-        if (counter == 0 || counter == g_inject_last_counter) continue;
+        /* Only lift a frame when the producer published a NEW one, unless
+         * fb_hold exists: then re-assert the last frame every tick so the
+         * goggles' own UI (including its anti-burn-in overlay) cannot paint
+         * over it between PC frames. fb_receiver creates fb_hold while a PC
+         * stream is connected. */
+        int hold = sys_faccessat(AT_FDCWD, "/data/local/tmp/fb_hold", 0) == 0;
+        if (counter == 0) continue;
+        if (!hold && counter == g_inject_last_counter) continue;
         g_inject_last_counter = counter;
 
         /* Read the published FRONT slot (counter & 1); fb_receiver wrote the

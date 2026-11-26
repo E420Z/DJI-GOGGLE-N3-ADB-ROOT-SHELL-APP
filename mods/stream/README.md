@@ -51,3 +51,13 @@ Stop with `pkill -TERM fb_receiver`: it removes `fb_override`, touches
 - Publishes a valid idle frame before setting `fb_override`, so the first frame
   the goggles shows is never uninitialised memory.
 - Never touches `/system`, `/vendor`, verity or partitions.
+
+## Anti-burn-in flicker fix (2026-11-26)
+
+The inject thread only copied when the producer incremented the counter, so
+between PC frames the goggles’ own UI (including its anti-burn-in overlay)
+painted over the injected picture - visible as flicker.
+
+b_receiver now also creates /data/local/tmp/fb_hold. While that file
+exists the inject thread re-asserts the last frame on every 60 Hz tick, so the
+UI cannot paint over it. Removing fb_hold restores the old cheap behaviour.

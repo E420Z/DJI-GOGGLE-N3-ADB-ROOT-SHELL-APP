@@ -30,6 +30,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -45,6 +46,7 @@
 
 #define SHM_PATH   "/data/local/tmp/fb_shared"
 #define FLAG_PATH  "/data/local/tmp/fb_override"
+#define HOLD_PATH  "/data/local/tmp/fb_hold"
 #define STOP_PATH  "/data/local/tmp/fb_stop"
 #define LOG_PATH   "/data/local/tmp/fb_receiver.log"
 #define PORT 5570
@@ -86,25 +88,53 @@ static unsigned char *back_slot(void) {
     return g_pixels + (unsigned long)((c + 1) & 1u) * FB_SIZE;
 }
 
-/* Centre a w*h BGRA image in the 1920x1080 frame, letterboxed. */
+/* Centre a w*h BGRA image in the 1920x1080 frame, letterboxed.
+ * Fast paths: exact size is a single memcpy; 1:1 width copies whole rows and
+ * only clears the side bars. The per-pixel path is the last resort. */
 static void blit_bgra(const unsigned char *src, int w, int h) {
     unsigned char *base = back_slot();
-    memset(base, 0, FB_SIZE);
-    if (w <= 0 || h <= 0) { __atomic_add_fetch(g_counter, 1, __ATOMIC_RELEASE); return; }
+    if (w <= 0 || h <= 0) { memset(base, 0, FB_SIZE); __atomic_add_fetch(g_counter, 1, __ATOMIC_RELEASE); return; }
+
     float sx = (float)FB_W / w, sy = (float)FB_H / h;
     float s = sx < sy ? sx : sy;
     int dw = (int)(w * s), dh = (int)(h * s);
     if (dw > FB_W) dw = FB_W;
     if (dh > FB_H) dh = FB_H;
     int ox = (FB_W - dw) / 2, oy = (FB_H - dh) / 2;
-    for (int dy = 0; dy < dh; dy++) {
-        int syi = (int)((long)dy * h / dh);
-        const unsigned char *row = src + (long)syi * w * 4;
-        unsigned char *dst = base + ((long)(oy + dy) * FB_W + ox) * 4;
-        for (int dx = 0; dx < dw; dx++) {
-            const unsigned char *sp = row + (long)((int)((long)dx * w / dw)) * 4;
-            dst[0] = sp[0]; dst[1] = sp[1]; dst[2] = sp[2]; dst[3] = 255;
-            dst += 4;
+
+    if (w == FB_W && h == FB_H) {                 /* exact: no scaling, no bars */
+        memcpy(base, src, FB_SIZE);
+    } else {
+        /* clear only the bars, not the whole 8 MB frame */
+        if (oy > 0) {
+            memset(base, 0, (long)oy * FB_W * 4);
+            memset(base + (long)(oy + dh) * FB_W * 4, 0,
+                   (long)(FB_H - oy - dh) * FB_W * 4);
+        }
+        if (ox > 0) {
+            for (int y = oy; y < oy + dh; y++) {
+                memset(base + ((long)y * FB_W) * 4, 0, (long)ox * 4);
+                memset(base + ((long)y * FB_W + ox + dw) * 4, 0,
+                       (long)(FB_W - ox - dw) * 4);
+            }
+        }
+        if (dw == w) {                             /* 1:1 width: row copies */
+            for (int dy = 0; dy < dh; dy++) {
+                int syi = (int)((long)dy * h / dh);
+                memcpy(base + ((long)(oy + dy) * FB_W + ox) * 4,
+                       src + (long)syi * w * 4, (long)w * 4);
+            }
+        } else {
+            for (int dy = 0; dy < dh; dy++) {
+                int syi = (int)((long)dy * h / dh);
+                const unsigned char *row = src + (long)syi * w * 4;
+                unsigned char *dst = base + ((long)(oy + dy) * FB_W + ox) * 4;
+                for (int dx = 0; dx < dw; dx++) {
+                    const unsigned char *sp = row + (long)((int)((long)dx * w / dw)) * 4;
+                    dst[0] = sp[0]; dst[1] = sp[1]; dst[2] = sp[2]; dst[3] = 255;
+                    dst += 4;
+                }
+            }
         }
     }
     __atomic_add_fetch(g_counter, 1, __ATOMIC_RELEASE);
@@ -147,6 +177,8 @@ static int serve_client(int fd) {
 
     logmsg("client connected\n");
     unsigned long frames = 0;
+    double dec_ms = 0, blit_ms = 0;
+    struct timespec t0, t1, t2;
     while (!g_stop) {
         uint32_t len = 0;
         int ok = read_full(fd, &len, 4);
@@ -154,8 +186,10 @@ static int serve_client(int fd) {
         if (len == 0 || len > MAX_FRAME) { logmsg("bad frame len %u\n", len); break; }
         if (read_full(fd, jpg, len) <= 0) break;
 
+        clock_gettime(CLOCK_MONOTONIC, &t0);
         int w = 0, h = 0, comp = 0;
         unsigned char *px = stbi_load_from_memory(jpg, (int)len, &w, &h, &comp, 3);
+        clock_gettime(CLOCK_MONOTONIC, &t1);
         if (!px) { logmsg("jpeg decode failed (%d bytes)\n", len); continue; }
 
         /* RGB -> BGRA */
@@ -170,9 +204,17 @@ static int serve_client(int fd) {
         }
         stbi_image_free(px);
         blit_bgra(rgba, w, h);
+        clock_gettime(CLOCK_MONOTONIC, &t2);
+
+        dec_ms += (t1.tv_sec - t0.tv_sec) * 1e3 + (t1.tv_nsec - t0.tv_nsec) / 1e6;
+        blit_ms += (t2.tv_sec - t1.tv_sec) * 1e3 + (t2.tv_nsec - t1.tv_nsec) / 1e6;
         frames++;
         if (frames == 1) logmsg("first frame %dx%d (%u bytes)\n", w, h, len);
-        if (frames % 60 == 0) logmsg("frames %lu\n", frames);
+        if (frames % 30 == 0) {
+            logmsg("frames %lu  decode %.1f ms  blit %.1f ms\n",
+                   frames, dec_ms / 30.0, blit_ms / 30.0);
+            dec_ms = 0; blit_ms = 0;
+        }
     }
     logmsg("client gone after %lu frames\n", frames);
     free(jpg);
@@ -208,7 +250,9 @@ int main(void) {
     /* enable injection only once a frame is ready */
     int fl = open(FLAG_PATH, O_CREAT | O_WRONLY, 0666);
     if (fl >= 0) close(fl);
-    logmsg("fb_override set\n");
+    fl = open(HOLD_PATH, O_CREAT | O_WRONLY, 0666);
+    if (fl >= 0) close(fl);
+    logmsg("fb_override + fb_hold set\n");
 
     while (!g_stop) {
         fd_set rf;
@@ -226,6 +270,7 @@ int main(void) {
 
     logmsg("shutting down\n");
     unlink(FLAG_PATH);
+    unlink(HOLD_PATH);
     int st = open(STOP_PATH, O_CREAT | O_WRONLY, 0666);
     if (st >= 0) close(st);
     usleep(600000);
