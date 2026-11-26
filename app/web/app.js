@@ -40,6 +40,8 @@ const PAGES = [
     subtitle: "Live mirror of the goggles display and on-demand screenshots." },
   { id: "sparrow", title: "Sparrow2", group: "Device", icon: "radio", risk: "SAFE",
     subtitle: "Read-only inspection of the radio subsystem." },
+  { id: "pcstream", title: "PC Stream", group: "Device", icon: "monitor", risk: "EXPERIMENTAL",
+    subtitle: "Stream this desktop into the goggles over the USB link." },
   { id: "shell", title: "Root Shell", group: "System", icon: "terminal", risk: "RISKY",
     subtitle: "Run commands on the goggles as uid 0. Nothing runs until you press Run." },
   { id: "mods", title: "Mods & UI", group: "System", icon: "layers", risk: "EXPERIMENTAL",
@@ -150,9 +152,11 @@ const state = {
   sparrowText: "",
   visitedLive: false,
   live: { running: false, scale: DEFAULT_SCALE, userScale: false, frames: 0, misses: 0, failures: 0, timer: 0, lastShot: null },
+  mockPc: { running: false, size: "1280x720", fps: 12, quality: 65, frames: 420 },
   webLog: [],
   busy: new Set(),
-  timers: { status: 0, logs: 0 },
+  timers: { status: 0, logs: 0, pc: 0 },
+  pc: null,
   inFlight: { status: false, logs: false },
 };
 
@@ -538,11 +542,108 @@ function onPageEnter(id) {
   if (id === "mods") loadMods();
   if (id === "logs") startLogs();
   if (id === "settings") loadThemes();
+  if (id === "pcstream") startPcStream();
 }
 
 function onPageLeave(id) {
   if (id === "logs") clearInterval(state.timers.logs);
   if (id === "live") clearTimeout(state.live.timer);
+  if (id === "pcstream") clearInterval(state.timers.pc);
+}
+
+/* ==========================================================================
+   PC Stream
+   ========================================================================== */
+function pcSet(id, value) {
+  const el = $(id);
+  if (el) el.textContent = value == null || value === "" ? "—" : String(value);
+}
+
+function renderPcStream() {
+  const p = state.pc;
+  if (!p) return;
+  const sender = p.sender || {};
+  const dev = p.device || {};
+  const running = Boolean(sender.running);
+
+  setOn($("#pcPill"), running);
+  pcSet("#pcPillText", running ? "Streaming" : "Idle");
+  pcSet("#pcFps", sender.fps != null ? sender.fps : 0);
+  pcSet("#pcKbps", sender.kbps != null ? sender.kbps : 0);
+  pcSet("#pcFrames", sender.frames != null ? sender.frames : 0);
+  pcSet("#pcSize", sender.size);
+  pcSet("#pcTarget", sender.fps_target != null ? `${sender.fps_target} fps` : null);
+  pcSet("#pcQuality", sender.quality != null ? `q${sender.quality}` : null);
+  pcSet("#pcSlow", sender.slow != null ? sender.slow : 0);
+  pcSet("#pcErrors", sender.errors != null ? sender.errors : 0);
+  pcSet("#pcDecode", dev.decode_ms != null ? `${dev.decode_ms} ms` : null);
+  pcSet("#pcBlit", dev.blit_ms != null ? `${dev.blit_ms} ms` : null);
+  pcSet("#pcDropped", dev.dropped != null ? dev.dropped : 0);
+  pcSet("#pcPid", dev.pid || (dev.adb ? "not running" : "no ADB"));
+  pcSet("#pcHold", dev.flags ? (dev.flags.fb_hold ? "on" : "off") : null);
+  pcSet("#pcOverride", dev.flags ? (dev.flags.fb_override ? "on" : "off") : null);
+
+  const log = $("#pcLog");
+  if (log && dev.log) log.textContent = dev.log;
+  if (log && !dev.log) log.textContent = "No receiver log yet.";
+
+  if ($("#pcStart")) $("#pcStart").disabled = running;
+  if ($("#pcStop")) $("#pcStop").disabled = !running;
+
+  const hint = $("#pcHint");
+  if (hint) {
+    hint.textContent = running
+      ? "Streaming. The goggles may look a beat behind — that is the software decoder, not the link."
+      : (sender.last_error
+        ? `Last error: ${sender.last_error}`
+        : "Idle. Start the root shell and enable ADB on Connection, then press Start.");
+  }
+}
+
+function renderPcSizes(sizes, current) {
+  const sel = $("#pcSizeSel");
+  if (!sel) return;
+  const list = Array.isArray(sizes) && sizes.length ? sizes : ["1280x720"];
+  setHTML(sel, list.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join(""));
+  sel.value = list.includes(current) ? current : list[0];
+}
+
+async function refreshPcStream(manual = false) {
+  if (!state.backend) return;
+  const res = await call("pcstream_info", [], { label: "PC stream", quiet: true, refresh: false });
+  if (!isOk(res)) return;
+  state.pc = res;
+  renderPcSizes(res.sizes, res.settings && res.settings.size);
+  renderPcStream();
+  if (manual) toast("Stream status refreshed", "info", "PC stream");
+}
+
+function startPcStream() {
+  if (!state.backend) return;
+  clearInterval(state.timers.pc);
+  refreshPcStream();
+  state.timers.pc = setInterval(refreshPcStream, 2000);
+}
+
+async function pcToggle(start) {
+  if (!state.backend) return;
+  const res = start
+    ? await call("pcstream_start",
+        [$("#pcSizeSel").value, Number($("#pcFpsSel").value), Number($("#pcQualitySel").value)],
+        { label: "Start PC stream", key: "pc_start" })
+    : await call("pcstream_stop", [], { label: "Stop PC stream", key: "pc_stop" });
+  if (res) toast(res.message || (start ? "Stream started" : "Stream stopped"),
+                 res.ok === false ? "error" : "success", "PC stream");
+  refreshPcStream();
+}
+
+async function pcSave() {
+  if (!state.backend) return;
+  const res = await call("pcstream_set",
+    [$("#pcSizeSel").value, Number($("#pcFpsSel").value), Number($("#pcQualitySel").value)],
+    { label: "Stream settings" });
+  if (isOk(res)) toast("Stream settings saved", "success", "PC stream");
+  refreshPcStream();
 }
 
 /* ==========================================================================
@@ -1516,6 +1617,11 @@ function bindEvents() {
 
   $("#liveStart").addEventListener("click", startLive);
   $("#liveStop").addEventListener("click", stopLive);
+  $("#pcStart").addEventListener("click", () => pcToggle(true));
+  $("#pcStop").addEventListener("click", () => pcToggle(false));
+  $("#pcRefresh").addEventListener("click", () => refreshPcStream(true));
+  $("#pcSave").addEventListener("click", pcSave);
+  $("#pcCopyLog").addEventListener("click", () => copyText($("#pcLog").textContent, "Receiver log copied"));
   $("#shotBtn").addEventListener("click", captureScreen);
   $("#shotThumb").addEventListener("click", openShotModal);
   $("#scaleGrid").addEventListener("click", (e) => {
@@ -1558,6 +1664,7 @@ function bindEvents() {
    Mock backend — deterministic, browser-only preview data
    ========================================================================== */
 function createMock() {
+  const mockPc = state.mockPc;
   const st = {
     version: "1.4.2-mock", ui: true, patched: true, root: true, adb: true,
     theme: "purple", background: true, menu: true, pid: "1287",
@@ -1715,6 +1822,41 @@ function createMock() {
       shots += 1;
       const path = `/data/local/tmp/n3cap/shot-${String(shots).padStart(4, "0")}.jpg`;
       return ok(`Saved ${path}`, { image: mockFrame(1280, 720, frame + shots * 40), path });
+    },
+    async pcstream_info() {
+      await sleep(60);
+      return {
+        ok: true,
+        sender: { running: mockPc.running, size: mockPc.size, fps_target: mockPc.fps,
+                  quality: mockPc.quality, frames: mockPc.frames, slow: 3, errors: 0,
+                  fps: mockPc.running ? 11.8 : 0, kbps: mockPc.running ? 452 : 0,
+                  host: "192.168.60.2", port: 5570, last_error: "" },
+        device: { adb: true, pid: mockPc.running ? "12104" : "",
+                  decode_ms: 57.3, blit_ms: 89.0, dropped: 44,
+                  flags: { fb_override: mockPc.running, fb_hold: mockPc.running, fb_stop: false },
+                  log: mockPc.running
+                    ? "fb_override + fb_hold set\nclient connected\nfirst frame 1280x720 (39484 bytes)\nframes 30  decode 57.3 ms  blit 89.0 ms\n"
+                    : "No receiver log yet." },
+        settings: { size: mockPc.size, fps: mockPc.fps, quality: mockPc.quality },
+        sizes: ["960x540", "1280x720", "1600x900", "1920x1080"],
+        notes: ["Enable ADB first.", "1280x720 at 12 fps is the sweet spot."],
+      };
+    },
+    async pcstream_start(size, fps, quality) {
+      await sleep(700);
+      mockPc.running = true;
+      mockPc.size = size || mockPc.size;
+      mockPc.fps = fps || mockPc.fps;
+      mockPc.quality = quality || mockPc.quality;
+      return ok("PC stream started (mock).");
+    },
+    async pcstream_stop() { await sleep(400); mockPc.running = false; return ok("PC stream stopped (mock)."); },
+    async pcstream_set(size, fps, quality) {
+      await sleep(150);
+      mockPc.size = size || mockPc.size;
+      mockPc.fps = fps || mockPc.fps;
+      mockPc.quality = quality || mockPc.quality;
+      return ok("Stream settings saved (mock).");
     },
     async s2_probe() {
       await sleep(500);

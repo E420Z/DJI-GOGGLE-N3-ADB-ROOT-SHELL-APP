@@ -86,8 +86,26 @@ live_frame() -> {
 capture_screen() -> { ok, message, image: string, path: string }
 ```
 
-## Sparrow2 / radio (read-only)
+## PC stream (desktop → goggles)
 
+```ts
+pcstream_info() -> {
+  ok, sender: { running, size, fps_target, quality, frames, slow, errors,
+                fps, kbps, host, port, last_error },
+  device: { adb, pid, decode_ms, blit_ms, dropped, flags: {...}, log },
+  settings: { size, fps, quality },
+  sizes: string[]
+}
+pcstream_start(size, fps, quality) -> { ok, message, stats, pid }
+pcstream_stop() -> { ok, message, stats }
+pcstream_set(size, fps, quality) -> { ok, message, settings }
+```
+
+`pcstream_start` installs (if needed), starts and labels the on-device
+`fb_receiver`, then starts the in-app sender thread. It needs ADB plus the root
+shell. Everything it writes is under `/data/local/tmp`.
+
+## Sparrow2 / radio (read-only)
 ```ts
 sparrow_report() -> { ok, data: object }
 sparrow_tools() -> { ok, text: string }

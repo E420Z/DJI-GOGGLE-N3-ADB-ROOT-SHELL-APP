@@ -44,6 +44,7 @@ app/tools/ui_shot.ps1  headless screenshot helper
 |---|---|---|
 | Connection | RISKY | USB / root / ADB state, device summary, first-run checklist, all connection actions. |
 | E420Z | EXPERIMENTAL | Live mirror, scale selector, FPS chips, screenshot. |
+| PC Stream | EXPERIMENTAL | Desktop -> goggles: on/off toggle, encode + device stats, size/fps/quality settings. |
 | Sparrow2 | SAFE | Read-only report, tool inventory, console help, doc links. |
 | Root Shell | RISKY | uid 0 command prompt with history and `/system` blocking. |
 | Mods & UI | EXPERIMENTAL | Install/uninstall mods with risk confirmations. |

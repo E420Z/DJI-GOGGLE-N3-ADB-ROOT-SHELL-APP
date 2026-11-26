@@ -1841,6 +1841,29 @@ h1 {
 }
 .toast:hover .toast-timer { animation-play-state: paused; }
 
+/* ---------- PC Stream ---------- */
+.pcstream-top { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; }
+.pcstream-bottom { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: start; }
+.pcstream-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0 4px; }
+.pcstream-metrics .metric {
+  background: var(--well); border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: 10px 12px;
+}
+.pcstream-actions { margin-top: 12px; }
+.pcstream-kv { display: flex; flex-direction: column; gap: 2px; margin: 14px 0 0; }
+.pcstream-kv > div {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 7px 0; border-bottom: 1px dashed var(--line);
+}
+.pcstream-kv > div:last-child { border-bottom: 0; }
+.pcstream-kv dt { color: var(--muted); font-size: 12px; }
+.pcstream-kv dd { margin: 0; font: 600 12.5px var(--font-text); color: var(--text); }
+.pcstream-log { height: 188px; margin-top: 14px; }
+.pcstream-tip { margin-top: 12px; }
+@media (max-width: 1200px) {
+  .pcstream-top, .pcstream-bottom { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* ==========================================================================
    Motion
    ========================================================================== */
