@@ -917,8 +917,14 @@ class SettingsPage(ctk.CTkFrame):
 
         key = card(page)
         key.pack(fill="x", padx=theme.PAGE_GAP, pady=theme.PAGE_GAP)
+        lbl(key, "DANGER - never write /system after disabling verity. "
+                 "dm-verity mode 2 bricks the device on reboot and there is no "
+                 "known unbrick. This app only writes /vendor and "
+                 "/data/local/tmp.",
+            11, True, theme.BAD, wraplength=760, justify="left").pack(
+                anchor="w", padx=16, pady=(14, 4))
         section_header(key, "Safety key", "How to read every badge", "SAFE",
-                       padx=16, pady=(14, 6), wrap=760)
+                       padx=16, pady=(6, 6), wrap=760)
         for level, text in [
                 ("SAFE", "Read-only, or fully reversible without changes."),
                 ("EXPERIMENTAL", "Restarts the UI or changes display output; recovery is available."),
