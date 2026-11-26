@@ -573,6 +573,9 @@ static void *inject_thread_fn(void *arg) {
         if (counter == 0) continue;
         if (!hold && counter == g_inject_last_counter) continue;
         g_inject_last_counter = counter;
+        /* With fb_hold the push detour does the copy on every presented frame,
+         * which is tighter than this 60 Hz tick. Stay out of its way. */
+        if (hold) continue;
 
         /* Read the published FRONT slot (counter & 1); fb_receiver wrote the
          * other slot, so this copy can't catch a frame mid-write. */
@@ -884,6 +887,29 @@ static void start_capture_watcher(void) {
  * This capture build NEVER suppresses the real push; it is a pure pass-through.
  */
 
+/* Copy the published shared-memory frame into every live framebuffer.
+ * Used by the inject thread and, while fb_hold exists, by the push detour so
+ * the copy lands on every frame the UI presents (no interleaving). */
+static void copy_shared_frame(void) {
+    if (g_inject_fd < 0) return;
+    int fbc = __atomic_load_n(&g_fb_count, __ATOMIC_ACQUIRE);
+    if (fbc == 0) return;
+    unsigned int counter = 0;
+    sys_pread64(g_inject_fd, &counter, 4, 0);
+    if (counter == 0) return;
+    long slot_off = SHM_HEADER_G + (long)(counter & 1u) * FRAME_SIZE;
+    long total = 0;
+    while (total < FRAME_SIZE) {
+        long got = sys_pread64(g_inject_fd, (char *)g_framebuffers[0] + total,
+                               FRAME_SIZE - total, slot_off + total);
+        if (got <= 0) break;
+        total += got;
+    }
+    if (total != FRAME_SIZE) return;
+    for (int i = 1; i < fbc; i++) my_memcpy(g_framebuffers[i], g_framebuffers[0], FRAME_SIZE);
+    g_inject_frames++;
+}
+
 int duss_hal_display_push_frame(void *display_handle, int plane_id, void *frame_buf) {
     g_push_count++;
     natartos_health_signal++;
@@ -892,6 +918,14 @@ int duss_hal_display_push_frame(void *display_handle, int plane_id, void *frame_
         NTLOG("push_frame: HOOK ALIVE");
 
     (void)frame_buf;
+
+    /* While a PC stream holds the display, re-assert our frame on the very
+     * frame the UI is about to present. This is what stops the animated
+     * DuScreenSaver dialog from interleaving with the injected picture. */
+    if (g_inject_active &&
+        sys_faccessat(AT_FDCWD, "/data/local/tmp/fb_hold", 0) == 0) {
+        copy_shared_frame();
+    }
 
     if (g_real_push_frame)
         return g_real_push_frame(display_handle, plane_id, frame_buf);
