@@ -24,6 +24,7 @@ typedef struct n3_app {
     const char *name;
     int x, y, w, h;                 /* window rect; 0,0,0,0 = default */
     int manual_back;                /* 1 = app handles BACK; default hides */
+    int right_select;               /* legacy: key 4 is UP on N3; keep 0 */
     void (*on_open)(n3_surface *s);
     void (*on_tick)(n3_surface *s, unsigned int frame);
     void (*on_key)(int key);

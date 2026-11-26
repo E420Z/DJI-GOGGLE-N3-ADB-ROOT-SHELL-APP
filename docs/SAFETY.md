@@ -3,6 +3,21 @@
 This project is for the owner's own DJI Goggles N3, on a bench, for UI/theme/
 debug development.
 
+## DANGER — never write to `/system`
+
+The goggles run dm-verity in **mode 2 (`restart_on_corruption`)** on `/system`.
+
+- **Do not write to `/system` after disabling verity.** Any write that is not
+  followed by a full hash-tree recalculation bricks the device on the next
+  reboot (fast bootloop; USB does not enumerate).
+- **Do not zero verity metadata.** It makes the partition unmountable.
+- There is currently **no known way to unbrick** a device in this state.
+- This project only writes `/vendor` (flat mods/theme) and
+  `/data/local/tmp`. It never modifies `/system`, verity metadata, or
+  partitions.
+
+If any instruction or tool asks you to write `/system`, stop.
+
 ## Allowed / implemented
 
 - Session-only root shell via the stock `dji_blackbox` log-export RCE.

@@ -177,6 +177,7 @@ typedef long (*fn6_t)(void *, void *, void *, void *, void *, void *);
 static push_fn_t g_real_push;
 static key_fn_t g_real_key;
 static bsp_get_fn g_real_bsp_key, g_real_bsp_touch;
+static bsp_get_fn g_real_get_key_cmd;
 static fn6_t g_real_key_proc, g_real_touch_proc;
 static fn6_t g_real_disp_vsync, g_real_disp_df1, g_real_disp_df5;
 static int g_push_hooked, g_key_hooked, g_bsp_key, g_bsp_touch;
@@ -199,6 +200,7 @@ static long g_up_ms;
 
 #define FLAG_ON   "/data/local/tmp/n3_app_on"
 #define FLAG_EXIT "/data/local/tmp/n3_app_exit"
+#define FLAG_ENTER "/data/local/tmp/n3_panel_enter"
 #define MAPS_PATH "/proc/self/maps"
 
 #define N3_MAX_W 1200
@@ -560,6 +562,18 @@ static int key_hook(void *root, int key, int ch, int down) {
 
     /* Directions are handled once, by the event3 reader (down events are
      * reliable; CoreRoot does not always deliver the matching release). */
+    if (key == 1) {                    /* center on this N3 build */
+        if (down && g_app->on_key) g_app->on_key(N3_KEY_ENTER);
+        return 0;
+    }
+    if (key == 2) {                    /* Back on this N3 build */
+        if (down && g_app->on_key) g_app->on_key(N3_KEY_BACK);
+        return 0;
+    }
+    if (key == 4 && g_app->right_select) {
+        if (down && g_app->on_key) g_app->on_key(N3_KEY_ENTER);
+        return 0;
+    }
     if (key == 1 || key == 2 || key == 3 || key == 4) return 0;
 
     if (down) {
@@ -607,6 +621,13 @@ static int app_active(void) {
 /* BSP consumers used by Embedded Wizard. Returning 0 means "no event", so the
  * stock UI processes neither keys nor touch while our app is open. Our app
  * reads the raw /dev/input devices directly. */
+static int get_key_cmd_hook(void *arg) {
+    static int last = -1;
+    int r = g_real_get_key_cmd ? g_real_get_key_cmd(arg) : 0;
+    if (r != last) { last = r; NTLOG_INT("getkey=", r); }
+    return r;
+}
+
 static int bsp_key_hook(void *arg) {
     /* Always let the BSP advance its 5D/ADC state.  Suppression happens at the
      * final CoreRoot dispatch (key_hook), otherwise the stock UI is left with a
@@ -683,6 +704,11 @@ static void *app_thread_fn(void *arg) {
         }
 
         int on = sys_faccessat(AT_FDCWD, FLAG_ON, F_OK) == 0;
+        if (on && sys_faccessat(AT_FDCWD, FLAG_ENTER, F_OK) == 0) {
+            sys_unlinkat(AT_FDCWD, FLAG_ENTER, 0);
+            NTLOG("panel enter");
+            if (g_app->on_key) g_app->on_key(N3_KEY_ENTER);
+        }
         if (on && !g_prev_on) NTLOG("show");
         /* Freeze painting while the capture hook is taking a screenshot, so
          * the read frame is always a complete one (no mid-draw sliver). */
@@ -983,6 +1009,15 @@ int n3_start(const n3_app *app, void *(*loader_dlsym)(void *, const char *)) {
             else NTLOG("key hook failed");
         } else {
             NTLOG("key dispatch not found");
+        }
+    }
+
+    {
+        void *gk = g_dlsym ? g_dlsym(RTLD_DEFAULT, "EwBspGetKeyCommand") : 0;
+        if (gk) {
+            void *tr = install_hook(gk, (void *)get_key_cmd_hook);
+            if (tr) { g_real_get_key_cmd = (bsp_get_fn)tr; NTLOG("getkey hook ok"); }
+            else NTLOG("getkey hook failed");
         }
     }
 

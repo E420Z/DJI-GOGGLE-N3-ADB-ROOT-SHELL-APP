@@ -10,12 +10,21 @@ in-goggles menu apps, a live USB debug preview, and an in-goggles app SDK.
 > device-specific notes. Do not publish tokens, DJI binaries, or personal data.
 > Unauthenticated access to the repo, release, and asset returns 404.
 
+> ## 🚫 NEVER WRITE TO `/system`
+>
+> The goggles run **dm-verity mode 2 (`restart_on_corruption`)** on `/system`.
+> Any `/system` write without a full hash-tree recalculation **bricks the
+> device on the next reboot** (fast bootloop; USB will not enumerate). Zeroing
+> verity metadata also makes the partition unmountable. **There is no known
+> unbrick path.** This project only writes `/vendor` and `/data/local/tmp`.
+> See [docs/SAFETY.md](docs/SAFETY.md).
+
 > ## ⚠️ Experimental software
 >
-> The **custom menu/overlay** and **display-engine hooks** can break rendering.
-> A previous `displayFrame` hook build **black-screened** on 2026-11-25; those
-> hooks are now compile-time **off**. If the screen ever goes black:
-> **Connection → Recover stock UI**, or power-cycle the goggles.
+> The **stock-menu row / E420Z panel** and **display/input hooks** are
+> experimental. A previous `displayFrame` hook build **black-screened** on
+> 2026-11-25; those display hooks are now compile-time **off**. If the screen
+> ever goes black: **Connection → Recover stock UI**, or power-cycle.
 >
 > Read **[docs/EXPERIMENTAL.md](docs/EXPERIMENTAL.md)** before using the menu
 > mod or enabling any experimental hook.
@@ -23,6 +32,20 @@ in-goggles menu apps, a live USB debug preview, and an in-goggles app SDK.
 > **Session-only and reversible.** Nothing is written to `/system`, dm-verity is
 > not touched, and OTP/RPMB/bootloader are never used. A reboot restores the
 > stock UI. The app has a one-click **Recover stock UI** escape hatch.
+
+---
+
+## Native E420Z panel (new)
+
+![E420Z panel](docs/screenshots/e420z_panel.png)
+
+A native **E420Z** row is added to the stock left sidebar (no stock row is
+replaced). Opening it shows a stock-styled content panel beside the sidebar
+with **STATUS / BAND SCAN / DISPLAY TEST / ABOUT / EXIT**. Up/down navigates,
+center opens, Back returns, and EXIT restores the sidebar. No `/system`
+changes; it is a runtime `/vendor` mod.
+
+More captures: [`docs/screenshots/`](docs/screenshots/).
 
 ---
 

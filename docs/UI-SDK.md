@@ -154,6 +154,19 @@ Build it with `sdk/build.ps1` and load it alongside `n3menuinject.so`
 `N3_MAX_W/H` in `sdk/n3app.c` is now 1200x960 so the panel can fill the
 big-box area.
 
+### Input caveat (N3, 2026-11-26)
+
+- 5-way up/down arrive on `event3` as 103/108 and are delivered as
+  `on_swipe(0, +100)` / `on_swipe(0, -100)`.  Map **physical down to the next
+  row** (the physical down code is 103 on this unit).
+- CoreRoot delivers **center as key 1** and **Back as key 2** on this build,
+  not 6/19.  Map key 1 → ENTER and key 2 → BACK while the panel is active.
+- Key `4` is **UP** here, not right.  Never map it to “select”.
+- Center/Back can also be driven by the stock action signal:
+  `/data/local/tmp/n3_panel_enter` (n3app converts it to ENTER) if the stock
+  focus is still on the E420Z row.
+- Touchpad tap (`on_tap`) is the fallback if the stock focus is lost.
+
 ---
 
 ## 6. Known limits (2026-11-26)

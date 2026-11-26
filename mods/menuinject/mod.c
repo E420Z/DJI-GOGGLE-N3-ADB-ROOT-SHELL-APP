@@ -240,10 +240,17 @@ static int ds_is_wrapped(void *ds);
 
 static void menu_action(void *obj, void *arg1, void *arg2, void *arg3) {
     (void)obj; (void)arg1; (void)arg2; (void)arg3;
-    NTLOG("action: E420Z -> stock-styled panel");
+    if (sys_faccessat(AT_FDCWD, "/data/local/tmp/n3_app_on", F_OK) == 0) {
+        int fd = (int)sys_openat(AT_FDCWD, "/data/local/tmp/n3_panel_enter",
+                                 O_WRONLY | O_CREAT, 0666);
+        if (fd >= 0) sys_close(fd);
+        NTLOG("panel enter signal");
+        return;
+    }
     int fd = (int)sys_openat(AT_FDCWD, "/data/local/tmp/n3_app_on",
                              O_WRONLY | O_CREAT, 0666);
     if (fd >= 0) sys_close(fd);
+    NTLOG("panel open");
 }
 
 static void n3_action(void *obj) {

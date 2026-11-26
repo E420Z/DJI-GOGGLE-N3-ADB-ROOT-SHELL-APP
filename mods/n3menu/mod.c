@@ -105,10 +105,13 @@ static void on_key(int key) {
 }
 
 static void on_swipe(int dx, int dy) {
-    (void)dx;
-    if (g_detail >= 0) { if (dy > 0) g_detail = -1; return; }
-    if (dy < 0) g_sel = (g_sel + 1) % COUNT;
-    else if (dy > 0) g_sel = (g_sel + COUNT - 1) % COUNT;
+    if (g_detail >= 0) {
+        if (dy > 0 || dx > 0) g_detail = -1;
+        return;
+    }
+    if (dx > 0) { activate(g_sel); return; }   /* right/center = select */
+    if (dy < 0) g_sel = (g_sel + COUNT - 1) % COUNT;
+    else if (dy > 0) g_sel = (g_sel + 1) % COUNT;
 }
 
 static void on_tap(int x, int y) {
