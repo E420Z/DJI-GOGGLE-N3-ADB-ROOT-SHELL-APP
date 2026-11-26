@@ -167,6 +167,12 @@ const badge = (risk) => `<span class="badge" data-risk="${risk}">${RISK_INFO[ris
 const isOk = (res) => Boolean(res) && res.ok !== false;
 const errorText = (err) => (err && err.message) || String(err || "Unknown error");
 const stamp = (d = new Date()) => d.toTimeString().slice(0, 8);
+const fmtBytes = (n) => {
+  const b = Number(n) || 0;
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+};
 const normTheme = (t) => String(t || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const motionOn = () => !FORCE_REDUCE && state.prefs.motion !== false && !matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -746,6 +752,68 @@ async function runSparrow(method) {
   restartAnimation(out);
   $("#sparrowSource").textContent = `${def.label} · ${stamp()}`;
   if (res.ok !== false) toast(`${def.label} loaded`, "success", "Sparrow2");
+}
+
+/* ==========================================================================
+   Sparrow2 — S2 receiver capture
+   ========================================================================== */
+const S2_ACTIONS = {
+  probe: { method: "s2_probe", label: "S2 probe", confirm: null,
+    desc: "Read-only inventory of the S2 decoder, record tools, USB ids and wlm config." },
+  capture: { method: "s2_capture", label: "Capture S2 video",
+    confirm: "The vendor decoder opens the S2 USB video endpoints and writes the encoded stream to /data/local/tmp/s2cap. This is receive-only: the link is not started and nothing outside /data is written. Continue?",
+    desc: "Dump the encoded H.265 liveview for a few seconds." },
+  pull: { method: "s2_pull", label: "Pull capture", confirm: null,
+    desc: "Copy the newest capture to the PC byte-for-byte." },
+  stop: { method: "s2_stop", label: "Stop decoder", confirm: null,
+    desc: "Kill the decoder process if it is still running." },
+};
+
+function s2Output(text, source) {
+  const out = $("#sparrowOut");
+  state.sparrowText = text;
+  out.textContent = text;
+  restartAnimation(out);
+  $("#sparrowSource").textContent = `${source} · ${stamp()}`;
+}
+
+function renderS2Files(files) {
+  const box = $("#s2Files");
+  if (!box) return;
+  if (!Array.isArray(files) || !files.length) { box.hidden = true; box.innerHTML = ""; return; }
+  box.hidden = false;
+  box.innerHTML = files.slice(0, 8).map((f) => `
+    <button data-s2file="${esc(f.name)}" title="Pull ${esc(f.name)}">${esc(f.name)} · ${fmtBytes(f.size)}</button>`).join("");
+}
+
+async function runS2(kind, name) {
+  const def = S2_ACTIONS[kind];
+  if (!def || state.busy.has(def.method)) return;
+  if (def.confirm) {
+    const ok = await confirmRisk({
+      title: def.label + "?",
+      risk: "EXPERIMENTAL",
+      body: def.confirm,
+      confirmLabel: "Continue",
+    });
+    if (!ok) return;
+  }
+  s2Output(`${def.label}…`, def.label);
+  let args = [];
+  if (kind === "capture") args = [$("#s2Iface").value, Number($("#s2Seconds").value)];
+  if (kind === "pull") args = [name || ""];
+  const res = await call(def.method, args, { label: def.label, quiet: true, refresh: false });
+  if (!res) { s2Output("Request failed. See the WEB log for details.", def.label); return; }
+
+  if (kind === "pull" && res.path) {
+    s2Output(`${res.message}\nsaved: ${res.path}\nsize:  ${res.size} bytes\nhead:  ${res.head}`, def.label);
+  } else if (res.text) {
+    s2Output(res.text, def.label);
+  } else {
+    s2Output(res.message || "(no output)", def.label);
+  }
+  if (res.files) renderS2Files(res.files);
+  if (kind === "stop") renderS2Files([]);
 }
 
 /* ==========================================================================
@@ -1384,7 +1452,7 @@ function onPaletteKey(e) {
    Events
    ========================================================================== */
 function onDocumentClick(e) {
-  const t = e.target.closest("[data-action], [data-go], [data-mod], [data-sparrow], [data-quick], [data-copy], [data-theme], [data-doc]");
+  const t = e.target.closest("[data-action], [data-go], [data-mod], [data-sparrow], [data-quick], [data-copy], [data-theme], [data-doc], [data-s2], [data-s2file]");
   if (!t || t.disabled) return;
   const d = t.dataset;
   if (d.action) runAction(d.action);
@@ -1394,6 +1462,8 @@ function onDocumentClick(e) {
   else if (d.quick) insertCommand(d.quick);
   else if (d.copy) copyText(d.copy, "Path copied");
   else if (d.doc) openDoc(d.doc);
+  else if (d.s2) runS2(d.s2);
+  else if (d.s2file) runS2("pull", d.s2file);
   else if (d.theme) { state.selectedTheme = d.theme; renderThemes(); }
 }
 
@@ -1645,6 +1715,28 @@ function createMock() {
       shots += 1;
       const path = `/data/local/tmp/n3cap/shot-${String(shots).padStart(4, "0")}.jpg`;
       return ok(`Saved ${path}`, { image: mockFrame(1280, 720, frame + shots * 40), path });
+    },
+    async s2_probe() {
+      await sleep(500);
+      return ok("S2 capture probe (read-only)", { text: "== decoder ==\n-rwxr-xr-x 1 root shell 183920 2026-08-14 11:02 /system/bin/test_wl_vdec\n== option letters found in the binary ==\n-C -F -b -d -e -h -p -t -w\n== record tools ==\n-rwxr-xr-x 1 root shell  41936 /system/bin/omx_recordtest\n-rwxr-xr-x 1 root shell   1088 /system/bin/record_test_script.sh\n== usb ids (looking for 2ca3:1020) ==\n  /sys/bus/usb/devices/1-1  2ca3:1020\n== wlm config ==\n  found /vendor/etc/wlm_cfg.json\n  test.liveview\n== blackbox recordings ==\ntotal 0\n== existing capture dir ==\n/data/local/tmp/s2cap: No such file or directory\n" });
+    },
+    async s2_capture(iface, seconds) {
+      await sleep(1400);
+      return ok(`Captured 1 file(s) at /data/local/tmp/s2cap`, {
+        text: `capture: iface=${iface} ${iface === "secondary" ? "640x360" : "1920x1080"} ${seconds}s -> /data/local/tmp/s2cap\n== run.log ==\n[usb_vdec] opened iface 3 ep 0x84\n[usb_vdec] dump enabled\n== files ==\n-rw-r--r-- 1 root root 3145728 s2_main.h265\n-rw-r--r-- 1 root root     412 run.log`,
+        files: [{ name: "s2_main.h265", size: 3145728 }],
+      });
+    },
+    async s2_pull(name) {
+      await sleep(700);
+      return ok(`Pulled ${name || "s2_main.h265"} (3145728 bytes)`, {
+        path: "app/state/s2capture/s2_main.h265", size: 3145728, head: "0000000140010c01",
+      });
+    },
+    async s2_stop() { await sleep(260); return ok("S2 decoder stopped", { text: "idle" }); },
+    async s2_liveview() {
+      await sleep(120);
+      return fail("Link start/stop is not enabled in this build. Capture works without it; the 006E0001/0000 frame still needs a bench run with the aircraft off.");
     },
     async sparrow_report() {
       await sleep(600);

@@ -1,0 +1,15 @@
+{
+  "id": "s2cap",
+  "name": "S2 video capture",
+  "version": "0.1",
+  "type": "tool",
+  "description": "Receive-only capture of the Sparrow2 H.265 liveview over its USB bulk endpoints. Installs one shell helper in /data/local/tmp; the app drives it.",
+  "risk": "low",
+  "status": "experimental",
+  "experimental": true,
+  "target": "data",
+  "notes": "Writes only /data/local/tmp/s2cap. Never starts the radio link, never re-routes the video pipeline, never touches /system or dm-verity. Decoding happens on the PC.",
+  "files": [
+    { "src": "files/s2cap.sh", "dst": "/data/local/tmp/s2cap.sh", "mode": "755" }
+  ]
+}

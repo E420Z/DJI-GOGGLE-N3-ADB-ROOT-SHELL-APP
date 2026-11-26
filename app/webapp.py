@@ -360,6 +360,143 @@ class Api:
             return _fail("Screenshot: %s" % exc)
 
     # -------------------------------------------------------------- sparrow2
+    S2_DIR = "/data/local/tmp/s2cap"
+    S2_SH = "/data/local/tmp/s2cap.sh"
+    S2_PULL_DIR = os.path.join(APP_DIR, "state", "s2capture")
+    # Link start/stop (wlm 006E0001 / 006E0000) is deliberately not wired yet:
+    # the DUML frame for those opcodes has to be confirmed on the bench before
+    # anything is sent to the radio.  Capture below never touches the link.
+    S2_LIVEVIEW_ENABLED = False
+
+    def _s2_run(self, args: str, timeout: float = 60.0) -> str:
+        """Run the on-device helper through the root shell (or ADB)."""
+        cmd = "sh %s %s" % (self.S2_SH, args)
+        if n3ctl.is_root():
+            return n3ctl.run_root(cmd, timeout=timeout, retries=1)
+        return n3ctl.adb_shell(cmd, timeout=timeout)
+
+    def _s2_ready(self) -> str:
+        """Returns an error message when capture cannot run, else ''."""
+        if not n3ctl.is_root() and not n3ctl.adb_devices():
+            return "Connect the goggles and start the root shell (or enable ADB)."
+        probe = ("ls -l %s 2>/dev/null; ls -l /system/bin/test_wl_vdec "
+                 "/data/local/tmp/test_wl_vdec 2>/dev/null" % self.S2_SH)
+        text = (n3ctl.run_root(probe, timeout=8, retries=1)
+                if n3ctl.is_root() else n3ctl.adb_shell(probe, timeout=8))
+        if self.S2_SH not in text:
+            return ("The S2 capture helper is not installed. Install the "
+                    "\"S2 video capture\" mod on the Mods & UI page first.")
+        if "test_wl_vdec" not in text:
+            return "This build has no test_wl_vdec, so the vendor decoder path is unavailable."
+        return ""
+
+    def s2_probe(self) -> dict:
+        """Read-only inventory: decoder, record tools, USB ids, wlm config."""
+        err = self._s2_ready()
+        if err:
+            return _fail(err)
+        try:
+            return _ok("S2 capture probe (read-only).",
+                       text=_clip(self._s2_run("probe", timeout=40), 20000))
+        except Exception as exc:  # noqa: BLE001
+            return _fail("S2 probe: %s" % exc)
+
+    def s2_capture(self, iface: str = "main", seconds: int = 8) -> dict:
+        """Dump the encoded S2 stream for a few seconds.  Receive-only."""
+        err = self._s2_ready()
+        if err:
+            return _fail(err)
+        if iface not in ("main", "secondary", "none"):
+            return _fail("Unknown stream: %s" % iface)
+        secs = max(2, min(int(seconds or 8), 30))
+        try:
+            text = self._s2_run("start %s %d" % (iface, secs),
+                                timeout=secs + 40)
+            files = self._s2_files()
+            if not files:
+                return _fail(
+                    "The decoder produced no file. Check the run log above; "
+                    "this build may reject -p (retry with stream 'auto').",
+                    text=_clip(text, 12000))
+            return _ok("Captured %d file(s) at %s." % (len(files), self.S2_DIR),
+                       text=_clip(text, 12000), files=files)
+        except Exception as exc:  # noqa: BLE001
+            return _fail("S2 capture: %s" % exc)
+
+    def _s2_files(self):
+        try:
+            out = self._s2_run("list", timeout=15)
+        except Exception:  # noqa: BLE001
+            return []
+        rows = []
+        for line in (out or "").splitlines():
+            parts = line.split()
+            if len(parts) < 5 or not parts[0].startswith("-"):
+                continue
+            name = parts[-1]
+            if name in ("run.log", ".", "..") or name.endswith("/"):
+                continue
+            try:
+                size = int(parts[4])
+            except ValueError:
+                continue
+            rows.append({"name": name, "size": size})
+        rows.sort(key=lambda r: r["size"], reverse=True)
+        return rows
+
+    def s2_stop(self) -> dict:
+        try:
+            text = self._s2_run("stop", timeout=20) if n3ctl.is_root() \
+                else "Start the root shell to stop the decoder."
+            return _ok("S2 decoder stopped.", text=text)
+        except Exception as exc:  # noqa: BLE001
+            return _fail("S2 stop: %s" % exc)
+
+    def s2_pull(self, name: str = "") -> dict:
+        """Copy one capture to the PC, byte-exact."""
+        err = self._s2_ready()
+        if err:
+            return _fail(err)
+        files = self._s2_files()
+        if not files:
+            return _fail("Nothing to pull yet.")
+        pick = next((f for f in files if f["name"] == name), files[0])
+        remote = "%s/%s" % (self.S2_DIR, pick["name"])
+        if pick["size"] > 256 * 1024 * 1024:
+            return _fail("Refusing to pull %d MB; capture a shorter clip."
+                         % (pick["size"] // (1024 * 1024)))
+        local = os.path.join(self.S2_PULL_DIR, os.path.basename(pick["name"]))
+        os.makedirs(self.S2_PULL_DIR, exist_ok=True)
+        try:
+            adb = n3ctl.find_adb()
+            if adb and n3ctl.adb_devices(adb):
+                import subprocess
+                with open(local, "wb") as fh:
+                    subprocess.run([adb, "exec-out", "cat", remote],
+                                   stdout=fh, stderr=subprocess.PIPE,
+                                   timeout=180, check=True)
+            else:
+                import base64
+                b64 = n3ctl.run_root("base64 %s" % remote, timeout=120,
+                                     retries=1)
+                with open(local, "wb") as fh:
+                    fh.write(base64.b64decode(b64))
+            size = os.path.getsize(local)
+            with open(local, "rb") as fh:
+                head = fh.read(16).hex()
+            return _ok("Pulled %s (%d bytes)." % (os.path.basename(local), size),
+                       path=local, size=size, head=head)
+        except Exception as exc:  # noqa: BLE001
+            return _fail("S2 pull: %s" % exc)
+
+    def s2_liveview(self, action: str = "status") -> dict:
+        """wlm 006E0001 / 006E0000 link start/stop (not wired yet)."""
+        if not self.S2_LIVEVIEW_ENABLED:
+            return _fail("Link start/stop is not enabled in this build. Capture "
+                         "works without it; the 006E0001/0000 frame still needs "
+                         "a bench run with the aircraft off.")
+        return _fail("Not implemented.")
+
     def sparrow_tools(self) -> dict:
         cmd = ("ls -l /system/bin/sdr_shell "
                "/system/bin/test_sparrow2_link.sh "

@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased — S2 video capture (2026-11-26)
+
+- New **S2 video capture** mod (`s2cap`, type `tool`, data-only): installs
+  `/data/local/tmp/s2cap.sh`, the auditable helper for the vendor decoder path.
+  Data-only mods now install and uninstall **without** `vendor_write` and
+  without stopping the goggles UI.
+- New Sparrow2 UI card: **S2 video (H.265)** with stream selector
+  (main 1920×1080 / secondary 640×360 / auto), duration, Probe, Capture, Pull
+  and Stop.
+- New API: `s2_probe`, `s2_capture`, `s2_stop`, `s2_pull`, `s2_liveview`.
+  Captures are time-boxed; `stop` only ever kills `test_wl_vdec`.
+- Capture is receive-only: it dumps the encoded stream the S2 already sends
+  over USB bulk endpoints and writes only `/data/local/tmp/s2cap`. Nothing is
+  remuxed, re-routed or transmitted, and decoding happens on the PC.
+- `-p` is optional ("Auto (no -p)") because some builds reject it.
+- `record_test_script.sh` and the `006E0001`/`006E0000` link start/stop are
+  documented but **not wired**: re-routing video or starting the link needs a
+  bench run first. `s2_liveview()` returns a clear refusal instead of guessing
+  the DUML frame.
+- Docs: `SPARROW2.md` §10A (capture path, evidence, status) and
+  `NATARTOS.md` (what of natartos maps to the N3, and what does not).
+
 ## Unreleased — pywebview control deck (2026-11-26)
 
 - Replaced the CustomTkinter shell with a **pywebview (WebView2) + HTML/CSS/JS**

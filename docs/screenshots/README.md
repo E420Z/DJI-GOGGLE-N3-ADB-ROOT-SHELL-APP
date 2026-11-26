@@ -6,7 +6,7 @@
 |---|---|
 | `web_connection.png` | Connection page: USB / root / ADB cards, device summary, first-run checklist. |
 | `web_e420z.png` | E420Z live preview with the backend's real scale list and the capture panel. |
-| `web_sparrow2.png` | Sparrow2 read-only page: report, tool inventory, console help, doc links. |
+| `web_sparrow2.png` | Sparrow2 read-only page: report, tool inventory, console help, S2 video capture, doc links. |
 | `web_root_shell.png` | Root Shell with the `/system` block banner and quick read-only commands. |
 | `web_mods.png` | Mods & UI cards with SAFE / EXPERIMENTAL / RISKY badges. |
 | `web_logs.png` | Logs with NATARTOS / N3MODS / UI / CAPTURE / WEB tabs. |

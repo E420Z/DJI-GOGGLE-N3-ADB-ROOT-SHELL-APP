@@ -294,9 +294,62 @@ equivalent on-device IQ door was found.
   touches OTP/secure-debug — out of scope.
 - The C5VRX analogy does **not** map cleanly: ESP32-C5 has a ROM `MODEM_DIAG`
   path; Sparrow2's firmware is encrypted and its console is host-gated.
-- **No on-goggles software path was found.** Further work would require
-  vendor-internal access (the encrypted firmware / factory fixture), outside
-  this project's scope.
+- **No on-goggles IQ/ADC software path was found.** The *encoded liveview* is a
+  different story and is available — see §10A.
+
+---
+
+## 10A. Encoded liveview capture (new, receive-only)
+
+Sparrow2's liveview reaches the AP as **H.265 over vendor USB bulk endpoints**,
+not as IQ samples:
+
+| stream | interface | EP IN | resolution | codec |
+|---|---|---|---|---|
+| main | 3 | `0x84` | 1920×1080 | H.265 |
+| secondary | 0 | `0x81` | 640×360 | H.265 |
+
+The shipped decoder `/system/bin/test_wl_vdec` can be pointed at those
+endpoints. With `-d` it dumps the encoded stream instead of decoding it:
+
+```
+test_wl_vdec -t usb_vdec -p 0 -F 1 -w 1920 -h 1080 -C yuv420 \
+             -d -e /data/local/tmp/s2cap -b s2_main
+```
+
+- `-p 0` selects main, `-p 1` secondary. **Some builds reject `-p`**; omit it
+  and the tool picks a stream itself (the app offers "Auto (no -p)").
+- The write itself lives in `libduml_frwk.so` (`fopen`/`fwrite`/`strftime`,
+  keys `dump_wl_stream_path`, `dump_stream_name`, `dump_stream_enable`).
+- Output is an elementary stream; remux or decode on the PC.
+
+There is also `record_test_script.sh`, which routes video to the e3t vdec
+(`-s 9 -c 0x4c 000200`) and has `omx_recordtest` write
+`/blackbox/record/test.mp4`. **Not used by the app**: it re-routes the live
+video pipeline and may blank the goggles display until reboot.
+
+Link start/stop (`wlm_cfg.json` → `test.liveview`, opcodes `006E0001` /
+`006E0000`) is the supported way to make the S2 stream without the media
+server. It is **not wired** yet: the DUML frame for those opcodes has to be
+confirmed on the bench with the aircraft off before anything is sent to the
+radio.
+
+### Status
+
+| Step | State |
+|---|---|
+| Read-only probe (decoder, USB ids, wlm config, record tools) | implemented, untested on-device |
+| `test_wl_vdec -d` dump | implemented, **not yet confirmed on this build** |
+| Pull to PC | implemented |
+| `record_test_script.sh` route | documented only, deliberately not wired |
+| `006E0001` / `006E0000` start/stop | not wired, needs a bench run |
+
+### Safety
+
+- Receive-only. The app never starts the link, never tunes, never transmits.
+- Writes only `/data/local/tmp/s2cap`. No `/system`, no verity, no partitions.
+- `-p` is treated as optional so a rejected flag can never leave a decoder
+  spinning: every capture is time-boxed and `stop` kills only `test_wl_vdec`.
 
 ---
 

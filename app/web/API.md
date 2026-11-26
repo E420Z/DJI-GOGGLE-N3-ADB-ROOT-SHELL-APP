@@ -94,6 +94,20 @@ sparrow_tools() -> { ok, text: string }
 sparrow_console() -> { ok, text: string }
 ```
 
+### S2 receiver capture (experimental, receive-only)
+
+```ts
+s2_probe() -> { ok, message, text }                  // SAFE: inventory only
+s2_capture(iface, seconds) -> { ok, message, text, files: [{ name, size }] }
+s2_stop() -> { ok, message, text }
+s2_pull(name) -> { ok, message, path, size, head }   // writes on the PC only
+s2_liveview(action) -> { ok: false, message }        // link start/stop not wired
+```
+
+`s2_capture` runs `/data/local/tmp/s2cap.sh`, which is installed by the
+**S2 video capture** mod. It writes only under `/data/local/tmp/s2cap` and never
+starts the radio link.
+
 ## Preferences (local UI only)
 
 ```ts

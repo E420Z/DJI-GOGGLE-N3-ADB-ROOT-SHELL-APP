@@ -143,6 +143,28 @@ def mods_for_ui():
     return [r["so"] for r in recs]
 
 
+def _is_data_mod(mod) -> bool:
+    """A tool mod that installs into /data only - no /vendor, no UI restart."""
+    if mod.get("target") == "data":
+        return True
+    files = mod.get("files") or []
+    return (not mod.get("so")) and bool(files) and \
+        all(dst.startswith("/data/") for _src, dst, _mode in files)
+
+
+def _record_install(mod):
+    state = _load_state()
+    state["installed"][mod["id"]] = {
+        "id": mod["id"],
+        "name": mod["name"],
+        "version": mod.get("version", ""),
+        "so": mod.get("so_dst") or "",
+        "files": [dst for _src, dst, _mode in mod.get("files", [])],
+        "installed_at": int(time.time()),
+    }
+    _save_state(state)
+
+
 def _push_mod_files(mod, log):
     seen = set()
     if mod["so_src"]:
@@ -174,6 +196,13 @@ def install(mod_id, log=print) -> bool:
             install(dep, log=log)
 
     loader = os.path.join(ASSETS, "n3mods.so")
+    if _is_data_mod(mod):
+        # Tool mods land in /data/local/tmp only: no /vendor write, and the
+        # goggles UI is never stopped or restarted for them.
+        _push_mod_files(mod, log)
+        _record_install(mod)
+        log("Installed %s (data only; UI untouched)." % mod["name"])
+        return True
     try:
         with n3ctl.vendor_write(log):
             log("Stopping the UI before replacing mod files...")
@@ -192,20 +221,10 @@ def install(mod_id, log=print) -> bool:
         n3ctl.start_ui(log, mods=mods_for_ui())
         raise
 
-    state = _load_state()
-    state["installed"][mod["id"]] = {
-        "id": mod["id"],
-        "name": mod["name"],
-        "version": mod.get("version", ""),
-        "so": mod.get("so_dst") or "",
-        "files": [dst for _src, dst, _mode in mod.get("files", [])],
-        "installed_at": int(time.time()),
-    }
-    _save_state(state)
+    _record_install(mod)
     log("Installed %s." % mod["name"])
     n3ctl.start_ui(log, mods=mods_for_ui())
     return True
-
 
 def uninstall(mod_id, log=print) -> bool:
     mod = find(mod_id)
@@ -215,6 +234,18 @@ def uninstall(mod_id, log=print) -> bool:
         raise RuntimeError("Use the Background tab to remove the image.")
     state = _load_state()
     rec = state["installed"].get(mod_id, {})
+    if _is_data_mod(mod):
+        targets = set(rec.get("files") or [])
+        for _src, dst, _mode in mod.get("files", []):
+            targets.add(dst)
+        if targets:
+            n3ctl.run_root("rm -f " + " ".join(sorted(targets)),
+                           timeout=15, retries=1)
+            log("Removed: " + ", ".join(sorted(targets)))
+        state["installed"].pop(mod_id, None)
+        _save_state(state)
+        log("Uninstalled %s (data only)." % mod["name"])
+        return True
     try:
         with n3ctl.vendor_write(log):
             n3ctl.run_root(n3ctl.STOP_UI, timeout=15, retries=1)

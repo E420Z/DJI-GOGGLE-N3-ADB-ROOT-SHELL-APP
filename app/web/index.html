@@ -294,7 +294,7 @@
             <span class="banner-icon"><svg class="i"><use href="#i-lock"/></svg></span>
             <div>
               <h3>Read-only radio inspection <span class="badge" data-tone="accent">Read-only</span></h3>
-              <p>Sparrow2 is the goggles' radio subsystem. This page only reads reports and tool inventories. There is no transmit, no jamming and no IQ capture — the backend does not expose them.</p>
+              <p>Sparrow2 is the goggles' radio subsystem. This page reads reports and tool inventories, and can dump the encoded liveview the S2 already sends over its own USB link. There is no transmit, no jamming and no IQ/ADC access — the backend does not expose them.</p>
             </div>
           </div>
         </div>
@@ -319,6 +319,51 @@
             <button class="btn btn-sm" data-sparrow="sparrow_console" data-busy-key="sparrow_console"><svg class="i"><use href="#i-info"/></svg>Show help</button>
           </article>
         </div>
+
+        <article class="card s2-card stagger" data-risk="EXPERIMENTAL">
+          <header class="card-head">
+            <div class="min0">
+              <div class="label">Receiver capture</div>
+              <h2 class="card-title">S2 video (H.265)</h2>
+            </div>
+            <span class="badge" data-risk="EXPERIMENTAL">Experimental</span>
+          </header>
+          <p class="hint">
+            Dumps the encoded liveview that the S2 already sends over its USB bulk
+            endpoints (main <code>0x84</code> 1920×1080, secondary <code>0x81</code> 640×360).
+            Receive-only: it never starts the link, never re-routes video and never
+            writes outside <code>/data/local/tmp/s2cap</code>. Decoding happens on the PC.
+          </p>
+          <div class="s2-controls">
+            <label class="s2-field">
+              <span>Stream</span>
+              <select id="s2Iface">
+                <option value="main">Main · 1920×1080</option>
+                <option value="secondary">Secondary · 640×360</option>
+                <option value="none">Auto (no -p)</option>
+              </select>
+            </label>
+            <label class="s2-field">
+              <span>Seconds</span>
+              <select id="s2Seconds">
+                <option value="4">4</option>
+                <option value="8" selected>8</option>
+                <option value="15">15</option>
+              </select>
+            </label>
+            <div class="s2-actions">
+              <button class="btn btn-sm" data-s2="probe"><svg class="i"><use href="#i-info"/></svg>Probe</button>
+              <button class="btn btn-sm btn-primary" data-s2="capture"><svg class="i"><use href="#i-camera"/></svg>Capture</button>
+              <button class="btn btn-sm" data-s2="pull"><svg class="i"><use href="#i-arrow-down"/></svg>Pull</button>
+              <button class="btn btn-sm btn-danger" data-s2="stop"><svg class="i"><use href="#i-stop"/></svg>Stop</button>
+            </div>
+          </div>
+          <div class="s2-files" id="s2Files" hidden></div>
+          <p class="hint s2-note">
+            Link start/stop (<code>006E0001</code>/<code>006E0000</code>) is not wired
+            yet — the frame needs a bench run with the aircraft off. Capture works without it.
+          </p>
+        </article>
 
         <div class="grid sparrow-bottom section stagger">
           <article class="card">
