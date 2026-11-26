@@ -178,8 +178,15 @@ py -3.12 app/tools/probe_n3_bulk_console.py --live --command help
 It sends only a read-only `help` query. No factory mode, no writes. It may fail
 if interface 4 is claimed by `dji_sdrs_agent` or the router rejects the free
 host; variants are
-`--host-name test|system|sdrs_agent --host-index 0/1/7/8/9`. This is the
-remaining on-goggles software experiment.
+`--host-name test|system|sdrs_agent --host-index 0/1/7/8/9`.
+
+**Result (2026-11-26):** the custom JSON loaded, `test:9` locked (no
+`lock_client` error), and the message went to `machine 0x2304 host 0x0e00` —
+but `duss_event_send_sync_v2()` still returned **`-1007`**. Logcat shows
+`linux_bulk_write ... interface 4 ... send timeout`, i.e. the Sparrow2 bulk
+write path is not open in normal mode. No console response. This closes the
+on-device bulk-route idea; the remaining path is the factory fixture /
+encrypted firmware.
 
 ---
 

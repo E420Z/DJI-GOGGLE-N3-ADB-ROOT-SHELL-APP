@@ -32,8 +32,9 @@ in-goggles menu apps, a live USB debug preview, and an in-goggles app SDK.
   enable ADB, start/stop the root shell, restart the patched UI, or recover the
   stock UI.
 - **E42OZ page** — the goggles side: a **live preview** of the UI over USB
-  (160×90, ~57 fps), full-resolution screenshots, GIF recording, and quick
-  actions for theme/background/menu.
+  (selectable 160×90 up to 1920×1080; ~58 fps at 160×90, lower at higher
+  resolutions), full-resolution screenshots, GIF recording, and quick actions
+  for theme/background/menu.
 - **Sparrow2 page** — read-only radio research panel. Shows the firmware
   inventory and the shipped Sparrow2 console/test tools, and can send the
   read-only `sdr_shell help` query. It explains why the console is a
@@ -159,8 +160,18 @@ installed.
 ![E42OZ page](docs/goggles.png)
 
 The app loads `n3live.so`, which reads the live 1920×1080 dmabuf, downscales it
-by 12, and writes framed pixels to a FIFO. The PC reads that FIFO over
-`adb exec-out`. Result: **160×90 at ~57 fps**.
+by an integer factor (12 … 1), and writes framed pixels to a FIFO. The PC reads
+that FIFO over `adb exec-out`. Result: **selectable 160×90 … 1920×1080**.
+
+| Size | FPS (measured) |
+|---|---:|
+| 160×90 | ~58 |
+| 640×360 | ~8 |
+| 1920×1080 | ~0.9 |
+
+Higher resolution is bandwidth-bound, not a missing codec. The reader
+auto-restarts and resyncs if the FIFO/ADB drops, so the preview no longer
+freezes after ~10 s.
 
 For comparison, Toolya's own UI mirror is ~2–3 fps (full 8 MB frames). The
 60 fps video seen elsewhere is the camera/live-view H.264 feed, not the goggles

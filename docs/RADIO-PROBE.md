@@ -154,10 +154,10 @@ path is a display/video path only; it does not sample the O4/Sparrow2 modem.
    already-registered DJI process could use the `0x55` channel or bind the
    `test:7` host. Non-read-only, high effort, and still no evidence of an IQ
    command. Only worth revisiting if a command table surfaces.
-3. **Alternate on-device surfaces** (static/read-only): `/bulk/s2_remotefile`,
-   `/bulk/s2_da`, and the AMT/USB gadget protocol are the remaining
-   AP↔Sparrow2 channels. They are logs/file/auth, not IQ, but they are the only
-   on-goggles software left to inspect.
+3. **Alternate on-device surfaces** — the `/bulk/s2` console route was tested
+   (2026-11-26) and returns `-1007` (bulk send timeout; see `SPARROW2.md`).
+   `/bulk/s2_remotefile`, `/bulk/s2_da`, and the AMT/USB gadget protocol remain
+   logs/file/auth, not IQ.
 4. **Do not** enable `sdr_dump`, flash modem images, or touch OTP/keys/AMT
    secure-debug chasing IQ. The AP has no readback and the images are
    encrypted.

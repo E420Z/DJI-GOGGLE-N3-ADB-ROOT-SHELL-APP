@@ -27,7 +27,8 @@ import mods as modman  # noqa: E402
 import background  # noqa: E402
 import theme_builder  # noqa: E402
 from ui import theme  # noqa: E402
-from ui.live import LiveStream, capture_png  # noqa: E402
+from ui.live import (LiveStream, capture_png, RESOLUTIONS,
+                     SCALE_BY_LABEL)  # noqa: E402
 from tools import probe_n3_bulk_console as bulkmod  # noqa: E402
 
 STOCK_LIB = os.path.join(APP_DIR, "assets", "libew_gls_stock.so")
@@ -204,6 +205,14 @@ class GogglesPage(ctk.CTkFrame):
         lbl(top, "Live preview", 15, True).pack(side="left")
         self.fps = pill(top, "OFF")
         self.fps.pack(side="right")
+        self.res = ctk.CTkOptionMenu(
+            top, values=[label for label, _ in RESOLUTIONS], width=150,
+            font=theme.font(11), fg_color=theme.CARD_ALT,
+            button_color=theme.CARD_ALT, button_hover_color=theme.CARD_HOVER,
+            text_color=theme.TEXT, dropdown_fg_color=theme.CARD,
+            dropdown_text_color=theme.TEXT, command=self._res_changed)
+        self.res.set(RESOLUTIONS[0][0])
+        self.res.pack(side="right", padx=6)
         self.preview = ctk.CTkLabel(left, text="Live preview off",
                                     fg_color="#05040A", corner_radius=10,
                                     width=640, height=360,
@@ -220,7 +229,8 @@ class GogglesPage(ctk.CTkFrame):
         self.rec_btn = btn(row, "Record 10s", self.toggle_record)
         self.rec_btn.pack(side="left", padx=6)
         muted(left, "Live preview restarts the goggles UI and loads n3live. "
-                    "160x90 at ~57 fps over USB.",
+                    "Resolution is selectable up to 1920x1080; higher sizes "
+                    "lower the fps.",
               11).pack(anchor="w", padx=16, pady=(0, 12))
 
         right = ctk.CTkFrame(self, fg_color="transparent")
@@ -287,15 +297,24 @@ class GogglesPage(ctk.CTkFrame):
             return ["/vendor/n3menu.so"]
         return []
 
+    def _res_changed(self, label):
+        scale = SCALE_BY_LABEL.get(label, 12)
+        if self.app.live.running:
+            self.app.live.set_scale(scale)
+        else:
+            self.app.log("Live resolution set to %s (applies on start)." % label)
+
     def start_live(self):
         if not messagebox.askyesno(
                 "Live preview",
                 "Starting live preview restarts the goggles UI and loads the "
                 "n3live debug mod.\n\nContinue?"):
             return
-        self.app.run_task(lambda: self.app.live.start(self._app_mods()),
-                          "Start live preview",
-                          on_done=lambda *_: self.app.refresh_status())
+        scale = SCALE_BY_LABEL.get(self.res.get(), 12)
+        self.app.run_task(
+            lambda: self.app.live.start(self._app_mods(), scale),
+            "Start live preview",
+            on_done=lambda *_: self.app.refresh_status())
 
     def stop_live(self):
         self.app.run_task(self.app.live.stop, "Stop live preview")
@@ -357,8 +376,10 @@ class GogglesPage(ctk.CTkFrame):
             self.fps.configure(text="OFF", fg_color=theme.CARD_ALT,
                                text_color=theme.MUTED)
         else:
-            self.fps.configure(text="%.0f FPS" % fps, fg_color=theme.OK,
-                               text_color="#06110A")
+            res = "%dx%d" % (size[0], size[1]) if size and size[0] else ""
+            self.fps.configure(
+                text=("%s · %.0f FPS" % (res, fps)) if res else "%.0f FPS" % fps,
+                fg_color=theme.OK, text_color="#06110A")
 
     def append_recent(self, text):
         self.recent.configure(state="normal")

@@ -13,9 +13,11 @@
 
 ### E42OZ
 - **Start live** restarts the goggles UI with `n3live` and `hook_capture`, then
-  streams 160×90 at ~57 fps into the app.
+  streams into the app. The resolution menu selects 160×90 … 1920×1080
+  (~58 fps at 160×90, ~8 fps at 640×360, ~0.9 fps at 1080p). Changing it while
+  live applies within ~2 s.
 - **Screenshot** captures a full 1920×1080 frame via the safe dmabuf hook.
-- **Record 10s** saves a GIF of the live preview.
+- **Record 10s** saves a GIF of the live preview (duration follows actual fps).
 - Quick actions: purple theme, menu-only theme, custom menu, background, recover.
 
 ### Root Shell
@@ -72,8 +74,11 @@ The capture is a thread-only dmabuf read; it never suppresses a display frame.
 restores stock. Nothing is installed in the boot chain.
 
 **Live preview 0 fps** → ADB must be on; the UI must be restarted with `n3live`
-(the Start live button does both). Check Logs → `natartos.log` for
-`[live] thread: start`.
+(the Start live button does both). The reader now auto-restarts `adb exec-out`
+and resyncs on EOF/bad header, so a brief ADB/USB blip should recover by
+itself. Check Logs → `natartos.log` for `[live] thread: start` and
+`/data/local/tmp/n3live.cfg` for the selected scale. At 1920×1080 the stream is
+bandwidth-bound (~0.9 fps); use a smaller resolution for real-time preview.
 
 **Theme build fails** → `app/assets/libew_gls_stock.so` is missing. It is
 intentionally gitignored; copy the stock lib from your device/firmware.

@@ -1,13 +1,13 @@
 {
   "id": "n3live",
   "name": "N3 Live Stream",
-  "version": "0.1",
+  "version": "0.2",
   "type": "debug",
   "description": "Downscaled dmabuf stream over a FIFO for the app's live preview.",
   "risk": "low",
   "status": "stable",
   "experimental": false,
-  "notes": "Read-only. Verified 160x90 at ~59 fps.",
+  "notes": "Read-only. Runtime scale 12..1 (160x90..1920x1080). 160x90 ~58 fps; 640x360 ~8 fps; 1080p ~0.9 fps. Reader auto-restarts/resyncs.",
   "so": "files/n3live.so",
   "filename": "n3live.so"
 }

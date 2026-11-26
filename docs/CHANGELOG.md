@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased — live preview fix + resolutions (2026-11-26)
+
+- Fixed the live preview freeze after ~10 s:
+  - `n3live` now writes chunked frames with a 1 MB pipe and closes the FIFO on
+    any incomplete frame (no more partial-frame misalignment).
+  - The app reader now uses a Windows-safe pump thread + queue, exact reads
+    with timeouts, and auto-restarts/resyncs `adb exec-out` on EOF/bad header.
+- Added a live resolution selector: 160×90, 240×135, 320×180, 480×270,
+  640×360, 960×540, 1920×1080. Measured: ~58 fps at 160×90, ~8 fps at 640×360,
+  ~0.9 fps at 1080p. Changes apply live within ~2 s.
+- Rebuilt `n3live.so` (v0.2).
+- Sparrow2 bulk-route console probe: custom `-J` route loaded and free `test:9`
+  host locked, but the bulk send still returns `-1007`
+  (`linux_bulk_write` interface 4 send timeout). No console response.
+
 ## Unreleased — Sparrow2 research (2026-11-25)
 
 - Added the **Sparrow2** app page (read-only): firmware inventory, shipped

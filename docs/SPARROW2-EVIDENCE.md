@@ -192,6 +192,31 @@ No `iq`, `sample`, `adc`, `spectrum`, `rf_read`, or `dump_iq` symbol.
 
 ---
 
+## 9. Bulk-route probe (2026-11-26)
+
+Custom `-J` route table with a free `test:9` source host and an enabled bulk
+`e0` route over `/bulk/s2`:
+
+```
+Send message, from machine 0x900 host 1e09, to machine 0x2304 host 0e00,
+msg_id: 00090055, attrib: 00001040, len: 9, seq_id: 0, data:
+  00 64 00 18 68 65 6c 70 0d
+duss_event_send_sync_v2() error: -1007
+operation fail, error: -1007
+```
+
+Logcat:
+
+```
+F DUSS45  : linux_bulk_write as device,0,0,0,0,4 faild, send timeout
+E DUSS46  : usbpri2_slave_send() ... send data fail, -1/110. len: 77, timeout: 150, in04
+```
+
+Result: the custom route loaded and the free host locked, but the Sparrow2
+bulk write path is not open in normal mode. No console response.
+
+---
+
 ## 8. Safety boundary
 
 Nothing above is a write to `/system`, a partition, OTP/RPMB, a fuse, the

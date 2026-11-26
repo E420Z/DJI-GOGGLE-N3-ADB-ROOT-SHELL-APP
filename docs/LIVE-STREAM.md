@@ -13,22 +13,50 @@ USB in real time so changes can be watched and recorded.
 `/vendor/n3live.so` is a preload mod in `dji_glasses`:
 
 - Finds the two live 1920×1080 `/dmabuf:` surfaces in `/proc/self/maps`.
-- Downscales by 12 → **160×90 BGRA**.
+- Downscales by an integer factor selected at runtime from
+  `/data/local/tmp/n3live.cfg` (`scale=12` … `scale=1`).
 - Writes `'N3LV' + u16 w + u16 h + u32 seq` + pixels to
-  `/data/local/tmp/n3live.fifo` with **non-blocking** writes.
-- If no reader is connected, writes are dropped; it never blocks the UI.
+  `/data/local/tmp/n3live.fifo`.
+- Non-blocking, chunked writes with a 1 MB pipe. If a frame cannot complete
+  (reader stalled / partial write), it closes the FIFO; the host reopens it and
+  resyncs on the next header. It never blocks the UI thread.
 
-Host: `tools/debug_live.py` creates the FIFO, runs `adb exec-out cat`, parses
-frames, shows them with Tkinter, and can record an APNG.
+Host: `app/ui/live.py` (and `tools/debug_live.py`) creates the FIFO, runs
+`adb exec-out cat`, parses frames, and displays/records them.
 
-## Measured
+## Measured (2026-11-26)
 
-| Resolution | FPS | Notes |
-|---|---:|---|
-| 160×90 (scale 12) | **~57 fps** | real-time; best for flicker |
-| 240×135 (scale 8) | ~19 fps | bandwidth-limited |
+| Resolution | Scale | FPS | Notes |
+|---|---:|---:|---|
+| 160×90 | 12 | **~58** | real-time; best for flicker |
+| 240×135 | 8 | ~30 | |
+| 320×180 | 6 | ~17 | |
+| 480×270 | 4 | ~12 | |
+| 640×360 | 3 | **~8** | verified |
+| 960×540 | 2 | ~3 | |
+| 1920×1080 | 1 | **~0.9** | verified; ~8.3 MB/frame |
 
-The limit is ADB/FIFO throughput (~2.5–3.3 MB/s), not CPU or a missing codec.
+FPS is limited by USB/ADB throughput; higher resolution lowers it. The app's
+resolution selector changes the scale live (the mod re-reads the cfg within
+~2 s).
+
+## Freeze fix (2026-11-26)
+
+The old stream could freeze after ~10 s. Two causes:
+
+1. The mod wrote a 57 KB frame with one non-blocking `write`; a partial write
+   left the stream misaligned.
+2. The host reader treated a bad header as `continue` and never resynced; it
+   also blocked forever if `adb exec-out` died.
+
+Fixes:
+
+- Mod: chunked writes, 1 MB pipe, and close the FIFO on any incomplete frame.
+- Host: a background pump thread + queue (Windows-safe; `select()` does not
+  work on Windows pipes), exact reads with timeouts, and automatic
+  `adb exec-out` restart + resync on EOF/bad header.
+
+Verified: 60 s run at 160×90 → 640×360 → 1920×1080, **0 reader restarts**.
 
 ## Toolya comparison (from toolya.dev, 2026-11-25)
 
@@ -46,8 +74,10 @@ faster than Toolya's UI mirror for debugging.
 ## In the app
 
 The app's **E42OZ → Start live** path uses this same stream through
-`app/ui/live.py`. Verified on 2026-11-25: **290 frames in 5 s (~59 fps)**,
-160×90, with the stock UI restored afterwards.
+`app/ui/live.py`. The live panel has a resolution selector (160×90 …
+1920×1080). Changing it writes `n3live.cfg`; the mod applies it within ~2 s.
+Verified on 2026-11-26: 160×90 ~58 fps, 640×360 ~8 fps, 1920×1080 ~0.9 fps,
+with **0 reader restarts** over 60 s.
 
 ## Usage (standalone debug tool)
 
@@ -65,9 +95,9 @@ py -3.12 "...\debug_live.py" --no-window --seconds 8 --record out.apng
 
 Press Ctrl+C to stop; the tool restores stock USB.
 
-## Higher resolution later
+## Notes
 
-For 320×180+ at 60 fps, send only changed blocks (delta/RLE) between frames.
-The UI is mostly static, so this fits well and avoids any hardware encoder.
-Hardware H.264 of the UI is possible but needs MediaCodec/Surface and
-BGRA→YUV work; it is overkill for flicker diagnosis.
+Raw BGRA is bandwidth-bound: 1080p is ~8.3 MB/frame, so ~0.9 fps over ADB.
+For higher framerate at high resolution later, send only changed blocks
+(delta/RLE) or use a hardware encoder; both are unnecessary for flicker
+diagnosis today.

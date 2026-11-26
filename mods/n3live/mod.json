@@ -1,8 +1,8 @@
 {
   "id": "n3live",
   "name": "N3 Live Stream",
-  "version": "0.1",
+  "version": "0.2",
   "type": "preload",
   "so": "n3live.so",
-  "description": "Downscaled live frame stream over a FIFO for USB debugging."
+  "description": "Downscaled live frame stream over a FIFO; runtime scale 12..1 (160x90..1920x1080)."
 }
