@@ -92,6 +92,28 @@ Route A, as a bounded test: 5-second graph writing to
 header. It may make the goggles display flicker for a second; it does not write
 anything outside `/data`.
 
+## Attempted: launching our own tap graph
+
+Two CLIs were tried, both bounded and both writing only to `/data`:
+
+- `dji_media_server -i <json>` → `invalid option -- i`. The usage text advertises
+  `-i` but the binary rejects it (same class of bug as `test_wl_vdec -p`).
+- `media-launch-1.0 <json>` → the description is read from **argv**, not stdin
+  (`-c` only sets a config path). It then rejects the graph with
+  `[{ ] key and val do not match: "Edges":` — `media-launch` uses a different
+  "PIPELINE-DESCRIPTION" schema from the `*.json` files `dji_media_server`
+  consumes, and that schema is not documented anywhere on the device.
+
+Net result: three vendor routes, three distinct failure modes — `test_wl_vdec`
+aborts on a missing `/system` config, `omx_recordtest` starts then segfaults on
+mux, and the graph runners either reject their own advertised flags or an
+undocumented schema.
+
+**The remaining clean route is a small `libmdc` client** (`mdc_service_get_channel`
+→ `createReceiver` on `zv900_app_liveview_chn` → write the AVC to a file/FIFO).
+That is the same API `omx_recordtest` used successfully before it crashed, so it
+is known to work; it just needs our own binary.
+
 ## Measured: the vendor recorder (`omx_recordtest`)
 
 Run bounded, 5 seconds, output to `/data/local/tmp/n3rec/rec.mp4`, **without**
