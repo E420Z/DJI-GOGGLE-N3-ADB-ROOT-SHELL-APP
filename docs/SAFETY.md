@@ -3,6 +3,10 @@
 This project is for the owner's own DJI Goggles N3, on a bench, for UI/theme/
 debug development.
 
+**Firmware scope:** tested only on N3 firmware **0900**. Other builds are
+untested — vtable/GOT addresses, the USB composition and the vendor OMX
+components are build-specific.
+
 ## DANGER — never write to `/system`
 
 The goggles run dm-verity in **mode 2 (`restart_on_corruption`)** on `/system`.

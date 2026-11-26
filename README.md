@@ -4,6 +4,12 @@ A Windows desktop app for **your own** DJI Goggles N3: a session-only root
 shell, ADB, a modern UI control deck, purple theme patches, custom background,
 in-goggles menu apps, a live USB debug preview, and an in-goggles app SDK.
 
+> **Tested on firmware 0900 only.** Everything here was developed and verified
+> against the N3 running firmware **0900**. Other firmware builds are **untested**:
+> the menu/vtable addresses, USB composition, `dji_glasses` internals and the
+> vendor OMX components are build-specific, so patches may fail or misbehave.
+> Check your version before using anything that writes to `/vendor`.
+
 ![N3 ROOT connection page](docs/screenshot.png)
 
 *Refreshed control deck: grouped navigation, safety badges, session-only actions,
