@@ -189,6 +189,14 @@ def install(mod_id, log=print) -> bool:
         raise RuntimeError("unknown mod: " + mod_id)
     if mod.get("managed") == "background":
         raise RuntimeError("Use the Background tab to install a custom image.")
+    # The capture and overlay hooks come from the same source and graft the
+    # same symbols; loading both would double-hook push_frame.
+    rival = {"overlay": "capture", "capture": "overlay"}.get(mod_id)
+    if rival:
+        prev = find(rival)
+        if prev and prev.get("installed"):
+            log("Replacing %s before installing %s." % (rival, mod_id))
+            uninstall(rival, log=log)
     # install dependencies first
     for dep in mod.get("requires", []):
         if not find(dep) or not find(dep).get("installed"):
