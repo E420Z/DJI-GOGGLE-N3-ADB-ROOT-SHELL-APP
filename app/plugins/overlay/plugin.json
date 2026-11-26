@@ -1,0 +1,13 @@
+{
+  "id": "overlay",
+  "name": "Frame injection (PC stream)",
+  "version": "0.3",
+  "type": "hook",
+  "description": "Adds the injection half of the display hook: reads /data/local/tmp/fb_shared and pushes those frames to the goggles display. Used by the PC-stream feature.",
+  "risk": "medium",
+  "status": "experimental",
+  "experimental": true,
+  "notes": "Supersedes the capture-only hook (same source, larger build). Installing it restarts the goggles UI. While fb_override exists the display shows whatever the PC sends; remove fb_override or create fb_stop to return to the live UI. If the screen stays black, use Recover stock UI or reboot.",
+  "so": "files/hook_overlay.so",
+  "filename": "hook_overlay.so"
+}

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased - recorder test + PC-stream packaging (2026-11-26)
+
+- Bounded omx_recordtest test: init + record start succeed against the 1080p
+  display channel, then a **segfault on stop/mux**; no file produced; device
+  unaffected. The factory wrapper also does a DUML route change and an I2C mux
+  write, so it was not run.
+- Built the injection-capable hook from mods/capture/mod.c
+  (sdk/build.ps1, 198,912 B, implements b_shared / b_override /
+  b_stop). Packaged as the experimental **overlay** plugin; installing it
+  restarts the goggles UI.
+- Documented the remaining PC-stream work: b_receiver (JPEG -> BGRA) plus a
+  PC sender over the RNDIS link, since ADB is off.
+
 ## Unreleased - 1080p video out (2026-11-26)
 
 - Found the goggles **already encoding 1920x1080 H.264 at 50 fps** (logcat:

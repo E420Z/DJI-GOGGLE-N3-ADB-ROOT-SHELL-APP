@@ -91,3 +91,57 @@ Route A, as a bounded test: 5-second graph writing to
 `/data/local/tmp/n3live.h264`, killed afterwards, then pull and check the NAL
 header. It may make the goggles display flicker for a second; it does not write
 anything outside `/data`.
+
+## Measured: the vendor recorder (`omx_recordtest`)
+
+Run bounded, 5 seconds, output to `/data/local/tmp/n3rec/rec.mp4`, **without**
+the factory pre-conditions.
+
+- It read commands from stdin: `i` init, `1`+url start, `2` stop+mux, `d` destroy,
+  `x` exit.
+- It initialised, printed **`Record start succeed`**, and attached to
+  `zv900_liveview_lcdc_chn` (YUV420SP, 3,317,760 B buffers) as a receiver and to
+  `zv900_app_liveview_chn` as a sender.
+- On `2` (stop + mux) it **segfaulted** (`Segmentation fault (core dumped)`).
+  No file was produced.
+- The device was unaffected: `dji_glasses` (868) and `dji_media_server` (886)
+  stayed up, no stray processes, no leftovers.
+
+The shipped wrapper `record_test_script.sh` also runs `dji_mb_ctrl … -c 0x4c 000200`
+(route video to the e3t vdec) and `i2cset -f -y 1 0x41 0x1 0x0 w` (an I2C mux
+write) before recording. That is why this was **not** run: the recorder clearly
+expects that factory state, and the mux write is exactly the kind of blind
+hardware poke to avoid.
+
+## PC screen into the goggles (the other direction)
+
+The repo already has the device half. What is deployed today is the
+**capture-only** hook (`/vendor/hook_capture.so`, 84,632 B — no inject symbols).
+Building `mods/capture/mod.c` with `sdk/build.ps1` produces
+`hook_overlay.so` (198,912 B) containing `start_inject_thread`,
+`inject_thread_fn` and `g_inject_*`, i.e. the full injection path.
+
+Protocol (already implemented in the hook):
+
+| Piece | Detail |
+|---|---|
+| `/data/local/tmp/fb_shared` | 64-byte header, counter at offset 0, then two BGRA slots of 8,294,400 B (1920×1080×4) |
+| `/data/local/tmp/fb_override` | must exist; a watcher thread polls it every 500 ms and starts injection |
+| `/data/local/tmp/fb_stop` | stops injection and clears the overlay |
+
+The new build is packaged as the **experimental** `overlay` plugin
+(`app/plugins/overlay/`, risk medium). Installing it restarts the goggles UI;
+removing `fb_override` (or creating `fb_stop`) returns to the live UI. If the
+screen stays black, use *Recover stock UI* or reboot.
+
+Still missing for a working PC stream:
+
+1. `fb_receiver` on the goggles: read length-prefixed JPEG from a socket,
+   decode to BGRA, write the next slot, bump the counter.
+2. A PC sender: grab the desktop, JPEG-encode, push frames. ADB is currently
+   off, so this would run over the RNDIS link (goggles at `192.168.60.2`)
+   instead.
+
+`zig` is available locally (`sdk/build.ps1` already uses it), so the receiver can
+be cross-compiled without Docker.
+
