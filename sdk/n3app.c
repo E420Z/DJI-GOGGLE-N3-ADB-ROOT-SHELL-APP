@@ -201,8 +201,8 @@ static long g_up_ms;
 #define FLAG_EXIT "/data/local/tmp/n3_app_exit"
 #define MAPS_PATH "/proc/self/maps"
 
-#define N3_MAX_W 1000
-#define N3_MAX_H 600
+#define N3_MAX_W 1200
+#define N3_MAX_H 960
 #define DEF_X 560
 #define DEF_Y 360
 #define DEF_W 800
@@ -232,11 +232,11 @@ static int g_logged_draw, g_logged_push, g_push_calls;
 
 static int g_x, g_y, g_w, g_h;   /* window rect */
 
-static const n3_color C_BG     = 0xFF14121C;
-static const n3_color C_BORDER = 0xFFB44BFF;
-static const n3_color C_TITLE  = 0xFF201A30;
+static const n3_color C_BG     = 0xFF1E1E1E;
+static const n3_color C_BORDER = 0xFF3A3A3A;
+static const n3_color C_TITLE  = 0xFF1E1E1E;
 static const n3_color C_TEXT   = 0xFFFFFFFF;
-static const n3_color C_DIM    = 0xFFB9A6E8;
+static const n3_color C_DIM    = 0xFFB0B0B0;
 
 /* ------------------------------------------------------------------ utils */
 
@@ -461,10 +461,15 @@ static void draw_window(unsigned int *canvas) {
     n3_surface win = { canvas, g_w, g_h, g_w };
 
     n3_fill(&win, 0, 0, g_w, g_h, C_BG);
-    n3_frame_rect(&win, 0, 0, g_w, g_h, 3, C_BORDER);
-    n3_fill(&win, 3, 3, g_w - 6, TITLE_H, C_TITLE);
-    n3_text(&win, 16, 3 + (TITLE_H - 14) / 2,
-            g_app->name ? g_app->name : "N3 APP", 2, C_TEXT);
+    n3_frame_rect(&win, 0, 0, g_w, g_h, 1, C_BORDER);
+    n3_fill(&win, 1, 1, g_w - 2, TITLE_H, C_TITLE);
+    {
+        const char *nm = g_app->name ? g_app->name : "N3 APP";
+        int tw = n3_text_width(nm, 3);
+        n3_text(&win, (g_w - tw) / 2, 1 + (TITLE_H - 18) / 2,
+                nm, 3, C_TEXT);
+        n3_fill(&win, 1, 1 + TITLE_H, g_w - 2, 1, C_BORDER);
+    }
 
     n3_surface app = {
         canvas + (long)(TITLE_H + INSET) * g_w + INSET,
@@ -474,7 +479,11 @@ static void draw_window(unsigned int *canvas) {
     };
     if (g_app->on_tick) g_app->on_tick(&app, g_frame);
 
-    n3_text(&win, 16, g_h - 22, "UP/DOWN MOVE   CENTER OK   BACK EXIT", 2, C_DIM);
+    {
+        const char *hint = "UP/DOWN MOVE   CENTER OK   BACK EXIT";
+        int tw = n3_text_width(hint, 2);
+        n3_text(&win, (g_w - tw) / 2, g_h - 22, hint, 2, C_DIM);
+    }
 }
 
 static void blit_window(unsigned int *base, const unsigned int *canvas) {

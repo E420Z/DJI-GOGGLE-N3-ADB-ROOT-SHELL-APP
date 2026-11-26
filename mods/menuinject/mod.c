@@ -239,16 +239,11 @@ static int prepare_item(void *ds);
 static int ds_is_wrapped(void *ds);
 
 static void menu_action(void *obj, void *arg1, void *arg2, void *arg3) {
-    (void)obj;
-    NTLOG("action: E420Z -> stock settings panel");
-    g_e420z_page = 1;
-    if (g_settings_method) {
-        NTLOG_HEX("settings method=", (unsigned long)g_settings_method);
-        ((void (*)(void *, void *, void *, void *))g_settings_method)(
-            g_settings_obj, arg1, arg2, arg3);
-    } else if (g_open_settings) {
-        g_open_settings();
-    }
+    (void)obj; (void)arg1; (void)arg2; (void)arg3;
+    NTLOG("action: E420Z -> stock-styled panel");
+    int fd = (int)sys_openat(AT_FDCWD, "/data/local/tmp/n3_app_on",
+                             O_WRONLY | O_CREAT, 0666);
+    if (fd >= 0) sys_close(fd);
 }
 
 static void n3_action(void *obj) {

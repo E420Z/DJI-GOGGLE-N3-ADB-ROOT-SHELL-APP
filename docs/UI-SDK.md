@@ -136,6 +136,24 @@ Display / About).  Its rows are not a simple data source, so replacing their
 labels with custom rows requires cloning the static page objects (next step).
 The stock rows themselves work.
 
+### Stock-styled panel template
+
+For a custom content panel that matches the stock layout, use
+`sdk/ui_template/mod.c`:
+
+- window: `x=360, y=85, w=670, h=910` (the stock Settings panel area)
+- dark neutral surfaces, purple selection bar, centered title
+- rows drawn in `on_tick`, actions in `on_key` / `on_swipe`
+- open it from a native row by touching `/data/local/tmp/n3_app_on`
+- `n3app` reads event3 directions and event0 center/Back; the CoreRoot hook
+  suppresses stock input while the panel is open
+
+Build it with `sdk/build.ps1` and load it alongside `n3menuinject.so`
+(`/data/local/tmp/n3mods.list`).
+
+`N3_MAX_W/H` in `sdk/n3app.c` is now 1200x960 so the panel can fill the
+big-box area.
+
 ---
 
 ## 6. Known limits (2026-11-26)

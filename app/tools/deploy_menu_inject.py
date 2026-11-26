@@ -21,6 +21,8 @@ import n3ctl  # noqa: E402
 LOADER = os.path.join(APP, "assets", "mods", "n3mods.so")
 MOD = os.path.join(APP, "plugins", "menuinject", "files", "n3menuinject.so")
 VENDOR_MOD = "/vendor/n3menuinject.so"
+PANEL = os.path.join(APP, "plugins", "n3menu", "files", "n3menu.so")
+VENDOR_PANEL = "/vendor/n3menu.so"
 FLAG = "/data/local/tmp/n3menuinject_on"
 
 
@@ -46,7 +48,7 @@ def main() -> int:
             timeout=10, retries=1))
         return 0
 
-    for p in (LOADER, MOD):
+    for p in (LOADER, MOD, PANEL):
         if not os.path.exists(p):
             print("missing:", p)
             return 1
@@ -54,9 +56,11 @@ def main() -> int:
     with n3ctl.vendor_write(log=print):
         n3ctl.push_file(LOADER, "/vendor/n3mods.so", log=print)
         n3ctl.push_file(MOD, VENDOR_MOD, log=print)
+        n3ctl.push_file(PANEL, VENDOR_PANEL, log=print)
         n3ctl.run_root(
-            "chmod 755 /vendor/n3mods.so %s; rm -f /data/local/tmp/n3mods.log "
-            "/data/local/tmp/natartos.log" % VENDOR_MOD,
+            "chmod 755 /vendor/n3mods.so %s %s; rm -f "
+            "/data/local/tmp/n3mods.log /data/local/tmp/natartos.log "
+            "/data/local/tmp/n3_app_on" % (VENDOR_MOD, VENDOR_PANEL),
             timeout=8, retries=1)
 
     if args.enable:
@@ -68,7 +72,7 @@ def main() -> int:
     n3ctl.ensure_adb(log=print)
     print("loader exists:", n3ctl.dev_exists("/vendor/n3mods.so"))
     print("restarting UI with the injector...")
-    ok = n3ctl.start_ui(log=print, mods=[VENDOR_MOD])
+    ok = n3ctl.start_ui(log=print, mods=[VENDOR_MOD, VENDOR_PANEL])
     print("start_ui:", ok)
     print(n3ctl.run_root(
         "echo '== n3mods.log =='; cat /data/local/tmp/n3mods.log 2>/dev/null; "
