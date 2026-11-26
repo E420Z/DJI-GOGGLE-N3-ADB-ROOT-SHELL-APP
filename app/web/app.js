@@ -592,12 +592,19 @@ function renderPcStream() {
 
   const hint = $("#pcHint");
   if (hint) {
-    hint.textContent = running
-      ? "Streaming. The goggles may look a beat behind — that is the software decoder, not the link."
-      : (sender.last_error
-        ? `Last error: ${sender.last_error}`
-        : "Idle. Start the root shell and enable ADB on Connection, then press Start.");
+    if (!dev.adb) {
+      hint.textContent = "Enable ADB on Connection first, then press Start.";
+    } else if (!dev.hook) {
+      hint.textContent = "Install the “Frame injection (PC stream)” mod on Mods & UI, then restart the UI.";
+    } else if (running) {
+      hint.textContent = "Streaming. The goggles may look a beat behind — that is the software decoder, not the link.";
+    } else if (sender.last_error) {
+      hint.textContent = `Last error: ${sender.last_error}`;
+    } else {
+      hint.textContent = "Idle. Start the root shell and enable ADB on Connection, then press Start.";
+    }
   }
+  if ($("#pcStart")) $("#pcStart").disabled = running || !dev.adb || !dev.hook;
 }
 
 function renderPcSizes(sizes, current) {

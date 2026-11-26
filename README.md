@@ -9,6 +9,24 @@ in-goggles menu apps, a live USB debug preview, and an in-goggles app SDK.
 *Refreshed control deck: grouped navigation, safety badges, session-only actions,
 and the native E420Z stock-menu panel.*
 
+---
+
+## Support the project
+
+**N3 ROOT is open source**, built with love by **Claude Code** and
+**DeepSeek V4.1 Flash**. Every donation is genuinely appreciated and goes
+straight back into hardware, testing and late-night debugging.
+
+| | Address |
+|---|---|
+| **Bitcoin (BTC)** | `bc1qrs9rdj9rklllyp624hlkd6n0v347nsvaae4sa0` |
+| **Ethereum (ETH)** | `0x49d006ff56d4848d2D21F161abDE80BD09210e74` |
+
+Always double-check the address before sending — crypto transfers are
+irreversible.
+
+---
+
 > **Private repository.** Keep it private. It contains root/exploit research and
 > device-specific notes. Do not publish tokens, DJI binaries, or personal data.
 > Unauthenticated access to the repo, release, and asset returns 404.

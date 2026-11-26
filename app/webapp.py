@@ -441,11 +441,16 @@ class Api:
     def pcstream_info(self) -> dict:
         adb = self._pc_adb()
         device = {"adb": bool(adb)}
+        hook = False
         if adb:
             try:
                 device.update(self._pc_device_stats(adb))
+                mods = n3ctl.adb_shell("cat /data/local/tmp/n3mods.list 2>/dev/null",
+                                       adb=adb) or ""
+                hook = "hook_overlay.so" in mods
             except Exception as exc:  # noqa: BLE001
                 device["error"] = str(exc)
+        device["hook"] = hook
         return {
             "ok": True,
             "sender": self._pc.stats(),
