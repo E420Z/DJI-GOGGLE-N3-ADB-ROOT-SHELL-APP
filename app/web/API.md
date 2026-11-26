@@ -73,8 +73,9 @@ logs() -> {
 ## Live preview
 
 ```ts
-live_start(scale_label: string) -> { ok, message }  // "160×90", "640×360", ...
+live_start(scale_label: string) -> { ok, message }  // "160x90 (fast)", "640x360", ...
 live_stop() -> { ok, message }
+live_resolutions() -> { resolutions: string[], default: string }
 live_frame() -> {
   ok: boolean,
   image: string,       // "data:image/jpeg;base64,..." (empty when no frame)

@@ -268,7 +268,7 @@ class Api:
     def _on_live_status(self, text: str) -> None:
         self._note("live: %s" % text)
 
-    def live_start(self, scale_label: str = "640×360") -> dict:
+    def live_start(self, scale_label: str = "640x360") -> dict:
         def work():
             if self._live and self._live.running:
                 return True
@@ -278,6 +278,13 @@ class Api:
             self._live.start(app_mods=modman.mods_for_ui(), scale=scale)
             return True
         return self._action("Start live preview", work)
+
+    def live_resolutions(self) -> dict:
+        from ui.live import RESOLUTIONS
+        return {
+            "resolutions": [label for label, _scale in RESOLUTIONS],
+            "default": "640x360",
+        }
 
     def live_stop(self) -> dict:
         def work():
@@ -366,7 +373,7 @@ class Api:
         data.setdefault("accent", "purple")
         data.setdefault("motion", True)
         data.setdefault("density", "comfortable")
-        data.setdefault("live_scale", "640×360")
+        data.setdefault("live_scale", "640x360")
         return data
 
     def set_pref(self, key: str, value) -> dict:
