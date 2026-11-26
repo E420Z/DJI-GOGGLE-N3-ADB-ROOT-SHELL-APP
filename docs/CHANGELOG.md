@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased - PC screen into the goggles (2026-11-26)
+
+- **Working:** PC desktop -> goggles over the RNDIS link. New b_receiver
+  (aarch64, static) decodes length-prefixed JPEG into b_shared; the existing
+  hook_overlay.so inject thread puts it on the display. Measured 11.7 fps at
+  1200x900 in an 8 s test.
+- Packaging: mods/stream/ (source, binary, README) and the experimental
+  overlay plugin, which replaces the capture-only hook when installed.
+- Found and documented the two gotchas: the receiver must run in u:r:su:s0
+  (root ADB) because dji_services cannot exec /data ELF, and the file must
+  stay labelled system_data_file (relabelling to shell_data_file makes it
+  unreadable to su).
+- Stop is clean: SIGTERM removes b_override, touches b_stop, UI repaints.
+
 ## Unreleased - recorder test + PC-stream packaging (2026-11-26)
 
 - Bounded omx_recordtest test: init + record start succeed against the 1080p

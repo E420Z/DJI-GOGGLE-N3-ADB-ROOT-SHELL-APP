@@ -22,3 +22,4 @@ app/assets/background_reference.jpg
 sdk/dist/
 mods/**/*.o
 .pytest_cache/
+dist/

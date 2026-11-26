@@ -145,6 +145,43 @@ So "the same way the Fly app does" means reimplementing that app-link handshake
 over FunctionFS — a protocol reverse-engineering job, strictly bigger than the
 MDC client.
 
+## PC screen into the goggles (working, 2026-11-26)
+
+**This now works.** Measured end to end on the device:
+
+```
+PC (PIL ImageGrab -> JPEG)  --TCP 5570-->  /data/local/tmp/fb_receiver
+  -> fb_shared (64 B header, counter@0, 2 x 8,294,400 B BGRA)
+  -> hook_overlay.so inject thread -> display
+```
+
+- `[overlay] watcher: fb_shared opened, starting inject`
+- `[overlay] inject thr: start`
+- receiver: `first frame 1920x1080 (33270 bytes)`
+- desktop stream: **95 frames in 8 s = 11.7 fps** at 1200×900, ~56 KB/frame
+
+Two things were required and are now documented:
+
+1. **Run the receiver from `u:r:su:s0`** (root ADB). The `dji_services` root
+   shell cannot execute ELF files from `/data` — that is why an earlier attempt
+   failed with `Permission denied`. See `docs/ADB-ROOT.md`.
+2. **Keep the file labelled `system_data_file`.** Relabelling it to
+   `shell_data_file` makes it unreadable to `su` (and the `dji_services` shell
+   is then the only thing that can change it back).
+
+Stop: `pkill -TERM fb_receiver` → removes `fb_override`, touches `fb_stop`, the
+hook stops injecting and the live UI repaints.
+
+Source and build instructions: `mods/stream/`.
+
+## What is still missing
+
+- **Goggles → PC at 1080p.** The MDC client is the open item: `libmdcclient.so`
+  is on the device and `omx_recordtest` proved the channel works, but the
+  C++ channel structs are not documented, so it needs ABI work or a
+  disassembly pass over `omx_recordtest`.
+- **Goggles → PC today** is the E420Z raw mirror (640×360 ≈ 8 fps).
+
 ## Measured: the vendor recorder (`omx_recordtest`)
 
 Run bounded, 5 seconds, output to `/data/local/tmp/n3rec/rec.mp4`, **without**
