@@ -29,3 +29,11 @@ Protocol and UI research referenced in `docs/` includes public work from the
 DJI FPV community (natartos, toolya, fpv-wtf, dji-firmware-tools,
 `samuelsadok/dji_protocol`, and others). No third-party code is copied here
 except the natartos-derived files above.
+
+## OpenMAX IL headers
+
+mods/h264/include/OMX_*.h are the Khronos OpenMAX IL 1.1.2 headers, taken from
+the 
+aspberrypi/userland mirror. Copyright (c) 2008 The Khronos Group Inc.
+Distributed under the Khronos free-use license (MIT-style). Used only to build
+the optional hardware H.264 decoder mod.
