@@ -27,6 +27,10 @@ import mods as modman  # noqa: E402
 import background  # noqa: E402
 import theme_builder  # noqa: E402
 from ui import theme  # noqa: E402
+from ui.components import (  # noqa: E402
+    SafetyBadge, action_cell, action_row, btn, button_grid, card, empty_state,
+    helper_note, lbl, log_textbox, muted, pill, section_header,
+    set_pill, set_tile, status_row)
 from ui.live import (LiveStream, capture_png, RESOLUTIONS,
                      SCALE_BY_LABEL)  # noqa: E402
 from tools import probe_n3_bulk_console as bulkmod  # noqa: E402
@@ -35,42 +39,40 @@ STOCK_LIB = os.path.join(APP_DIR, "assets", "libew_gls_stock.so")
 SHOTS = os.path.join(APP_DIR, "state", "shots")
 VERSION = "1.0.0"
 
+# Page title, one-line description and the highest safety level on the page.
+PAGE_META = {
+    "connection": ("Connection", "Device link, root session and recovery", "RISKY"),
+    "goggles": ("E42OZ — Goggles", "Live preview, screenshots and UI mods", "EXPERIMENTAL"),
+    "sparrow": ("Sparrow2 — 5.8 GHz radio", "Read-only radio diagnostics", "RISKY"),
+    "shell": ("Root Shell", "Interactive uid 0 console on the goggles", "RISKY"),
+    "mods": ("Mods & UI", "Themes, backgrounds and /vendor mods", "EXPERIMENTAL"),
+    "logs": ("Logs", "Read-only on-device log tails", "SAFE"),
+    "settings": ("Settings", "Paths, preferences and safety key", "SAFE"),
+}
 
-def card(parent, **kw):
-    return ctk.CTkFrame(parent, fg_color=theme.CARD, corner_radius=14,
-                        border_width=1, border_color=theme.BORDER, **kw)
-
-
-def lbl(parent, text, size=13, bold=False, color=theme.TEXT, **kw):
-    return ctk.CTkLabel(parent, text=text, font=theme.font(size, bold),
-                        text_color=color, **kw)
-
-
-def muted(parent, text, size=12, **kw):
-    return ctk.CTkLabel(parent, text=text, font=theme.font(size),
-                        text_color=theme.MUTED, **kw)
-
-
-def pill(parent, text):
-    return ctk.CTkLabel(parent, text=text, font=theme.font(11, True),
-                        fg_color=theme.CARD_ALT, text_color=theme.MUTED,
-                        corner_radius=8, padx=10, height=26)
-
-
-def set_pill(p, on, on_text, off_text):
-    p.configure(text=on_text if on else off_text,
-                fg_color=theme.OK if on else theme.CARD_ALT,
-                text_color="#06110A" if on else theme.MUTED)
+# Safety overrides for known mods. Anything not listed falls back to its
+# plugin.json risk value.
+MOD_SAFETY = {
+    "capture": "SAFE",
+    "background": "EXPERIMENTAL",
+    "n3live": "EXPERIMENTAL",
+    "n3menuinject": "EXPERIMENTAL",
+    "n3menu": "EXPERIMENTAL",
+    "paint": "EXPERIMENTAL",
+}
 
 
-def btn(parent, text, command, accent=False, **kw):
-    return ctk.CTkButton(
-        parent, text=text, command=command,
-        fg_color=theme.ACCENT if accent else theme.CARD_ALT,
-        hover_color=theme.ACCENT_HOVER if accent else theme.CARD_HOVER,
-        text_color="#0B0710" if accent else theme.TEXT,
-        font=theme.font(13, True if accent else False),
-        corner_radius=10, height=36, **kw)
+def mod_safety_level(rec) -> str:
+    rec = rec or {}
+    known = MOD_SAFETY.get(rec.get("id"))
+    if known:
+        return known
+    risk = str(rec.get("risk", "medium")).lower()
+    if risk == "high":
+        return "RISKY"
+    if risk == "low" and not rec.get("experimental"):
+        return "SAFE"
+    return "EXPERIMENTAL"
 
 
 class ConnectionPage(ctk.CTkFrame):
@@ -79,66 +81,81 @@ class ConnectionPage(ctk.CTkFrame):
         self.app = app
         for c in range(3):
             self.grid_columnconfigure(c, weight=1)
+
         self.cards = {}
-        specs = [("usb", "USB DEVICE", "libusb0 dji_blackbox"),
-                 ("root", "ROOT SHELL", "port 4444 / uid 0"),
+        specs = [("usb", "USB DEVICE", "libusb0 · dji_blackbox"),
+                 ("root", "ROOT SHELL", "port 4444 · uid 0"),
                  ("adb", "ADB", "USB composition")]
         for i, (key, title, sub) in enumerate(specs):
             c = card(self)
-            c.grid(row=0, column=i, padx=7, pady=7, sticky="nsew")
-            lbl(c, title, 11, True, theme.MUTED).pack(anchor="w", padx=16, pady=(14, 0))
-            big = lbl(c, "—", 24, True, theme.MUTED)
-            big.pack(anchor="w", padx=16)
-            muted(c, sub).pack(anchor="w", padx=16, pady=(0, 14))
+            c.grid(row=0, column=i, padx=theme.PAGE_GAP, pady=theme.PAGE_GAP,
+                   sticky="nsew")
+            muted(c, title, 10).pack(anchor="w", padx=16, pady=(14, 0))
+            big = lbl(c, "—", 22, True, theme.DIM)
+            big.pack(anchor="w", padx=16, pady=(1, 0))
+            muted(c, sub, 11).pack(anchor="w", padx=16, pady=(0, 14))
             self.cards[key] = big
 
         dev = card(self)
-        dev.grid(row=1, column=0, columnspan=2, padx=7, pady=7, sticky="nsew")
-        lbl(dev, "Goggles", 15, True).pack(anchor="w", padx=18, pady=(14, 6))
+        dev.grid(row=1, column=0, columnspan=2, padx=theme.PAGE_GAP,
+                 pady=theme.PAGE_GAP, sticky="nsew")
+        section_header(dev, "Goggles", "Read-only device summary", "SAFE",
+                       padx=18, pady=(14, 4), wrap=520)
         self.info = {}
         for key, name in [("model", "Model"), ("usb", "USB"),
                           ("adb", "ADB serial"), ("ui", "UI"),
                           ("theme", "Theme"), ("background", "Background"),
                           ("mods", "Mods")]:
-            row = ctk.CTkFrame(dev, fg_color="transparent")
-            row.pack(fill="x", padx=18, pady=2)
-            muted(row, name, 12).pack(side="left")
-            v = lbl(row, "—", 12, True)
-            v.pack(side="right")
-            self.info[key] = v
-        ctk.CTkLabel(dev, text="", height=6).pack()
+            self.info[key] = status_row(dev, name, padx=18)
+        muted(dev, "Refreshed every 5 seconds.", 10).pack(
+            anchor="w", padx=18, pady=(4, 14))
 
         act = card(self)
-        act.grid(row=1, column=2, padx=7, pady=7, sticky="nsew")
-        lbl(act, "Actions", 15, True).pack(anchor="w", padx=18, pady=(14, 8))
+        act.grid(row=1, column=2, padx=theme.PAGE_GAP,
+                 pady=theme.PAGE_GAP, sticky="nsew")
+        section_header(act, "Actions", "Session, root and recovery",
+                       None, padx=16, pady=(14, 4), wrap=300)
         grid = ctk.CTkFrame(act, fg_color="transparent")
-        grid.pack(fill="x", padx=14, pady=(0, 12))
-        grid.grid_columnconfigure((0, 1), weight=1)
+        grid.pack(fill="x", padx=12, pady=(0, 4))
         actions = [
-            ("Enable ADB", self.act_adb, True),
-            ("Start root", self.act_start_root, True),
-            ("Open root console", lambda: self.app.show_page("shell"), True),
-            ("Stop root", self.act_stop_root, False),
-            ("Recover stock UI", self.act_stock, False),
-            ("Restart patched UI", self.act_restart, False),
-            ("External terminal", self.act_terminal, False),
+            ("Enable ADB", self.act_adb, True, "EXPERIMENTAL"),
+            ("Start root", self.act_start_root, True, "RISKY"),
+            ("Open root console", lambda: self.app.show_page("shell"),
+             False, "RISKY"),
+            ("Stop root", self.act_stop_root, False, "SAFE"),
+            ("Recover stock UI", self.act_stock, False, "RISKY"),
+            ("Restart patched UI", self.act_restart, False, "EXPERIMENTAL"),
+            ("External terminal", self.act_terminal, False, "RISKY"),
         ]
-        for i, (text, cmd, acc) in enumerate(actions):
-            b = btn(grid, text, cmd, accent=acc)
-            b.grid(row=i // 2, column=i % 2, padx=5, pady=5, sticky="ew")
+        for text, cmd, acc, level in actions:
+            action_row(grid, text, cmd, level, accent=acc, height=32, pady=1)
+        helper_note(act,
+                    "Root is session-only. Use Recover stock UI if a mod "
+                    "black-screens.",
+                    "RISKY", wraplength=250, padx=16, pady=(4, 12))
 
         helpc = card(self)
-        helpc.grid(row=2, column=0, columnspan=3, padx=7, pady=7, sticky="ew")
-        lbl(helpc, "First run", 15, True).pack(anchor="w", padx=18, pady=(14, 4))
-        muted(helpc,
-              "1) Connect USB and power on the goggles.  2) Start root (blackbox RCE).  "
-              "3) Enable ADB.  4) Open E42OZ for live preview and mods.\n"
-              "Recover stock UI is always available if the screen ever goes black.",
-              12, justify="left").pack(anchor="w", padx=18, pady=(0, 6))
-        lbl(helpc, "⚠ Experimental: custom menu/overlay and display hooks can break "
-                   "rendering. See docs/EXPERIMENTAL.md. Use Recover stock UI if needed.",
-            11, True, theme.WARN, wraplength=900, justify="left").pack(
-                anchor="w", padx=18, pady=(0, 14))
+        helpc.grid(row=2, column=0, columnspan=3, padx=theme.PAGE_GAP,
+                   pady=theme.PAGE_GAP, sticky="ew")
+        section_header(helpc, "First run", "Get connected in four steps",
+                       None, padx=18, pady=(14, 4), wrap=760)
+        steps = [
+            ("1", "Connect USB and power on the goggles."),
+            ("2", "Start root (blackbox RCE), then enable ADB."),
+            ("3", "Open E42OZ for live preview, screenshots and mods."),
+            ("4", "Recover stock UI is always kept available."),
+        ]
+        for number, text in steps:
+            row = ctk.CTkFrame(helpc, fg_color="transparent")
+            row.pack(fill="x", padx=18, pady=1)
+            lbl(row, number, 11, True, theme.ACCENT).pack(side="left",
+                                                          padx=(0, 10))
+            lbl(row, text, 11, False, theme.MUTED).pack(side="left")
+        helper_note(
+            helpc,
+            "Custom menu/overlay and display hooks can break rendering. "
+            "See docs/EXPERIMENTAL.md. Use Recover stock UI if needed.",
+            "EXPERIMENTAL", wraplength=760, padx=18, pady=(8, 14))
 
     def act_adb(self):
         self.app.run_task(lambda: n3ctl.enable_adb(log=self.app.log),
@@ -169,22 +186,25 @@ class ConnectionPage(ctk.CTkFrame):
             self.app.log("Terminal: %s" % exc)
 
     def update_status(self, st, ui):
-        set_pill(self.cards["usb"], bool(st.get("usb")), "CONNECTED", "OFFLINE")
-        set_pill(self.cards["root"], bool(st.get("root")), "OPEN", "CLOSED")
-        set_pill(self.cards["adb"], bool(st.get("adb")), "ONLINE", "OFFLINE")
+        set_tile(self.cards["usb"], bool(st.get("usb")), "CONNECTED", "OFFLINE")
+        set_tile(self.cards["root"], bool(st.get("root")), "OPEN", "CLOSED")
+        set_tile(self.cards["adb"], bool(st.get("adb")), "ONLINE", "OFFLINE")
         self.info["model"].configure(text="DJI Goggles N3")
         self.info["usb"].configure(text="2ca3:0020" if st.get("usb") else "—")
         adb = st.get("adb") or []
         self.info["adb"].configure(text=", ".join(str(x) for x in adb) or "—")
         self.info["ui"].configure(
             text=("patched" if ui.get("patched") else "stock") if ui.get("pid") else "—",
-            text_color=theme.OK if ui.get("patched") else theme.TEXT)
+            text_color=theme.SAFE if ui.get("patched") else theme.TEXT)
         self.info["theme"].configure(
             text="purple" if ui.get("theme") else "stock",
             text_color=theme.ACCENT if ui.get("theme") else theme.TEXT)
         self.info["background"].configure(
-            text="custom" if ui.get("background") else "stock")
-        self.info["mods"].configure(text="on" if ui.get("mods") else "off")
+            text="custom" if ui.get("background") else "stock",
+            text_color=theme.EXPERIMENTAL if ui.get("background") else theme.TEXT)
+        self.info["mods"].configure(
+            text="on" if ui.get("mods") else "off",
+            text_color=theme.EXPERIMENTAL if ui.get("mods") else theme.TEXT)
 
 
 class GogglesPage(ctk.CTkFrame):
@@ -199,27 +219,36 @@ class GogglesPage(ctk.CTkFrame):
         self._recording = False
 
         left = card(self)
-        left.grid(row=0, column=0, padx=7, pady=7, sticky="nsew")
+        left.grid(row=0, column=0, padx=theme.PAGE_GAP,
+                  pady=theme.PAGE_GAP, sticky="nsew")
+        section_header(left, "Live preview",
+                       "Mirrors the goggles screen over USB.", "EXPERIMENTAL",
+                       padx=16, pady=(14, 4), wrap=560)
+
         top = ctk.CTkFrame(left, fg_color="transparent")
-        top.pack(fill="x", padx=16, pady=(14, 6))
-        lbl(top, "Live preview", 15, True).pack(side="left")
+        top.pack(fill="x", padx=16, pady=(0, 6))
+        muted(top, "Resolution", 11).pack(side="left")
         self.fps = pill(top, "OFF")
         self.fps.pack(side="right")
         self.res = ctk.CTkOptionMenu(
-            top, values=[label for label, _ in RESOLUTIONS], width=150,
+            top, values=[label for label, _ in RESOLUTIONS], width=162,
             font=theme.font(11), fg_color=theme.CARD_ALT,
             button_color=theme.CARD_ALT, button_hover_color=theme.CARD_HOVER,
             text_color=theme.TEXT, dropdown_fg_color=theme.CARD,
             dropdown_text_color=theme.TEXT, command=self._res_changed)
         self.res.set(RESOLUTIONS[0][0])
-        self.res.pack(side="right", padx=6)
-        self.preview = ctk.CTkLabel(left, text="Live preview off",
-                                    fg_color="#05040A", corner_radius=10,
-                                    width=640, height=360,
-                                    font=theme.font(13), text_color=theme.DIM)
-        self.preview.pack(padx=16, pady=6)
+        self.res.pack(side="left", padx=(8, 0))
+        self.preview = ctk.CTkLabel(
+            left,
+            text="LIVE PREVIEW OFF\nStart live to mirror the goggles screen here.",
+            fg_color=theme.CONSOLE, corner_radius=theme.RADIUS_CONTROL,
+            border_width=1, border_color=theme.BORDER,
+            width=480, height=270, font=theme.font(12),
+            text_color=theme.DIM, justify="center")
+        self.preview.pack(fill="both", expand=True, padx=16, pady=6)
+
         row = ctk.CTkFrame(left, fg_color="transparent")
-        row.pack(fill="x", padx=16, pady=(4, 14))
+        row.pack(fill="x", padx=16, pady=(4, 8))
         self.start_btn = btn(row, "Start live", self.start_live, accent=True)
         self.start_btn.pack(side="left")
         self.stop_btn = btn(row, "Stop", self.stop_live)
@@ -228,70 +257,82 @@ class GogglesPage(ctk.CTkFrame):
         self.shot_btn.pack(side="left", padx=6)
         self.rec_btn = btn(row, "Record 10s", self.toggle_record)
         self.rec_btn.pack(side="left", padx=6)
+
+        legend = ctk.CTkFrame(left, fg_color="transparent")
+        legend.pack(fill="x", padx=16, pady=(0, 3))
+        SafetyBadge(legend, "SAFE", compact=True).pack(side="left")
+        muted(legend, "Stop · Screenshot", 10).pack(side="left", padx=(5, 14))
+        SafetyBadge(legend, "EXPERIMENTAL", compact=True).pack(side="left")
+        muted(legend, "Start live · Record", 10).pack(side="left", padx=(5, 0))
         muted(left, "Live preview restarts the goggles UI and loads n3live. "
-                    "Resolution is selectable up to 1920x1080; higher sizes "
-                    "lower the fps.",
-              11).pack(anchor="w", padx=16, pady=(0, 12))
+                    "Higher resolutions lower the fps.", 10,
+              wraplength=520, justify="left").pack(
+            anchor="w", padx=16, pady=(0, 12))
 
         right = ctk.CTkFrame(self, fg_color="transparent")
-        right.grid(row=0, column=1, padx=7, pady=7, sticky="nsew")
+        right.grid(row=0, column=1, padx=theme.PAGE_GAP,
+                   pady=theme.PAGE_GAP, sticky="nsew")
         right.grid_rowconfigure(2, weight=1)
 
         quick = card(right)
         quick.grid(row=0, column=0, sticky="ew")
-        lbl(quick, "Quick actions", 15, True).pack(anchor="w", padx=16, pady=(14, 8))
+        section_header(quick, "Quick actions", "Theme, menu and recovery",
+                       None, padx=16, pady=(14, 4), wrap=300)
         q = ctk.CTkFrame(quick, fg_color="transparent")
-        q.pack(fill="x", padx=12, pady=(0, 12))
+        q.pack(fill="x", padx=12, pady=(0, 4))
         q.grid_columnconfigure((0, 1), weight=1)
-        for i, (text, cmd, acc) in enumerate([
-                ("Purple theme", lambda: self.apply_theme("Purple"), True),
-                ("Menu-only theme", lambda: self.apply_theme("Menu only"), False),
-                ("E420Z stock row", self.install_stock_row, False),
-                ("Custom menu", self.install_menu, False),
-                ("Menu toggle", self.toggle_menu, False),
-                ("Choose background", self.pick_background, False),
-                ("Remove background", self.remove_background, False),
-                ("Recover stock UI", self.recover_stock, False)]):
-            b = btn(q, text, cmd, accent=acc)
-            b.grid(row=i // 2, column=i % 2, padx=4, pady=4, sticky="ew")
-        lbl(quick, "⚠ Custom menu/overlay is experimental. A prior display-hook "
-                   "build black-screened. If the screen goes black, use "
-                   "Recover stock UI or power-cycle.",
-            10, False, theme.WARN, wraplength=300, justify="left").pack(
-                anchor="w", padx=16, pady=(0, 12))
+        for i, (text, cmd, acc, level) in enumerate([
+                ("Purple theme", lambda: self.apply_theme("Purple"),
+                 True, "EXPERIMENTAL"),
+                ("Menu-only theme", lambda: self.apply_theme("Menu only"),
+                 False, "EXPERIMENTAL"),
+                ("E420Z stock row", self.install_stock_row, False,
+                 "EXPERIMENTAL"),
+                ("Custom menu", self.install_menu, False, "EXPERIMENTAL"),
+                ("Menu toggle", self.toggle_menu, False, "EXPERIMENTAL"),
+                ("Choose background", self.pick_background, False,
+                 "EXPERIMENTAL"),
+                ("Remove background", self.remove_background, False,
+                 "EXPERIMENTAL"),
+                ("Recover stock UI", self.recover_stock, False, "RISKY")]):
+            cell = action_cell(q, text, cmd, level, accent=acc, height=32)
+            cell.grid(row=i // 2, column=i % 2, padx=3, pady=3, sticky="ew")
+        helper_note(quick,
+                    "Custom menu can black-screen. Use Recover stock UI or "
+                    "power-cycle to restore.",
+                    "EXPERIMENTAL", wraplength=280, padx=16, pady=(4, 12))
 
         state = card(right)
-        state.grid(row=1, column=0, sticky="ew", pady=7)
-        lbl(state, "Device state", 15, True).pack(anchor="w", padx=16, pady=(14, 6))
+        state.grid(row=1, column=0, sticky="ew", pady=theme.PAGE_GAP)
+        section_header(state, "Device state", None, "SAFE",
+                       padx=16, pady=(14, 4), wrap=300)
         self.state = {}
         for k, name in [("ui", "UI"), ("theme", "Theme"),
                         ("background", "Background"), ("menu", "Menu mod")]:
-            row = ctk.CTkFrame(state, fg_color="transparent")
-            row.pack(fill="x", padx=16, pady=2)
-            muted(row, name, 12).pack(side="left")
-            v = lbl(row, "—", 12, True)
-            v.pack(side="right")
-            self.state[k] = v
+            self.state[k] = status_row(state, name)
         ctk.CTkLabel(state, text="", height=4).pack()
 
         logc = card(right)
         logc.grid(row=2, column=0, sticky="nsew")
-        lbl(logc, "Recent", 15, True).pack(anchor="w", padx=16, pady=(14, 4))
-        self.recent = ctk.CTkTextbox(logc, fg_color="#0A0710", height=140,
-                                     font=theme.font(11, mono=True),
-                                     text_color=theme.MUTED, wrap="word")
+        section_header(logc, "Recent activity", None, "SAFE",
+                       padx=16, pady=(14, 4), wrap=300)
+        self.recent = log_textbox(logc, height=90, size=10, wrap="word")
         self.recent.pack(fill="both", expand=True, padx=14, pady=(0, 14))
         self.recent.configure(state="disabled")
 
     def update_status(self, st, ui):
         self.state["ui"].configure(
-            text=("patched" if ui.get("patched") else "stock") if ui.get("pid") else "—")
+            text=("patched" if ui.get("patched") else "stock") if ui.get("pid") else "—",
+            text_color=theme.SAFE if ui.get("patched") else theme.TEXT)
         self.state["theme"].configure(
             text="purple" if ui.get("theme") else "stock",
             text_color=theme.ACCENT if ui.get("theme") else theme.TEXT)
         self.state["background"].configure(
-            text="custom" if ui.get("background") else "stock")
-        self.state["menu"].configure(text="loaded" if ui.get("mods") else "off")
+            text="custom" if ui.get("background") else "stock",
+            text_color=theme.EXPERIMENTAL if ui.get("background") else theme.TEXT)
+        self.state["menu"].configure(
+            text="loaded" if ui.get("mods") else "off",
+            text_color=theme.EXPERIMENTAL if ui.get("mods") else theme.TEXT)
 
     def _app_mods(self):
         m = modman.find("n3menu")
@@ -308,7 +349,7 @@ class GogglesPage(ctk.CTkFrame):
 
     def start_live(self):
         if not messagebox.askyesno(
-                "Live preview",
+                "Live preview · EXPERIMENTAL",
                 "Starting live preview restarts the goggles UI and loads the "
                 "n3live debug mod.\n\nContinue?"):
             return
@@ -369,8 +410,13 @@ class GogglesPage(ctk.CTkFrame):
         self._show_frame(img)
 
     def _show_frame(self, img):
-        img = img.resize((640, 360), Image.NEAREST)
-        self._photo = ImageTk.PhotoImage(img)
+        width = self.preview.winfo_width()
+        height = self.preview.winfo_height()
+        if width < 160 or height < 90:
+            width, height = 640, 360
+        scale = min(width / img.width, height / img.height)
+        size = (max(1, int(img.width * scale)), max(1, int(img.height * scale)))
+        self._photo = ImageTk.PhotoImage(img.resize(size, Image.NEAREST))
         self.preview.configure(image=self._photo, text="")
 
     def set_fps(self, fps, size):
@@ -381,7 +427,7 @@ class GogglesPage(ctk.CTkFrame):
             res = "%dx%d" % (size[0], size[1]) if size and size[0] else ""
             self.fps.configure(
                 text=("%s · %.0f FPS" % (res, fps)) if res else "%.0f FPS" % fps,
-                fg_color=theme.OK, text_color="#06110A")
+                fg_color=theme.SAFE_BG, text_color=theme.SAFE)
 
     def append_recent(self, text):
         self.recent.configure(state="normal")
@@ -394,7 +440,7 @@ class GogglesPage(ctk.CTkFrame):
 
     def install_stock_row(self):
         if not messagebox.askyesno(
-                "E420Z stock row",
+                "E420Z stock row · EXPERIMENTAL",
                 "Install a native E420Z row in the stock goggles menu?\n\n"
                 "It adds a new E420Z row at the top and keeps Status, Album, "
                 "Transmission and Settings. Opening it shows the stock "
@@ -419,7 +465,7 @@ class GogglesPage(ctk.CTkFrame):
 
     def install_menu(self):
         if not messagebox.askyesno(
-                "Custom menu",
+                "Custom menu · EXPERIMENTAL",
                 "Push the N3 menu mod and restart the UI?\n\n"
                 "Short-press the 5-way center to select; long-press 5-way UP "
                 "to open/close the menu. Short up/down navigate. The power "
@@ -485,7 +531,8 @@ class GogglesPage(ctk.CTkFrame):
             "Remove background", on_done=lambda *_: self.app.refresh_status())
 
     def recover_stock(self):
-        if messagebox.askyesno("Recover stock UI", "Restart the stock goggles UI?"):
+        if messagebox.askyesno("Recover stock UI · RISKY",
+                               "Restart the stock goggles UI?"):
             self.app.run_task(lambda: n3ctl.start_stock_ui(log=self.app.log),
                               "Recover stock UI",
                               on_done=lambda *_: self.app.refresh_status())
@@ -501,33 +548,50 @@ class ShellPage(ctk.CTkFrame):
         self.hist_idx = 0
 
         bar = card(self)
-        bar.grid(row=0, column=0, padx=7, pady=7, sticky="ew")
+        bar.grid(row=0, column=0, padx=theme.PAGE_GAP,
+                 pady=theme.PAGE_GAP, sticky="ew")
+        section_header(bar, "Root shell",
+                       "Each command runs as uid 0 in dji_services.",
+                       "RISKY", padx=16, pady=(14, 4), wrap=520)
         row = ctk.CTkFrame(bar, fg_color="transparent")
-        row.pack(fill="x", padx=14, pady=12)
-        lbl(row, "Root shell", 15, True).pack(side="left")
-        btn(row, "Start", self.start_root, accent=True).pack(side="right", padx=4)
-        btn(row, "Stop", self.stop_root).pack(side="right", padx=4)
-        btn(row, "Recover stock", self.recover).pack(side="right", padx=4)
-        btn(row, "Copy", self.copy).pack(side="right", padx=4)
-        btn(row, "Clear", self.clear).pack(side="right", padx=4)
+        row.pack(fill="x", padx=14, pady=(0, 12))
+        btn(row, "Start", self.start_root, accent=True).pack(side="left")
+        btn(row, "Stop", self.stop_root).pack(side="left", padx=6)
+        btn(row, "Recover stock", self.recover).pack(side="left", padx=6)
+        helper_note(bar,
+                    "Session-only root. Review every command; Recover stock "
+                    "restarts the goggles UI if it becomes unresponsive.",
+                    "RISKY", wraplength=760, padx=16, pady=(0, 12))
 
         console = card(self)
-        console.grid(row=1, column=0, padx=7, pady=7, sticky="nsew")
-        self.text = ctk.CTkTextbox(console, fg_color="#07050C",
-                                   text_color="#D8D2E8",
-                                   font=theme.font(12, mono=True), wrap="none")
-        self.text.pack(fill="both", expand=True, padx=12, pady=12)
+        console.grid(row=1, column=0, padx=theme.PAGE_GAP,
+                     pady=theme.PAGE_GAP, sticky="nsew")
+        head = ctk.CTkFrame(console, fg_color="transparent")
+        head.pack(fill="x", padx=14, pady=(12, 4))
+        lbl(head, "Output", 12, True).pack(side="left")
+        muted(head, "monospace · scrollable", 10).pack(side="left", padx=(8, 0))
+        btn(head, "Copy", self.copy, height=30).pack(side="right", padx=4)
+        btn(head, "Clear", self.clear, height=30).pack(side="right", padx=4)
+
+        self.text = log_textbox(console, height=240, size=12)
+        self.text.pack(fill="both", expand=True, padx=12, pady=(0, 12))
         self.text.insert("end", "N3 ROOT shell console\n"
                                 "Each command runs as uid 0 in dji_services.\n\n")
         self.text.configure(state="disabled")
 
         entry = card(self)
-        entry.grid(row=2, column=0, padx=7, pady=7, sticky="ew")
+        entry.grid(row=2, column=0, padx=theme.PAGE_GAP,
+                   pady=theme.PAGE_GAP, sticky="ew")
         row = ctk.CTkFrame(entry, fg_color="transparent")
         row.pack(fill="x", padx=14, pady=12)
+        lbl(row, "$", 12, True, theme.ACCENT, mono=True).pack(
+            side="left", padx=(0, 8))
         self.cmd = ctk.CTkEntry(row, placeholder_text="command…",
-                                fg_color="#07050C", border_color=theme.BORDER,
-                                font=theme.font(12, mono=True))
+                                fg_color=theme.CONSOLE,
+                                border_color=theme.BORDER,
+                                text_color=theme.TEXT_SOFT,
+                                font=theme.font(12, mono=True),
+                                height=36)
         self.cmd.pack(side="left", fill="x", expand=True, padx=(0, 8))
         self.cmd.bind("<Return>", lambda _e: self.send())
         self.cmd.bind("<Up>", lambda _e: self._hist(-1))
@@ -599,71 +663,106 @@ class ModsPage(ctk.CTkFrame):
         self.grid_rowconfigure(0, weight=1)
 
         left = card(self)
-        left.grid(row=0, column=0, padx=7, pady=7, sticky="nsew")
+        left.grid(row=0, column=0, padx=theme.PAGE_GAP,
+                  pady=theme.PAGE_GAP, sticky="nsew")
         top = ctk.CTkFrame(left, fg_color="transparent")
         top.pack(fill="x", padx=14, pady=(12, 4))
-        lbl(top, "Mods", 15, True).pack(side="left")
+        title = ctk.CTkFrame(top, fg_color="transparent")
+        title.pack(side="left")
+        lbl(title, "Mods", 15, True).pack(side="left")
+        SafetyBadge(title, "EXPERIMENTAL").pack(side="left", padx=(8, 0))
+        muted(left, "Managed mods and plugins discovered on disk.", 11).pack(
+            anchor="w", padx=14, pady=(0, 4))
         btn(top, "Refresh", self.refresh).pack(side="right")
-        self.list = ctk.CTkScrollableFrame(left, fg_color="transparent")
+        self.list = ctk.CTkScrollableFrame(
+            left, fg_color="transparent",
+            scrollbar_button_color=theme.BORDER,
+            scrollbar_button_hover_color=theme.CARD_HOVER)
         self.list.pack(fill="both", expand=True, padx=8, pady=8)
 
         right = card(self)
-        right.grid(row=0, column=1, padx=7, pady=7, sticky="nsew")
-        lbl(right, "UI & theme", 15, True).pack(anchor="w", padx=16, pady=(14, 6))
+        right.grid(row=0, column=1, padx=theme.PAGE_GAP,
+                   pady=theme.PAGE_GAP, sticky="nsew")
+        section_header(right, "UI & theme",
+                       "Themes, backgrounds and recovery.", "EXPERIMENTAL",
+                       padx=16, pady=(14, 4), wrap=320)
         q = ctk.CTkFrame(right, fg_color="transparent")
-        q.pack(fill="x", padx=12, pady=4)
-        q.grid_columnconfigure(0, weight=1)
-        for i, (text, cmd, acc) in enumerate([
-                ("Apply Purple theme", lambda: self.apply_theme("Purple"), True),
-                ("Apply Menu-only theme", lambda: self.apply_theme("Menu only"), False),
-                ("Choose background", self.pick_background, False),
-                ("Remove background", self.remove_background, False),
-                ("Start UI with installed mods", self.start_ui, True),
-                ("Revert to stock", self.revert, False)]):
-            btn(q, text, cmd, accent=acc).grid(row=i, column=0, sticky="ew", pady=4)
-        muted(right, "Mods are pushed to /vendor and loaded by n3mods.so at UI "
-                     "start. Revert removes the theme/mod files.", 11,
-              wraplength=320, justify="left").pack(anchor="w", padx=16, pady=(10, 14))
+        q.pack(fill="x", padx=12, pady=(0, 4))
+        for text, cmd, acc, level in [
+                ("Apply Purple theme", lambda: self.apply_theme("Purple"),
+                 True, "EXPERIMENTAL"),
+                ("Apply Menu-only theme", lambda: self.apply_theme("Menu only"),
+                 False, "EXPERIMENTAL"),
+                ("Choose background", self.pick_background, False,
+                 "EXPERIMENTAL"),
+                ("Remove background", self.remove_background, False,
+                 "EXPERIMENTAL"),
+                ("Start UI with installed mods", self.start_ui, True,
+                 "EXPERIMENTAL"),
+                ("Revert to stock", self.revert, False, "RISKY")]:
+            action_row(q, text, cmd, level, accent=acc, pady=2)
+        helper_note(right,
+                    "Mods are pushed to /vendor and loaded by n3mods.so at UI "
+                    "start. Revert removes the theme/mod files; a reboot also "
+                    "restores the stock UI.",
+                    "EXPERIMENTAL", wraplength=280, padx=16, pady=(6, 12))
 
     def refresh(self):
         self.app.run_task(modman.refresh, "Refresh mods", on_done=self._render)
 
     def _render(self, rows, err):
-        if err or not rows:
-            return
         for w in self.list.winfo_children():
             w.destroy()
+        if err:
+            empty_state(self.list, "Could not load mods", str(err))
+            return
+        if not rows:
+            empty_state(self.list, "No mods found",
+                        "Add plugins under app/plugins/ or reinstall the "
+                        "built-in mods.")
+            return
         for m in rows:
+            level = mod_safety_level(m)
             row = ctk.CTkFrame(self.list, fg_color=theme.CARD_ALT,
-                               corner_radius=10)
+                               corner_radius=theme.RADIUS_CONTROL,
+                               border_width=1, border_color=theme.BORDER_SOFT)
             row.pack(fill="x", pady=4, padx=2)
-            left = ctk.CTkFrame(row, fg_color="transparent")
-            left.pack(side="left", fill="x", expand=True, padx=12, pady=8)
-            lbl(left, m.get("name", m.get("id")), 13, True).pack(anchor="w")
+            body = ctk.CTkFrame(row, fg_color="transparent")
+            body.pack(side="left", fill="x", expand=True, padx=12, pady=10)
+            head = ctk.CTkFrame(body, fg_color="transparent")
+            head.pack(fill="x")
+            lbl(head, m.get("name", m.get("id")), 13, True).pack(side="left")
+            SafetyBadge(head, level, compact=True).pack(
+                side="left", padx=(8, 0))
+            inst = bool(m.get("installed"))
+            if inst:
+                state = ctk.CTkLabel(head, text="INSTALLED",
+                                     font=theme.font(9, True),
+                                     text_color=theme.SAFE,
+                                     fg_color=theme.SAFE_BG,
+                                     corner_radius=6, padx=6, height=18)
+                state.pack(side="right")
             line = "%s · v%s · %s" % (m.get("type", "mod"),
                                       m.get("version", "?"),
-                                      m.get("risk", "medium"))
-            muted(left, line, 11).pack(anchor="w")
-            if m.get("experimental") or m.get("risk") in ("high", "medium"):
-                lbl(left, "⚠ EXPERIMENTAL" if m.get("experimental")
-                    else "⚠ REVIEW BEFORE USE", 10, True, theme.WARN).pack(anchor="w")
+                                      m.get("id", "?"))
+            muted(body, line, 10).pack(anchor="w", pady=(2, 0))
             if m.get("notes"):
-                muted(left, m["notes"], 10, wraplength=430,
+                muted(body, m["notes"], 10, wraplength=430,
                       justify="left").pack(anchor="w", pady=(2, 0))
-            inst = bool(m.get("installed"))
             b = btn(row, "Remove" if inst else "Install",
-                    lambda mid=m["id"], on=inst: self.toggle(mid, on))
+                    lambda mid=m["id"], on=inst: self.toggle(mid, on),
+                    accent=not inst)
             b.pack(side="right", padx=10)
 
     def toggle(self, mid, installed):
         rec = modman.find(mid) or {}
-        if (not installed and (rec.get("experimental") or
-                               rec.get("risk") in ("high", "medium"))):
+        level = mod_safety_level(rec)
+        if not installed and level != "SAFE":
             if not messagebox.askyesno(
-                    "Experimental mod",
-                    "%s is marked %s risk%s.\n\nInstall it anyway?"
-                    % (rec.get("name", mid), rec.get("risk", "medium"),
-                       " (experimental)" if rec.get("experimental") else "")):
+                    "Install %s mod" % level,
+                    "%s is marked %s.\n\nInstall it anyway?\n\n"
+                    "Recovery: use Revert to stock or Recover stock UI."
+                    % (rec.get("name", mid), level)):
                 return
         if installed:
             self.app.run_task(lambda: modman.uninstall(mid, log=self.app.log),
@@ -696,7 +795,7 @@ class ModsPage(ctk.CTkFrame):
             "Start UI with mods", on_done=lambda *_: self.app.refresh_status())
 
     def revert(self):
-        if messagebox.askyesno("Revert to stock",
+        if messagebox.askyesno("Revert to stock · RISKY",
                                "Remove theme/mod/background files and start stock UI?"):
             self.app.run_task(lambda: n3ctl.revert_stock(log=self.app.log),
                               "Revert to stock",
@@ -711,29 +810,44 @@ class LogsPage(ctk.CTkFrame):
         self.grid_rowconfigure(0, weight=0)
         self.grid_rowconfigure(1, weight=1)
         bar = card(self)
-        bar.grid(row=0, column=0, padx=7, pady=7, sticky="ew")
+        bar.grid(row=0, column=0, padx=theme.PAGE_GAP,
+                 pady=theme.PAGE_GAP, sticky="ew")
+        section_header(bar, "Logs", "Read-only tails from the goggles.",
+                       "SAFE", padx=16, pady=(14, 4), wrap=520)
         row = ctk.CTkFrame(bar, fg_color="transparent")
-        row.pack(fill="x", padx=14, pady=12)
-        lbl(row, "Logs", 15, True).pack(side="left")
+        row.pack(fill="x", padx=14, pady=(0, 12))
+        muted(row, "Tail last 200 lines", 10).pack(side="left")
+        btns = ctk.CTkFrame(row, fg_color="transparent")
+        btns.pack(side="right")
         for name, path in [("natartos", "/data/local/tmp/natartos.log"),
                            ("n3mods", "/data/local/tmp/n3mods.log"),
                            ("dji_glasses", "/data/local/tmp/dji_glasses.log"),
                            ("texttint", "/data/local/tmp/n3_texttint.log")]:
-            btn(row, name, lambda p=path: self.tail(p)).pack(side="right", padx=3)
-        btn(row, "Clear", self.clear).pack(side="right", padx=3)
+            btn(btns, name, lambda p=path: self.tail(p),
+                height=32).pack(side="left", padx=3)
+        btn(btns, "Clear", self.clear, height=32).pack(side="left", padx=3)
+
         body = card(self)
-        body.grid(row=1, column=0, padx=7, pady=7, sticky="nsew")
-        self.text = ctk.CTkTextbox(body, fg_color="#07050C",
-                                   font=theme.font(11, mono=True),
-                                   text_color="#D8D2E8", wrap="none")
-        self.text.pack(fill="both", expand=True, padx=12, pady=12)
+        body.grid(row=1, column=0, padx=theme.PAGE_GAP,
+                  pady=theme.PAGE_GAP, sticky="nsew")
+        section_header(body, "Output", "Monospace · scrollable", "SAFE",
+                       padx=12, pady=(12, 4), wrap=520)
+        self.text = log_textbox(body, height=300, size=11)
+        self.text.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        self.text.insert("end", "Select a log above to tail it.\n")
+        self.text.configure(state="disabled")
 
     def append(self, text):
+        self.text.configure(state="normal")
         self.text.insert("end", text + "\n")
         self.text.see("end")
+        self.text.configure(state="disabled")
 
     def clear(self):
+        self.text.configure(state="normal")
         self.text.delete("1.0", "end")
+        self.text.insert("end", "Select a log above to tail it.\n")
+        self.text.configure(state="disabled")
 
     def tail(self, path):
         def work():
@@ -752,45 +866,79 @@ class SettingsPage(ctk.CTkFrame):
         super().__init__(app.host, fg_color="transparent")
         self.app = app
         self.grid_columnconfigure(0, weight=1)
-        info = card(self)
-        info.pack(fill="x", padx=7, pady=7)
-        lbl(info, "Paths", 15, True).pack(anchor="w", padx=16, pady=(14, 6))
+        self.grid_rowconfigure(0, weight=1)
+        page = ctk.CTkScrollableFrame(
+            self, fg_color="transparent",
+            scrollbar_button_color=theme.BORDER,
+            scrollbar_button_hover_color=theme.CARD_HOVER)
+        page.pack(fill="both", expand=True)
+
+        info = card(page)
+        info.pack(fill="x", padx=theme.PAGE_GAP, pady=theme.PAGE_GAP)
+        section_header(info, "Paths", "Local folders used by the app", "SAFE",
+                       padx=16, pady=(14, 4), wrap=760)
         for name, path in [("App", APP_DIR), ("Tools", n3ctl.TOOLS),
                            ("ADB", n3ctl.find_adb() or "not found"),
                            ("Stock lib", STOCK_LIB if os.path.exists(STOCK_LIB)
                             else "missing (theme building disabled)")]:
             row = ctk.CTkFrame(info, fg_color="transparent")
-            row.pack(fill="x", padx=16, pady=2)
+            row.pack(fill="x", padx=16, pady=3)
             muted(row, name, 12).pack(side="left")
-            lbl(row, path, 11, True).pack(side="right")
+            lbl(row, path, 10, True, theme.MUTED, mono=True,
+                wraplength=520, justify="right", anchor="e").pack(side="right")
         row = ctk.CTkFrame(info, fg_color="transparent")
-        row.pack(fill="x", padx=16, pady=10)
+        row.pack(fill="x", padx=16, pady=(10, 14))
         btn(row, "Open app folder", lambda: self.open(APP_DIR)).pack(side="left")
-        btn(row, "Open tools", lambda: self.open(n3ctl.TOOLS)).pack(side="left", padx=6)
+        btn(row, "Open tools", lambda: self.open(n3ctl.TOOLS)).pack(
+            side="left", padx=6)
         btn(row, "Open screenshots", lambda: self.open(SHOTS)).pack(side="left")
 
-        opts = card(self)
-        opts.pack(fill="x", padx=7, pady=7)
-        lbl(opts, "Behaviour", 15, True).pack(anchor="w", padx=16, pady=(14, 6))
+        opts = card(page)
+        opts.pack(fill="x", padx=theme.PAGE_GAP, pady=theme.PAGE_GAP)
+        section_header(opts, "Behaviour", "App-level preferences", "SAFE",
+                       padx=16, pady=(14, 4), wrap=760)
         self.auto = tk.BooleanVar(value=True)
-        row = ctk.CTkFrame(opts, fg_color="transparent")
-        row.pack(fill="x", padx=16, pady=4)
-        muted(row, "Auto-refresh connection status", 12).pack(side="left")
-        ctk.CTkSwitch(row, text="", variable=self.auto,
-                      progress_color=theme.ACCENT).pack(side="right")
         self.restore = tk.BooleanVar(value=True)
-        row = ctk.CTkFrame(opts, fg_color="transparent")
-        row.pack(fill="x", padx=16, pady=(4, 14))
-        muted(row, "Restore stock USB when the app closes", 12).pack(side="left")
-        ctk.CTkSwitch(row, text="", variable=self.restore,
-                      progress_color=theme.ACCENT).pack(side="right")
+        for title, detail, var in [
+                ("Auto-refresh connection status",
+                 "Check USB, root and ADB every 5 seconds.", self.auto),
+                ("Restore stock USB when the app closes",
+                 "Closes the root session and restores the USB composition.",
+                 self.restore)]:
+            row = ctk.CTkFrame(opts, fg_color="transparent")
+            row.pack(fill="x", padx=16, pady=4)
+            text = ctk.CTkFrame(row, fg_color="transparent")
+            text.pack(side="left")
+            lbl(text, title, 12).pack(anchor="w")
+            muted(text, detail, 10).pack(anchor="w")
+            ctk.CTkSwitch(row, text="", variable=var,
+                          progress_color=theme.ACCENT).pack(side="right")
+        ctk.CTkLabel(opts, text="", height=8).pack()
 
-        about = card(self)
-        about.pack(fill="x", padx=7, pady=7)
-        lbl(about, "N3 ROOT v%s" % VERSION, 15, True).pack(anchor="w", padx=16, pady=(14, 4))
-        muted(about, "Session-only. No /system, dm-verity, OTP/RPMB or bootloader "
-                     "changes. Recover stock UI is always available.", 12,
-              wraplength=700, justify="left").pack(anchor="w", padx=16, pady=(0, 14))
+        key = card(page)
+        key.pack(fill="x", padx=theme.PAGE_GAP, pady=theme.PAGE_GAP)
+        section_header(key, "Safety key", "How to read every badge", "SAFE",
+                       padx=16, pady=(14, 6), wrap=760)
+        for level, text in [
+                ("SAFE", "Read-only, or fully reversible without changes."),
+                ("EXPERIMENTAL", "Restarts the UI or changes display output; recovery is available."),
+                ("RISKY", "Root, vendor writes, recovery or radio probing. Review before use.")]:
+            row = ctk.CTkFrame(key, fg_color="transparent")
+            row.pack(fill="x", padx=16, pady=3)
+            SafetyBadge(row, level).pack(side="left", anchor="n")
+            muted(row, text, 11, wraplength=660,
+                  justify="left").pack(side="left", padx=(10, 0))
+        ctk.CTkLabel(key, text="", height=8).pack()
+
+        about = card(page)
+        about.pack(fill="x", padx=theme.PAGE_GAP, pady=theme.PAGE_GAP)
+        section_header(about, "N3 ROOT v%s" % VERSION,
+                       "Session-only control deck for DJI Goggles N3.", "SAFE",
+                       padx=16, pady=(14, 4), wrap=760)
+        muted(about, "No /system, dm-verity, OTP/RPMB or bootloader changes. "
+                     "Recover stock UI is always available.", 12,
+              wraplength=760, justify="left").pack(
+            anchor="w", padx=16, pady=(0, 14))
 
     def open(self, path):
         os.makedirs(path, exist_ok=True)
@@ -817,43 +965,65 @@ class SparrowPage(ctk.CTkFrame):
         self.grid_rowconfigure(2, weight=1)
 
         head = card(self)
-        head.grid(row=0, column=0, padx=7, pady=7, sticky="ew")
-        lbl(head, "Sparrow2 — internal 5.8 GHz", 15, True).pack(
-            anchor="w", padx=16, pady=(14, 4))
+        head.grid(row=0, column=0, padx=theme.PAGE_GAP,
+                  pady=theme.PAGE_GAP, sticky="ew")
+        section_header(head, "Sparrow2 — internal 5.8 GHz",
+                       "Read-only research surface; no writes, no factory mode.",
+                       "RISKY", padx=16, pady=(14, 4), wrap=760)
         muted(head, "Sparrow2 is DJI's radio SoC (USB product string C5, "
                     "2ca3:1020). ESP32-C5 is a different, unrelated chip.",
-              12, wraplength=900, justify="left").pack(
+              11, wraplength=760, justify="left").pack(
             anchor="w", padx=16, pady=(0, 4))
         muted(head, "The AP has no IQ/ADC device. A shipped console exists "
                     "(/system/bin/sdr_shell), but the test:7 DUSS host is the "
                     "factory PC fixture. A factory-flag attempt did not register "
                     "it (queries return -1002/-1007). AP-side Sparrow2 channels "
-                    "are logs/dumps only.", 12,
-              wraplength=900, justify="left").pack(
-            anchor="w", padx=16, pady=(0, 14))
+                    "are logs/dumps only.", 11,
+              wraplength=760, justify="left").pack(
+            anchor="w", padx=16, pady=(0, 8))
+        helper_note(head,
+                    "All probes are read-only. No firmware, NVRAM or factory "
+                    "state is written; a reboot recovers the normal radio mode.",
+                    "SAFE", wraplength=760, padx=16, pady=(0, 14))
 
         acts = card(self)
-        acts.grid(row=1, column=0, padx=7, pady=(0, 7), sticky="ew")
-        row = ctk.CTkFrame(acts, fg_color="transparent")
-        row.pack(fill="x", padx=14, pady=12)
-        btn(row, "Firmware inventory", self.inventory).pack(side="left")
-        btn(row, "List Sparrow2 tools", self.tools).pack(side="left", padx=6)
-        btn(row, "Console help (read-only)", self.console_help,
-            accent=True).pack(side="left", padx=6)
-        btn(row, "Sparrow2 summary", self.open_summary).pack(side="left")
-        btn(row, "Load findings", self.load_findings).pack(side="left", padx=6)
-        btn(row, "Generate report", self.report).pack(side="left", padx=6)
-        btn(row, "Bulk console probe", self.bulk_probe).pack(side="left", padx=6)
-        btn(row, "Radio probe doc", self.open_doc).pack(side="left", padx=6)
+        acts.grid(row=1, column=0, padx=theme.PAGE_GAP,
+                  pady=theme.PAGE_GAP, sticky="ew")
+        self._group(acts, "Read-only diagnostics", "SAFE", [
+            ("Firmware inventory", self.inventory),
+            ("List Sparrow2 tools", self.tools),
+            ("Sparrow2 summary", self.open_summary),
+            ("Load findings", self.load_findings),
+            ("Generate report", self.report),
+            ("Radio probe doc", self.open_doc),
+        ], cols=3)
+        self._group(acts, "Radio query", "RISKY", [
+            ("Console help (read-only)", self.console_help),
+            ("Bulk console probe", self.bulk_probe),
+        ], cols=2)
+        helper_note(acts,
+                    "Console help and the bulk probe send one read-only 'help' "
+                    "query. No writes or factory mode; a reboot recovers the "
+                    "normal state.",
+                    "RISKY", wraplength=760, padx=16, pady=(0, 12))
 
         body = card(self)
-        body.grid(row=2, column=0, padx=7, pady=7, sticky="nsew")
-        self.text = ctk.CTkTextbox(body, fg_color="#07050C",
-                                   font=theme.font(11, mono=True),
-                                   text_color="#D8D2E8", wrap="none")
-        self.text.pack(fill="both", expand=True, padx=12, pady=12)
+        body.grid(row=2, column=0, padx=theme.PAGE_GAP,
+                  pady=theme.PAGE_GAP, sticky="nsew")
+        section_header(body, "Probe output", "Read-only · monospace", "SAFE",
+                       padx=12, pady=(12, 4), wrap=760)
+        self.text = log_textbox(body, height=120, size=11)
+        self.text.pack(fill="both", expand=True, padx=12, pady=(0, 12))
         self.append("Select a probe. Nothing here writes to the goggles or "
                     "enters factory mode.\n")
+
+    def _group(self, parent, title, level, items, cols=3):
+        head = ctk.CTkFrame(parent, fg_color="transparent")
+        head.pack(fill="x", padx=16, pady=(10, 0))
+        lbl(head, title, 12, True).pack(side="left")
+        SafetyBadge(head, level).pack(side="left", padx=(8, 0))
+        button_grid(parent, items, cols=cols, padx=12, pady=(2, 2),
+                    height=32)
 
     def append(self, text):
         self.text.insert("end", text + "\n")
@@ -986,7 +1156,7 @@ class SparrowPage(ctk.CTkFrame):
         self.app.run_task(
             work, "bulk console probe",
             on_done=lambda out, err: self.append(err or out),
-            confirm="Experimental: sends a read-only 'help' query to Sparrow2 "
+            confirm="RISKY — sends a read-only 'help' query to Sparrow2 "
                     "over /bulk/s2 using a custom DUSS route. Continue?")
 
 
@@ -997,7 +1167,7 @@ class App(ctk.CTk):
         self.title("N3 ROOT — DJI Goggles N3")
         self.geometry("1280x820")
         self.minsize(1120, 720)
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(1, weight=1)
         self.log_lines = []
         self.status_data = {}
@@ -1016,60 +1186,127 @@ class App(ctk.CTk):
 
     # ---------------------------------------------------------------- layout
     def _build_sidebar(self):
-        side = ctk.CTkFrame(self, width=228, corner_radius=0,
+        side = ctk.CTkFrame(self, width=238, corner_radius=0,
                             fg_color=theme.SIDEBAR)
         side.grid(row=0, column=0, rowspan=3, sticky="nsew")
         side.grid_propagate(False)
-        side.grid_rowconfigure(8, weight=1)
-        lbl(side, "N3 ROOT", 22, True, theme.ACCENT).grid(
-            row=0, column=0, padx=20, pady=(22, 0), sticky="w")
-        muted(side, "Goggles N3 control deck").grid(
-            row=1, column=0, padx=20, pady=(0, 18), sticky="w")
+        side.grid_columnconfigure(0, weight=1)
+        side.grid_rowconfigure(3, weight=1)
+
+        brand = ctk.CTkFrame(side, fg_color="transparent")
+        brand.grid(row=0, column=0, sticky="ew", padx=18, pady=(22, 18))
+        mark = ctk.CTkFrame(brand, width=4, height=44,
+                            fg_color=theme.ACCENT, corner_radius=2)
+        mark.pack(side="left", padx=(0, 10))
+        mark.pack_propagate(False)
+        text = ctk.CTkFrame(brand, fg_color="transparent")
+        text.pack(side="left")
+        lbl(text, "N3 ROOT", 21, True, theme.ACCENT).pack(anchor="w")
+        muted(text, "GOGGLES N3 · CONTROL DECK", 9).pack(anchor="w")
+
+        sep = ctk.CTkFrame(side, height=1, fg_color=theme.BORDER_SOFT,
+                           corner_radius=0)
+        sep.grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 8))
+
+        nav = ctk.CTkFrame(side, fg_color="transparent")
+        nav.grid(row=2, column=0, sticky="ew")
+        nav.grid_columnconfigure(0, weight=1)
         self.nav = {}
-        items = [("connection", "Connection", "◈"),
-                 ("goggles", "E42OZ", "◉"),
-                 ("sparrow", "Sparrow2", "✦"),
-                 ("shell", "Root Shell", "▣"),
-                 ("mods", "Mods & UI", "◆"),
-                 ("logs", "Logs", "≡"),
-                 ("settings", "Settings", "⚙")]
-        for i, (key, text, icon) in enumerate(items):
-            b = ctk.CTkButton(side, text="  %s   %s" % (icon, text), anchor="w",
-                              fg_color="transparent", hover_color=theme.CARD,
-                              text_color=theme.MUTED,
-                              font=theme.font(13), corner_radius=10, height=42,
-                              command=lambda k=key: self.show_page(k))
-            b.grid(row=2 + i, column=0, padx=12, pady=3, sticky="ew")
-            self.nav[key] = b
-        self.side_status = ctk.CTkLabel(side, text="●  disconnected",
-                                        font=theme.font(11), text_color=theme.DIM)
-        self.side_status.grid(row=9, column=0, padx=20, pady=(0, 18), sticky="w")
-        muted(side, "v%s · experimental · session-only" % VERSION, 10).grid(
-            row=10, column=0, padx=20, pady=(0, 16), sticky="w")
+        self.nav_bars = {}
+        groups = [
+            ("DEVICE", [("connection", "Connection", "◈"),
+                        ("goggles", "E42OZ", "◉"),
+                        ("sparrow", "Sparrow2", "✦")]),
+            ("SYSTEM", [("shell", "Root Shell", "▣"),
+                        ("mods", "Mods & UI", "◆"),
+                        ("logs", "Logs", "≡"),
+                        ("settings", "Settings", "⚙")]),
+        ]
+        row = 0
+        for group, items in groups:
+            lbl(nav, group, 9, True, theme.DIM).grid(
+                row=row, column=0, sticky="w", padx=24, pady=(10, 3))
+            row += 1
+            for key, text, icon in items:
+                item = ctk.CTkFrame(nav, fg_color="transparent", height=40)
+                item.grid(row=row, column=0, sticky="ew", padx=12, pady=2)
+                item.grid_propagate(False)
+                item.grid_columnconfigure(1, weight=1)
+                bar = ctk.CTkFrame(item, width=3, height=20,
+                                   fg_color="transparent", corner_radius=2)
+                bar.grid(row=0, column=0, padx=(7, 0), pady=10)
+                b = ctk.CTkButton(
+                    item, text="  %s   %s" % (icon, text), anchor="w",
+                    fg_color="transparent", hover_color=theme.CARD_HOVER,
+                    text_color=theme.MUTED, font=theme.font(13),
+                    corner_radius=9, height=38,
+                    command=lambda k=key: self.show_page(k))
+                b.grid(row=0, column=1, sticky="ew", padx=(0, 4), pady=1)
+                self.nav[key] = b
+                self.nav_bars[key] = bar
+                row += 1
+
+        footer = ctk.CTkFrame(side, fg_color="transparent")
+        footer.grid(row=4, column=0, sticky="ew", padx=16, pady=(0, 16))
+        status = ctk.CTkFrame(footer, fg_color=theme.CARD, corner_radius=10,
+                              border_width=1, border_color=theme.BORDER_SOFT)
+        status.pack(fill="x")
+        self.side_status = ctk.CTkLabel(status, text="●  disconnected",
+                                        font=theme.font(11),
+                                        text_color=theme.DIM)
+        self.side_status.pack(anchor="w", padx=12, pady=(8, 1))
+        muted(status, "USB · ROOT · ADB", 9).pack(anchor="w", padx=12,
+                                                  pady=(0, 8))
+        muted(footer, "v%s · experimental · session-only" % VERSION, 9).pack(
+            anchor="w", pady=(8, 0))
 
     def _build_main(self):
         self.grid_rowconfigure(1, weight=1)
         head = ctk.CTkFrame(self, fg_color="transparent")
-        head.grid(row=0, column=1, sticky="ew", padx=12, pady=(12, 0))
+        head.grid(row=0, column=1, sticky="ew", padx=18, pady=(14, 0))
         head.grid_columnconfigure(0, weight=1)
-        self.page_title = lbl(head, "Connection", 22, True)
-        self.page_title.grid(row=0, column=0, sticky="w")
-        self.pill_adb = pill(head, "ADB —")
-        self.pill_adb.grid(row=0, column=1, padx=4)
-        self.pill_root = pill(head, "ROOT —")
-        self.pill_root.grid(row=0, column=2, padx=4)
-        self.pill_ui = pill(head, "UI —")
-        self.pill_ui.grid(row=0, column=3, padx=4)
-        btn(head, "Refresh", self.refresh_status).grid(row=0, column=4, padx=(10, 0))
+
+        left = ctk.CTkFrame(head, fg_color="transparent")
+        left.grid(row=0, column=0, sticky="w")
+        title_row = ctk.CTkFrame(left, fg_color="transparent")
+        title_row.pack(anchor="w")
+        self.page_title = lbl(title_row, "Connection", 22, True)
+        self.page_title.pack(side="left")
+        self.page_badge = SafetyBadge(title_row, "SAFE")
+        self.page_badge.pack(side="left", padx=(10, 0))
+        self.page_sub = muted(left, "", 11)
+        self.page_sub.pack(anchor="w", pady=(2, 0))
+
+        right = ctk.CTkFrame(head, fg_color="transparent")
+        right.grid(row=0, column=1, sticky="e")
+        self.pill_adb = pill(right, "ADB —")
+        self.pill_adb.pack(side="left", padx=4)
+        self.pill_root = pill(right, "ROOT —")
+        self.pill_root.pack(side="left", padx=4)
+        self.pill_ui = pill(right, "UI —")
+        self.pill_ui.pack(side="left", padx=4)
+        btn(right, "Refresh", self.refresh_status).pack(side="left",
+                                                       padx=(10, 0))
+
+        div = ctk.CTkFrame(head, height=1, fg_color=theme.BORDER_SOFT,
+                           corner_radius=0)
+        div.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(12, 0))
 
         self.host = ctk.CTkFrame(self, fg_color="transparent")
-        self.host.grid(row=1, column=1, sticky="nsew", padx=12, pady=8)
+        self.host.grid(row=1, column=1, sticky="nsew", padx=18, pady=12)
         self.host.grid_rowconfigure(0, weight=1)
         self.host.grid_columnconfigure(0, weight=1)
-        self.statusbar = ctk.CTkLabel(self, text="Ready.", anchor="w",
-                                      font=theme.font(11), text_color=theme.MUTED,
-                                      fg_color=theme.SIDEBAR, height=26)
-        self.statusbar.grid(row=2, column=1, sticky="ew", padx=0, pady=0)
+
+        status = ctk.CTkFrame(self, fg_color=theme.SIDEBAR, corner_radius=0,
+                              height=28)
+        status.grid(row=2, column=1, sticky="ew")
+        status.grid_propagate(False)
+        status.grid_columnconfigure(0, weight=1)
+        self.statusbar = lbl(status, "Ready.", 11, False, theme.MUTED,
+                             anchor="w")
+        self.statusbar.grid(row=0, column=0, sticky="w", padx=18)
+        lbl(status, "session-only · no persistent changes", 9, False,
+            theme.DIM).grid(row=0, column=1, sticky="e", padx=18)
 
     def _make_pages(self):
         self.pages = {}
@@ -1092,13 +1329,15 @@ class App(ctk.CTk):
 
     def show_page(self, key):
         for k, b in self.nav.items():
-            b.configure(fg_color=theme.CARD if k == key else "transparent",
-                        text_color=theme.ACCENT if k == key else theme.MUTED)
-        self.page_title.configure(text={
-            "connection": "Connection", "goggles": "E42OZ — Goggles",
-            "sparrow": "Sparrow2 — 5.8 GHz radio",
-            "shell": "Root Shell", "mods": "Mods & UI",
-            "logs": "Logs", "settings": "Settings"}[key])
+            active = k == key
+            b.configure(fg_color=theme.CARD if active else "transparent",
+                        text_color=theme.ACCENT if active else theme.MUTED)
+            self.nav_bars[k].configure(
+                fg_color=theme.ACCENT if active else "transparent")
+        title, subtitle, level = PAGE_META[key]
+        self.page_title.configure(text=title)
+        self.page_sub.configure(text=subtitle)
+        self.page_badge.set_level(level)
         self.pages[key].tkraise()
 
     # ------------------------------------------------------------------ log
@@ -1196,7 +1435,7 @@ class App(ctk.CTk):
                  "UI OFF")
         self.side_status.configure(
             text="●  connected" if (adb_on or root_on) else "●  disconnected",
-            text_color=theme.OK if (adb_on or root_on) else theme.DIM)
+            text_color=theme.SAFE if (adb_on or root_on) else theme.DIM)
         for page in self.pages.values():
             if hasattr(page, "update_status"):
                 try:
@@ -1225,7 +1464,8 @@ class App(ctk.CTk):
                 "there (extracted from your device; not in git)." % loader)
             return
         if not messagebox.askyesno(
-                "Apply theme", "Build and install the '%s' theme?\n"
+                "Apply theme · EXPERIMENTAL",
+                "Build and install the '%s' theme?\n"
                 "The UI will restart." % preset):
             return
 
