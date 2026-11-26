@@ -1,0 +1,8 @@
+{
+  "id": "n3input",
+  "name": "N3 Input Logger",
+  "version": "0.1",
+  "type": "preload",
+  "so": "n3input.so",
+  "description": "Read-only raw input logger. Writes EV_KEY events from /dev/input/event0..3 to /data/local/tmp/n3_input.log."
+}

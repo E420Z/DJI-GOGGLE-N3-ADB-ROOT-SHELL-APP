@@ -1,8 +1,8 @@
 {
   "id": "n3menu",
   "name": "N3 Menu",
-  "version": "0.1",
+  "version": "0.3",
   "type": "preload",
   "so": "n3menu.so",
-  "description": "SDK menu demo: swipe to move, tap/ENTER select, BACK back/exit."
+  "description": "Safe N3 overlay. Long-press 5-way up opens/closes; short center selects; short up/down navigates; Back goes back. Display hooks off."
 }

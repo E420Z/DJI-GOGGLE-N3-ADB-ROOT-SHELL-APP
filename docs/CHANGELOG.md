@@ -11,6 +11,13 @@
   640×360, 960×540, 1920×1080. Measured: ~58 fps at 160×90, ~8 fps at 640×360,
   ~0.9 fps at 1080p. Changes apply live within ~2 s.
 - Rebuilt `n3live.so` (v0.2).
+- N3 Menu input map corrected: 5-way center = `event0` 28 (select), Back =
+  `event0` 158, directions = `event3` 103/108/105/106; **power has no input
+  event**. Long-press 5-way up now toggles the overlay; the long-center gesture
+  (which opened the stock left sidebar) was removed. The app installer now
+  deploys `n3mods.so`.
+- Added `docs/UI-INTERNALS.md` and ELF/EW analysis tools
+  (`disasm_ui.py`, `ui_relocs.py`, `disasm_menu2.py`, `ui_actions.py`).
 - Sparrow2 bulk-route console probe: custom `-J` route loaded and free `test:9`
   host locked, but the bulk send still returns `-1007`
   (`linux_bulk_write` interface 4 send timeout). No console response.

@@ -18,7 +18,10 @@
   live applies within ~2 s.
 - **Screenshot** captures a full 1920×1080 frame via the safe dmabuf hook.
 - **Record 10s** saves a GIF of the live preview (duration follows actual fps).
-- Quick actions: purple theme, menu-only theme, custom menu, background, recover.
+- Quick actions: purple theme, menu-only theme, custom menu, menu toggle,
+  background, recover. Custom menu installs the overlay and deploys the mod
+  loader; long-press 5-way up opens/closes it, short up/down navigate, center
+  selects, Back goes back. The power button has no input event.
 
 ### Root Shell
 Embedded console. Each command runs as uid 0 in `dji_services` in a fresh

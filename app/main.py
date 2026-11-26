@@ -247,6 +247,7 @@ class GogglesPage(ctk.CTkFrame):
                 ("Purple theme", lambda: self.apply_theme("Purple"), True),
                 ("Menu-only theme", lambda: self.apply_theme("Menu only"), False),
                 ("Custom menu", self.install_menu, False),
+                ("Menu toggle", self.toggle_menu, False),
                 ("Choose background", self.pick_background, False),
                 ("Remove background", self.remove_background, False),
                 ("Recover stock UI", self.recover_stock, False)]):
@@ -393,19 +394,53 @@ class GogglesPage(ctk.CTkFrame):
     def install_menu(self):
         if not messagebox.askyesno(
                 "Custom menu",
-                "Push the N3 menu mod and restart the UI with it?\n\n"
-                "It draws safely into the live buffer. Display hooks are off in "
-                "this build, so it is the conservative version."):
+                "Push the N3 menu mod and restart the UI?\n\n"
+                "Short-press the 5-way center to select; long-press 5-way UP "
+                "to open/close the menu. Short up/down navigate. The power "
+                "button is not an input key on this unit, so it cannot be used.\n\n"
+                "Display hooks are off in this build; it is the conservative "
+                "version."):
             return
 
         def work():
             ok = modman.install("n3menu", log=self.app.log)
-            if ok:
-                n3ctl.start_ui(log=self.app.log, mods=modman.mods_for_ui())
-            return ok
+            if not ok:
+                return False
+            loader = os.path.join(APP_DIR, "assets", "mods", "n3mods.so")
+            with n3ctl.vendor_write(log=self.app.log):
+                if os.path.exists(loader):
+                    n3ctl.push_file(loader, "/vendor/n3mods.so",
+                                    log=self.app.log)
+                    n3ctl.run_root("chmod 644 /vendor/n3mods.so",
+                                   timeout=8, retries=1)
+                n3ctl.run_root(
+                    "rm -f /data/local/tmp/n3_menu_toggle "
+                    "/data/local/tmp/n3_app_on",
+                    timeout=8, retries=1)
+            n3ctl.start_ui(log=self.app.log, mods=modman.mods_for_ui())
+            return True
 
         self.app.run_task(work, "Install + start N3 menu",
                           on_done=lambda *_: self.app.refresh_status())
+
+    def toggle_menu(self):
+        def work():
+            if not n3ctl.is_root():
+                n3ctl.start_root(log=self.app.log)
+            out = n3ctl.run_root(
+                "test -f /data/local/tmp/n3_app_on && echo ON || echo OFF",
+                timeout=8, retries=1)
+            if "ON" in out:
+                n3ctl.run_root("rm -f /data/local/tmp/n3_app_on",
+                               timeout=8, retries=1)
+                return "Menu hidden"
+            n3ctl.run_root("touch /data/local/tmp/n3_app_on",
+                           timeout=8, retries=1)
+            return "Menu shown"
+
+        self.app.run_task(work, "Toggle menu",
+                          on_done=lambda out, err: self.app.log(
+                              err or str(out)))
 
     def pick_background(self):
         path = filedialog.askopenfilename(

@@ -23,7 +23,7 @@ If the screen goes black or freezes:
 | Theme patches | **Low risk** | — | Reversible; can leave visual artifacts until revert. |
 | Custom background | **Low risk** | — | Reversible; needs the `n3bg` hook. |
 | Root shell / ADB | **Stable on Windows** | — | Session-only; power-cycle restores stock. |
-| **N3 Menu app** (`n3menu`) | **Experimental / beta** | A previous build with `displayFrame` hooks **black-screened** on 2026-11-25. | The shipped build has those hooks **disabled**. It still uses key/touch suppression and window compositing. Recover stock UI if needed. |
+| **N3 Menu app** (`n3menu`) | **Experimental / beta** | A previous build with `displayFrame` hooks **black-screened** on 2026-11-25. | The shipped build has those hooks **disabled**. Long-press 5-way up opens/closes; short center selects; short up/down navigates; Back goes back. Power has no input event. Recover stock UI if needed. |
 | **Paint overlay** (`paint`) | **Experimental proof** | — | Minimal compositor demo; not a user app. |
 | **Experimental `DisplayEngine` hooks** (`N3_ENABLE_DISPLAY_HOOKS=1`) | **Do not enable yet** | **Caused the black screen** on 2026-11-25 (three C++ overloads hooked with one generic trampoline). | Compile-time off. Needs one correctly-typed hook, tested in isolation. |
 | Legacy natartos G3 `menu` / `popen` / `template` | **Removed** | G3-era vtable/menu code; unsafe on N3. | Removed from the app catalog and repo assets. |

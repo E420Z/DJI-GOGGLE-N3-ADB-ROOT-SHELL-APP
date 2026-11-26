@@ -6,9 +6,16 @@
 #define __NR_unlinkat 35
 #define __NR_ioctl 29
 #define O_NONBLOCK 0x800
+#define O_EXCL 0200
 
 /* _IOW('E', 0x90, int) */
 #define EVIOCGRAB 0x40044590UL
+
+/* Off until a single, correctly-typed DisplayEngine hook is verified. The
+ * three-overload hook caused a black screen on 2026-11-25. */
+#ifndef N3_ENABLE_DISPLAY_HOOKS
+#define N3_ENABLE_DISPLAY_HOOKS 0
+#endif
 
 static inline long sys_ioctl(int fd, unsigned long req, unsigned long arg) {
     register long x0 __asm__("x0") = fd;
@@ -173,7 +180,18 @@ static bsp_get_fn g_real_bsp_key, g_real_bsp_touch;
 static fn6_t g_real_key_proc, g_real_touch_proc;
 static fn6_t g_real_disp_vsync, g_real_disp_df1, g_real_disp_df5;
 static int g_push_hooked, g_key_hooked, g_bsp_key, g_bsp_touch;
-static long g_raw28_ms, g_raw158_ms;
+
+/* Optional menu toggle key: /data/local/tmp/n3_menu_toggle contains
+ * "<event> <keycode>" (e.g. "3 116") or just "<keycode>". A short tap toggles
+ * the menu; a long hold is left to the stock power handler. */
+#define TOGGLE_CFG "/data/local/tmp/n3_menu_toggle"
+static const char *EV_PATHS[4] = {
+    "/dev/input/event0", "/dev/input/event1",
+    "/dev/input/event2", "/dev/input/event3"
+};
+static int g_toggle_key, g_toggle_ev = 3;
+static long g_toggle_ms;
+static long g_up_ms;
 
 #define FRAME_W 1920
 #define FRAME_H 1080
@@ -494,6 +512,7 @@ static int push_hook(void *display, int plane, void *frame_buf) {
 /* EwAddons::DisplayEngine::displayFrame* — the real per-frame present path.
  * C++ member function: x0 = this, x1.. = args. Each target needs its own
  * trampoline so the correct original is called. */
+#if N3_ENABLE_DISPLAY_HOOKS
 #define DISP_HOOK(name, real) \
     static long name(void *a, void *b, void *c, void *d, void *e, void *f) { \
         if (g_disp_calls++ == 0) NTLOG("displayFrame: called"); \
@@ -504,6 +523,7 @@ static int push_hook(void *display, int plane, void *frame_buf) {
 DISP_HOOK(disp_vsync_hook, g_real_disp_vsync)
 DISP_HOOK(disp_df1_hook, g_real_disp_df1)
 DISP_HOOK(disp_df5_hook, g_real_disp_df5)
+#endif
 
 /* Called by the UI's key dispatch: consume keys while our app is open.
  *
@@ -521,7 +541,6 @@ static int key_hook(void *root, int key, int ch, int down) {
      * panel/bar can open from a key. */
     if (!handled) return 0;
     log3("key", key, down, ch);
-
     if (key == 1) {                       /* physical UP */
         if (down) g_k_up_ms = now_ms();
         else {
@@ -610,13 +629,52 @@ static long touch_proc_hook(void *a, void *b, void *c, void *d, void *e, void *f
     return g_real_touch_proc ? g_real_touch_proc(a, b, c, d, e, f) : 0;
 }
 
+static void read_toggle_cfg(void) {
+    int fd = (int)sys_openat(AT_FDCWD, TOGGLE_CFG, O_RDONLY, 0);
+    if (fd < 0) { g_toggle_key = 0; return; }
+    char b[64];
+    long n = sys_read(fd, b, sizeof(b) - 1);
+    sys_close(fd);
+    if (n <= 0) { g_toggle_key = 0; return; }
+    b[n] = 0;
+    int nums[2] = { 0, 0 }, cnt = 0, v = 0, have = 0;
+    for (int i = 0; i <= n; i++) {
+        char c = i < n ? b[i] : ' ';
+        if (c >= '0' && c <= '9') { v = v * 10 + (c - '0'); have = 1; }
+        else if (have) { if (cnt < 2) nums[cnt] = v; cnt++; v = 0; have = 0; }
+    }
+    if (cnt == 1) { g_toggle_ev = 3; g_toggle_key = nums[0]; }
+    else if (cnt >= 2) { g_toggle_ev = nums[0]; g_toggle_key = nums[1]; }
+    else { g_toggle_key = 0; }
+    if (g_toggle_ev < 0 || g_toggle_ev > 3) g_toggle_ev = 3;
+}
+
+static void menu_toggle(void) {
+    if (app_active()) {
+        hide_app();
+        NTLOG("up toggle hide");
+    } else {
+        int x = (int)sys_openat(AT_FDCWD, FLAG_ON,
+                                O_WRONLY | O_CREAT | O_EXCL, 0666);
+        if (x >= 0) {
+            sys_close(x);
+            NTLOG("up toggle show");
+        }
+    }
+}
+
 static void *app_thread_fn(void *arg) {
     (void)arg;
     NTLOG("thread: start");
     struct timespec_t ts = { 0, 33000000 }; /* 30 fps blit */
-    int fd = -1, tfd = -1;
+    int fd = -1, tfd = -1, pfd = -1, wfd = -1, last_ev = -1;
+    long last_toggle_cfg = 0;
     while (1) {
         long ms = now_ms();
+        if (ms - last_toggle_cfg > 2000) {
+            read_toggle_cfg();
+            last_toggle_cfg = ms;
+        }
         if (ms - g_last_scan_ms > 2000) {
             g_fb_count = find_dmabufs();
             g_last_scan_ms = ms;
@@ -668,29 +726,98 @@ static void *app_thread_fn(void *arg) {
             }
             struct input_event_t ev;
             while (sys_read(fd, &ev, sizeof(ev)) == (long)sizeof(ev)) {
-                if (g_key_hooked || !on || ev.type != EV_KEY) continue;
-                /* Raw gpio_keys: 28 = "up", 158 = "down". Short press moves;
-                 * hold 28 = exit, hold 158 = OK/select. */
-                if (ev.code == 28 || ev.code == 158) {
+                if (g_key_hooked || ev.type != EV_KEY) continue;
+                if (ev.code == 28) {
+                    log3("raw key", ev.code, ev.value, 0);
+                    if (ev.value == 1 && on && g_app->on_key)
+                        g_app->on_key(N3_KEY_ENTER);
+                    continue;
+                }
+                if (!on) continue;
+                if (g_toggle_ev == 0 && ev.code == g_toggle_key) continue;
+                if (ev.code == 158) {
+                    log3("raw key", ev.code, ev.value, 0);
                     if (ev.value == 1) {
-                        if (ev.code == 28) g_raw28_ms = now_ms();
-                        else g_raw158_ms = now_ms();
+                        if (g_app->on_key) g_app->on_key(N3_KEY_BACK);
+                        if (!g_app->manual_back) hide_app();
+                    }
+                }
+            }
+        }
+
+        /* 5-way directions (omc_keys / event3). */
+        if (wfd < 0)
+            wfd = (int)sys_openat(AT_FDCWD, "/dev/input/event3",
+                                  O_RDONLY | O_NONBLOCK, 0);
+        if (wfd >= 0) {
+            struct input_event_t ev;
+            while (sys_read(wfd, &ev, sizeof(ev)) == (long)sizeof(ev)) {
+                if (ev.type != EV_KEY) continue;
+                if (ev.code == 103) {
+                    if (ev.value == 1) {
+                        g_up_ms = now_ms();
                     } else if (ev.value == 0) {
-                        long held = now_ms() -
-                            (ev.code == 28 ? g_raw28_ms : g_raw158_ms);
-                        if (ev.code == 28) {
-                            if (held >= 700) hide_app();
-                            else if (g_app->on_swipe) g_app->on_swipe(0, 100);
-                        } else {
-                            if (held >= 700) {
-                                if (g_app->on_key) g_app->on_key(N3_KEY_ENTER);
-                            } else if (g_app->on_swipe) {
-                                g_app->on_swipe(0, -100);
+                        long held = now_ms() - g_up_ms;
+                        if (held >= 600) {
+                            menu_toggle();
+                        } else if (on && g_app->on_swipe) {
+                            g_app->on_swipe(0, 100);
+                        }
+                    }
+                    continue;
+                }
+                if (ev.value != 1 || !on) continue;
+                if (ev.code == 108) {
+                    if (g_app->on_swipe) g_app->on_swipe(0, -100);
+                    NTLOG("5way down");
+                } else if (ev.code == 105) {
+                    if (g_app->on_swipe) g_app->on_swipe(-100, 0);
+                    NTLOG("5way left");
+                } else if (ev.code == 106) {
+                    if (g_app->on_swipe) g_app->on_swipe(100, 0);
+                    NTLOG("5way right");
+                }
+            }
+        }
+
+        /* Optional power-tap menu toggle (read-only; no grab). */
+        if (g_toggle_key) {
+            if (pfd >= 0 && last_ev != g_toggle_ev) {
+                sys_close(pfd);
+                pfd = -1;
+            }
+            if (pfd < 0) {
+                pfd = (int)sys_openat(AT_FDCWD, EV_PATHS[g_toggle_ev],
+                                      O_RDONLY | O_NONBLOCK, 0);
+                last_ev = g_toggle_ev;
+            }
+            if (pfd >= 0) {
+                struct input_event_t ev;
+                while (sys_read(pfd, &ev, sizeof(ev)) == (long)sizeof(ev)) {
+                    if (ev.type != EV_KEY || ev.code != g_toggle_key) continue;
+                    if (ev.value == 1) {
+                        g_toggle_ms = now_ms();
+                    } else if (ev.value == 0) {
+                        long held = now_ms() - g_toggle_ms;
+                        if (held > 0 && held < 600) {
+                            if (on) {
+                                hide_app();
+                                NTLOG("toggle hide");
+                            } else {
+                                int x = (int)sys_openat(AT_FDCWD, FLAG_ON,
+                                            O_WRONLY | O_CREAT | O_EXCL, 0666);
+                                if (x >= 0) {
+                                    sys_close(x);
+                                    NTLOG("toggle show");
+                                }
                             }
                         }
                     }
                 }
             }
+        } else if (pfd >= 0) {
+            sys_close(pfd);
+            pfd = -1;
         }
 
         /* Touchpad (ext_touch). Raw deltas: swipe for lists, tap to select. */
@@ -795,6 +922,7 @@ int n3_start(const n3_app *app, void *(*loader_dlsym)(void *, const char *)) {
         NTLOG("push_frame not found");
     }
 
+#if N3_ENABLE_DISPLAY_HOOKS
     /* Resolve libdisp_eng and hook the per-frame DisplayEngine present path. */
     {
         typedef void *(*dlopen_t)(const char *, int);
@@ -827,6 +955,7 @@ int n3_start(const n3_app *app, void *(*loader_dlsym)(void *, const char *)) {
             NTLOG("disp handle unavailable");
         }
     }
+#endif
 
     void *kp = g_dlsym ? g_dlsym(RTLD_DEFAULT, "EwBspKeyEventProcess") : 0;
     if (kp) {
@@ -846,19 +975,10 @@ int n3_start(const n3_app *app, void *(*loader_dlsym)(void *, const char *)) {
         NTLOG("EwBspTouchEventProcess not found");
     }
 
-    void *bspt = g_dlsym ? g_dlsym(RTLD_DEFAULT, "EwBspGetTouchEvent") : 0;
-    if (bspt) {
-        void *tr = install_hook(bspt, (void *)bsp_touch_hook);
-        if (tr) { g_real_bsp_touch = (bsp_get_fn)tr; g_bsp_touch = 1; NTLOG("bsp touch getter ok"); }
-        else NTLOG("bsp touch getter failed");
-    }
-
-    void *bspk = g_dlsym ? g_dlsym(RTLD_DEFAULT, "EwBspGetKeyCommand") : 0;
-    if (bspk) {
-        void *tr = install_hook(bspk, (void *)bsp_key_hook);
-        if (tr) { g_real_bsp_key = (bsp_get_fn)tr; g_bsp_key = 1; NTLOG("bsp key getter ok"); }
-        else NTLOG("bsp key getter failed");
-    }
+    /* Do not hook EwBspGetKeyCommand / EwBspGetTouchEvent: returning 0 from
+     * those getters makes EW dereference NULL (tombstone 2026-11-26,
+     * EwBspGetKeyCommand+104). The process hooks above suppress stock input
+     * while the app is open; the app reads /dev/input directly. */
 
     if (!g_bsp_key) {
         void *key = g_dlsym ? g_dlsym(RTLD_DEFAULT, "CoreRoot_DriveKeyboardHitting") : 0;

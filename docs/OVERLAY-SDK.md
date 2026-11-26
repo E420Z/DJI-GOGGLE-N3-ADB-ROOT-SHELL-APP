@@ -50,25 +50,32 @@ instead:
   defence in depth;
 - the app reads raw `/dev/input/event0` and `event1` itself.
 
-### Raw button mapping (measured)
+### Raw control mapping (measured 2026-11-26)
 
-The N3's two physical buttons arrive at the EW layer as:
+The N3 has a **5-way switch**, a **Back** button, and a **power button**. The
+power button is **not** exposed as an input event (PMIC/OMC), so it cannot be
+used by the SDK.
 
-| evdev | EW code | Meaning |
-|---:|---:|---|
-| 28 (`KEY_ENTER`) | 1 | UP |
-| 158 (`KEY_BACK`) | 2 | DOWN |
+| Control | evdev | Code |
+|---|---|---|
+| 5-way up | `event3` | 103 (`KEY_UP`) |
+| 5-way down | `event3` | 108 (`KEY_DOWN`) |
+| 5-way left | `event3` | 105 (`KEY_LEFT`) |
+| 5-way right | `event3` | 106 (`KEY_RIGHT`) |
+| 5-way center | `event0` | 28 (`KEY_ENTER`) |
+| Back | `event0` | 158 (`KEY_BACK`) |
+| Power | — | no event |
 
-So they are **up/down**, not OK/BACK. The SDK uses:
+The stock left sidebar opens on a **long center** press, so the SDK uses:
 
-- short press 28 → previous item
-- short press 158 → next item
-- hold 28 (≥700 ms) → exit the app
-- hold 158 (≥700 ms) → OK / select
+- short center → select / open page
+- long 5-way **up** (held ≥ 600 ms) → open/close the overlay
+- short up/down → move selection
+- Back → back / close
 
-If `EwBsp*EventProcess` cannot be hooked, it falls back to
-`CoreRoot_DriveKeyboardHitting` (and swallows every key while active), or to
-raw `event0` as a last resort.
+The `EwBspGetKeyCommand` / `EwBspGetTouchEvent` getters are **not** hooked
+(returning 0 crashed EW with a NULL deref); only the process hooks suppress
+stock input while the overlay is open.
 
 ## Control
 

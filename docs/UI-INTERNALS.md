@@ -1,0 +1,205 @@
+# N3 stock UI internals — first map
+
+Date: 2026-11-26. Owner's device. Read-only static analysis of
+`app/assets/libew_gls_stock.so` (fw 10.00.59.41) with **capstone 5.0.7** and
+**pyelftools 0.33**.
+
+Goal: learn the real UI so we can add/change things directly instead of
+fighting runtime input hooks.
+
+---
+
+## 1. ELF layout
+
+| Section | Address | File offset | Size |
+|---|---:|---:|---:|
+| `.rodata` | `0x379280` | `0x379280` | 93,723,644 |
+| `.text` | `0x5dd9640` | `0x5dd8640` | 3,736,984 |
+| `.data.rel.ro` | `0x6185738` | `0x6183738` | 1,554,232 |
+| `.got` | `0x63010b0` | `0x62ff0b0` | 106,320 |
+| `.data` | `0x63295b0` | `0x63265b0` | 260 |
+| `.bss` | `0x63296b8` | — | 16,081 |
+
+`.rodata` is the big EW resource blob (images/fonts/strings). Most menu labels
+are **resource IDs**, not plain C strings.
+
+---
+
+## 2. The menu is Embedded Wizard C++ + resources
+
+Key symbols (all in `.text` unless noted):
+
+### Menu entrance / sidebar
+
+```
+DuMenuEntranceMenuEntrance__Init            0x5ffe250
+DuMenuEntranceMenuEntrance_onTap            0x5ffe350
+DuMenuEntranceMenuEntrance__ReInit          0x5ffe360
+DuMenuEntranceMenuEntrance_UpdateViewState   0x5ffe3d0
+DuMenuEntranceMenuEntranceLeft/Right/Top/Bottom
+DuMenuEntranceMenuEntranceLayer__Init       0x5ffe930
+DuMenuEntranceMenuEntranceLayer_popUpMainMenu 0x5ffec50
+DuMenuEntranceMenuEntranceLayer_OnSetOnTapMenuEntranceTop 0x5fff030
+```
+
+The sidebar/layer is `DuMenuEntranceMenuEntranceLayer`; `popUpMainMenu` opens
+the main menu through an EW manager.
+
+### Entry actions (what a menu row does)
+
+```
+DuMenuItemsEntryActions__Init               0x5fffa40
+DuMenuItemsEntryActions_StatusMenuEntryAction      0x601ef70
+DuMenuItemsEntryActions_AppSettingsEntryAction     0x601f010
+DuMenuItemsEntryActions_DebugUnitMenuEntryAction   0x601f060
+DuMenuItemsEntryActions_GalleryPageEntryAction     0x601f100
+DuMenuItemsEntryActions_FcCompassCalibratePageEntryAction  0x601f200
+DuMenuItemsEntryActions_GlassesCompassCalibratePageEntryAction 0x601f2f0
+DuMenuItemsEntryActions_FcImuCalibratePageEntryAction      0x601f390
+DuMenuItemsEntryActions_GlassesImuCalibratePageEntryAction 0x601f480
+DuMenuItemsEntryActions_GlsPlayBgVideoPageEntryAction      0x601f520
+DuMenuItemsEntryActions_RcSettingsPageEntryAction          0x601f5c0
+DuMenuItemsEntryActions_GimbalCalibratePageEntryAction     0x601f670
+DuMenuItemsEntryActions_CameraToolBarEntryAction           0x601f6b0
+DuMenuItemsEntryActions_FormatSdDialogEntryAction          0x601f6f0? (0x601f6d0)
+DuMenuItemsEntryActions_StitchCalibrationPageEntryAction   0x601f740
+DuMenuItemsEntryActions_VirtualLvRollCalibrationEntryAction 0x6021410
+DuMenuItemsEntryActions_PcOtgEntryAction                   0x6021880
+DuMenuItemsEntryActions_MobileOtgEntryAction               0x60218f0
+DuMenuItemsEntryActions_AuthenticationEntryAction          0x6021960
+DuMenuItemsEntryActions_WifiSinkEntryAction                0x60231b0
+DuMenuItemsEntryActions_SimulatorEntryAction               0x6023260
+DuMenuItemsEntryActions_DLNAEntryAction                    0x60232e0
+DuMenuItemsEntryActions_NoviceEntryAction                  0x60233e0
+DuMenuItemsEntryActions_McTutorialEntryAction              0x6023410
+DuMenuItemsEntryActions_SafetyFrameConfigEntryAction       0x6023f00
+DuMenuItemsEntryActions_McModePageEntryAction              0x60244a0
+DuMenuItemsEntryActions_McManualConfigPageEntryAction      0x6024580
+DuMenuItemsEntryActions_McCalibratePageEntryAction         0x6024690
+DuMenuItemsEntryActions_enterBgVideoPage                   0x60249a0
+DuMenuItemsEntryActions_BeginnerModePromptAction           0x6024a80
+...
+```
+
+### Setting actions (non-page actions)
+
+```
+DuMenuItemsSettingActions__Init             0x5fffaa0
+DuMenuItemsSettingActions_ResetFactoryAction        0x6021d00
+DuMenuItemsSettingActions_ProductSwitchAction       0x6021ea0
+DuMenuItemsSettingActions_ExitAudienceAction        0x6022740
+DuMenuItemsSettingActions_TriggerRelay              0x6022790
+DuMenuItemsSettingActions_LTEDebugInfoAction        0x60227e0
+DuMenuItemsSettingActions_TriggerScriptNo1Action    0x6023020
+DuMenuItemsSettingActions_TriggerScriptNo2Action    0x6023070
+DuMenuItemsSettingActions_TriggerScriptNo3Action    0x60230c0
+DuMenuItemsSettingActions_TriggerScriptNo4Action    0x6023110
+DuMenuItemsSettingActions_TriggerScriptNo5Action    0x6023160
+DuMenuItemsSettingActions_triggerResetCameraPara    0x6024e40
+DuMenuItemsSettingActions_triggerResetFactory       0x6024e90
+DuMenuItemsSettingActions_triggerProductSwitch      0x6024f20
+DuMenuItemsSettingActions_triggerSyncUAVStorage     0x6024f90
+```
+
+### Menu model / views
+
+```
+MxMenuDefinitionMenu__Init                   0x6133ac0
+MxMenuDefinitionMenuTree
+MxMenuDefinitionMenuItem
+MxMenuDefinitionItemCollection_actionIndexedImage 0x6136790
+MxBindableMenu_* / MxBindableMenuItem_*
+ViewsMenu* / ViewsMenuItem*
+```
+
+### String resources
+
+`DuStringsfpv_*` symbols are 24-byte descriptors in `.data.rel.ro`
+(e.g. `DuStringsfpv_setting_catalogue_camera_parameters_eis_hb_list` at
+`0x62a8d40`). Example bytes:
+
+```
+0000000000000000 0400000000000000 0000000000000000
+```
+
+The text is **not** stored inline; it is an EW string-resource ID resolved at
+runtime. There is no simple `.rodata` label table to edit.
+
+---
+
+## 3. What the disassembly shows
+
+`DuMenuItemsEntryActions_GalleryPageEntryAction` gets an EW manager, checks a
+member, creates a page object and pops it. `TriggerScriptNo1..5` call a common
+EW routine `0x6177420` with script index 1..5. `AppSettingsEntryAction` calls
+`0x6178300` with `w1=2`.
+
+Important: a scan of `.rela.dyn` (288,539 entries) found **no relocation whose
+addend is any of the menu action functions**. So the menu does not reference
+actions through a simple pointer table we can retarget in the file; the
+actions are direct C++ calls or registered at runtime.
+
+There are also **no libc imports** for `system`, `popen`, `open`, `write`,
+`close`, `fork`, or `execve` (only `dlopen`/`dlsym` appear). A static action
+patch would have to use `dlopen`/`dlsym` or an EW/DIOS wrapper, not a convenient
+`system()` call.
+
+---
+
+## 4. Feasible static paths (future work)
+
+1. **Repurpose one entry action.** Overwrite a rarely used action function
+   (e.g. `DebugUnitMenuEntryAction` or `TriggerScriptNo5Action`) with a code
+   cave that opens the N3 overlay. This is a static lib patch, no runtime input
+   hooks. It changes one existing stock row; the label remains until we can
+   patch its resource ID.
+2. **Add a real menu row.** Reverse `DuMenuItemsEntryActions__Init` / the
+   `MxMenuDefinition` item collection and append an item + action. More work,
+   but the clean end state.
+3. **EW script trigger.** If `TriggerScriptNo1..5` are backed by file scripts
+   or an EW script resource, replacing that resource with our action would be
+   the smallest patch. Not confirmed yet.
+
+None of these is a five-minute change; they are the next research phase.
+
+---
+
+## 5. Physical controls (from the input logger)
+
+Measured on this unit:
+
+| Control | Event |
+|---|---|
+| 5-way **up** | `event3` code **103** (`KEY_UP`) |
+| 5-way **down** | `event3` code **108** (`KEY_DOWN`) |
+| 5-way **left** | `event3` code **105** (`KEY_LEFT`) |
+| 5-way **right** | `event3` code **106** (`KEY_RIGHT`) |
+| 5-way **center** | `event0` code **28** (`KEY_ENTER`) |
+| **Back** | `event0` code **158** (`KEY_BACK`) |
+| **Power** | **no input event** (PMIC/OMC, not `/dev/input`) |
+
+The stock left sidebar opens on a **long center** press (EW key 1), which is why
+the long-center toggle conflicted with it.
+
+## 6. Working gesture (interim)
+
+- **Long-press 5-way UP** → open/close the N3 overlay.
+- **Short up/down** → move selection.
+- **Center** → select / open page.
+- **Back** → back / close.
+
+This avoids the power button (not an input key) and the long-center stock
+sidebar. Verified with synthetic events; long-press up toggles the overlay with
+the UI process staying alive.
+
+---
+
+## 7. Next steps
+
+1. Reverse `DuMenuItemsEntryActions__Init` and the `MxMenuDefinition` item
+   collection to find where rows/actions are registered.
+2. Identify a safe action function/code cave and a writable string slot for a
+   static "open N3 menu" stub.
+3. Build a patched `libew_gls.so` via the theme builder, install, and test with
+   Recover stock UI ready.
+4. Then add a visible stock row (label + action) rather than repurposing one.
