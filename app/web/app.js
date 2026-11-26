@@ -152,7 +152,8 @@ const state = {
   sparrowText: "",
   visitedLive: false,
   live: { running: false, scale: DEFAULT_SCALE, userScale: false, frames: 0, misses: 0, failures: 0, timer: 0, lastShot: null },
-  mockPc: { running: false, size: "1280x720", fps: 12, quality: 65, frames: 420 },
+  mockPc: { running: new URLSearchParams(location.search).get("pclive") === "1",
+            size: "1280x720", fps: 12, quality: 65, frames: 420 },
   webLog: [],
   busy: new Set(),
   timers: { status: 0, logs: 0, pc: 0 },
@@ -565,6 +566,23 @@ function renderPcStream() {
   const sender = p.sender || {};
   const dev = p.device || {};
   const running = Boolean(sender.running);
+
+  const page = document.getElementById("page-pcstream");
+  if (page) page.classList.toggle("is-live", running);
+
+  state.pcHist = state.pcHist || { fps: [], kbps: [] };
+  if (running) {
+    state.pcHist.fps.push(Number(sender.fps) || 0);
+    state.pcHist.kbps.push(Number(sender.kbps) || 0);
+    if (state.pcHist.fps.length > 30) state.pcHist.fps.shift();
+    if (state.pcHist.kbps.length > 30) state.pcHist.kbps.shift();
+  } else {
+    state.pcHist.fps.length = 0;
+    state.pcHist.kbps.length = 0;
+  }
+  if (typeof window.pcSparkline === "function") {
+    window.pcSparkline({ fps: state.pcHist.fps, kbps: state.pcHist.kbps });
+  }
 
   setOn($("#pcPill"), running);
   pcSet("#pcPillText", running ? "Streaming" : "Idle");
@@ -1838,7 +1856,7 @@ function createMock() {
                   quality: mockPc.quality, frames: mockPc.frames, slow: 3, errors: 0,
                   fps: mockPc.running ? 11.8 : 0, kbps: mockPc.running ? 452 : 0,
                   host: "192.168.60.2", port: 5570, last_error: "" },
-        device: { adb: true, pid: mockPc.running ? "12104" : "",
+        device: { adb: true, pid: mockPc.running ? "12104" : "", hook: true,
                   decode_ms: 57.3, blit_ms: 89.0, dropped: 44,
                   flags: { fb_override: mockPc.running, fb_hold: mockPc.running, fb_stop: false },
                   log: mockPc.running

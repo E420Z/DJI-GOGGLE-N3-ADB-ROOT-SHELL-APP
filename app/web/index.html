@@ -417,25 +417,91 @@
           </div>
         </div>
 
-        <div class="grid pcstream-top stagger">
-          <article class="card lift pcstream-status">
-            <header class="card-head">
-              <div class="min0"><div class="label">Stream</div><h2 class="card-title">Status</h2></div>
-              <span class="pill" id="pcPill" data-on="false"><span class="dot" data-on="false"></span><span id="pcPillText">Idle</span></span>
+        <div class="stagger">
+          <!-- Hero: live state, the two numbers that matter, one toggle -->
+          <article class="card pcstream-status">
+            <header class="pcstream-hero">
+              <div class="pcstream-state">
+                <div class="label">Stream</div>
+                <span class="pcstream-pill" id="pcPill" data-on="false" role="status" aria-live="polite">
+                  <span class="dot" data-on="false"></span><span id="pcPillText">Idle</span>
+                </span>
+              </div>
+              <div class="pcstream-actions">
+                <button class="btn btn-sm btn-ghost" id="pcRefresh" title="Refresh status"><svg class="i"><use href="#i-refresh"/></svg>Refresh</button>
+                <div class="pcstream-toggle">
+                  <button class="btn btn-primary" id="pcStart" data-busy-key="pc_start"><svg class="i"><use href="#i-play"/></svg>Start stream</button>
+                  <button class="btn btn-danger" id="pcStop" data-busy-key="pc_stop"><svg class="i"><use href="#i-stop"/></svg>Stop stream</button>
+                </div>
+              </div>
             </header>
+
             <div class="pcstream-metrics">
-              <div class="metric"><div class="label">FPS</div><div class="metric-value"><span id="pcFps">0</span></div></div>
-              <div class="metric"><div class="label">Throughput</div><div class="metric-value"><span id="pcKbps">0</span><small>KB/s</small></div></div>
-              <div class="metric"><div class="label">Frames</div><div class="metric-value"><span id="pcFrames">0</span></div></div>
+              <div class="pcstream-metric is-primary">
+                <div class="pcstream-metric-top">
+                  <span class="label">FPS</span>
+                  <span class="pcstream-legend"><i></i>target</span>
+                </div>
+                <div class="pcstream-value"><span id="pcFps">0</span><small>fps</small></div>
+                <svg class="pcstream-spark" id="pcSparkFps" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
+                  <line class="pcstream-spark-target" x1="0" x2="120" y1="-10" y2="-10" vector-effect="non-scaling-stroke"/>
+                  <path class="pcstream-spark-area" d=""/>
+                  <path class="pcstream-spark-line" d="" vector-effect="non-scaling-stroke"/>
+                </svg>
+              </div>
+              <div class="pcstream-metric is-primary">
+                <div class="pcstream-metric-top"><span class="label">Throughput</span></div>
+                <div class="pcstream-value"><span id="pcKbps">0</span><small>KB/s</small></div>
+                <svg class="pcstream-spark" id="pcSparkKbps" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
+                  <path class="pcstream-spark-area" d=""/>
+                  <path class="pcstream-spark-line" d="" vector-effect="non-scaling-stroke"/>
+                </svg>
+              </div>
+              <div class="pcstream-metric is-quiet">
+                <div class="pcstream-metric-top"><span class="label">Frames</span></div>
+                <div class="pcstream-value"><span id="pcFrames">0</span></div>
+                <p class="pcstream-metric-note">sent this session</p>
+              </div>
             </div>
-            <div class="row pcstream-actions">
-              <button class="btn btn-primary" id="pcStart" data-busy-key="pc_start"><svg class="i"><use href="#i-play"/></svg>Start stream</button>
-              <button class="btn btn-danger" id="pcStop" data-busy-key="pc_stop"><svg class="i"><use href="#i-stop"/></svg>Stop</button>
-              <button class="btn btn-sm" id="pcRefresh"><svg class="i"><use href="#i-refresh"/></svg>Refresh</button>
-            </div>
-            <p class="hint" id="pcHint">Idle. Start the root shell and enable ADB on Connection, then press Start.</p>
+
+            <p class="hint pcstream-hint" id="pcHint">Idle. Start the root shell and enable ADB on Connection, then press Start.</p>
           </article>
 
+          <!-- Settings: one compact control strip -->
+          <article class="card pcstream-strip">
+            <h2 class="pcstream-strip-title"><span class="label">Settings</span></h2>
+            <div class="pcstream-ctls">
+              <label class="pcstream-ctl">
+                <span>Size</span>
+                <select class="select" id="pcSizeSel"></select>
+              </label>
+              <label class="pcstream-ctl">
+                <span>FPS</span>
+                <select class="select" id="pcFpsSel">
+                  <option value="5">5</option>
+                  <option value="8">8</option>
+                  <option value="12" selected>12</option>
+                  <option value="15">15</option>
+                  <option value="20">20</option>
+                </select>
+              </label>
+              <label class="pcstream-ctl">
+                <span>Quality</span>
+                <select class="select" id="pcQualitySel">
+                  <option value="45">45</option>
+                  <option value="55">55</option>
+                  <option value="65" selected>65</option>
+                  <option value="75">75</option>
+                  <option value="85">85</option>
+                </select>
+              </label>
+            </div>
+            <p class="pcstream-tip" title="Lower size and FPS cut latency far more than quality does. 1280×720 at 12 fps is the sweet spot on this hardware.">Best: <b>1280×720 · 12 fps</b></p>
+            <button class="btn btn-sm" id="pcSave"><svg class="i"><use href="#i-check"/></svg>Save</button>
+          </article>
+        </div>
+
+        <div class="grid pcstream-bottom stagger">
           <article class="card pcstream-encode">
             <header class="card-head">
               <div class="min0"><div class="label">Encode</div><h2 class="card-title">Encoding stats</h2></div>
@@ -444,65 +510,64 @@
               <div><dt>Capture size</dt><dd id="pcSize">—</dd></div>
               <div><dt>Target FPS</dt><dd id="pcTarget">—</dd></div>
               <div><dt>Quality</dt><dd id="pcQuality">—</dd></div>
+              <div><dt>Dropped (stale)</dt><dd id="pcDropped">0</dd></div>
+              <div><dt>Decode · goggles</dt><dd id="pcDecode">—</dd></div>
+              <div><dt>Publish · goggles</dt><dd id="pcBlit">—</dd></div>
               <div><dt>Over budget</dt><dd id="pcSlow">0</dd></div>
               <div><dt>Errors</dt><dd id="pcErrors">0</dd></div>
-              <div><dt>Decode (goggles)</dt><dd id="pcDecode">—</dd></div>
-              <div><dt>Publish (goggles)</dt><dd id="pcBlit">—</dd></div>
-              <div><dt>Dropped (stale)</dt><dd id="pcDropped">0</dd></div>
             </dl>
           </article>
-        </div>
 
-        <div class="grid pcstream-bottom stagger">
-          <article class="card">
+          <article class="card pcstream-receiver">
             <header class="card-head">
-              <div><div class="label">Settings</div><h2 class="card-title">Stream settings</h2></div>
+              <div class="min0"><div class="label">Device</div><h2 class="card-title">Receiver</h2></div>
+              <button class="icon-btn sm" id="pcCopyLog" aria-label="Copy receiver log" title="Copy receiver log"><svg class="i"><use href="#i-copy"/></svg></button>
             </header>
-            <div class="s2-controls">
-              <label class="s2-field">
-                <span>Size</span>
-                <select id="pcSizeSel"></select>
-              </label>
-              <label class="s2-field">
-                <span>FPS</span>
-                <select id="pcFpsSel">
-                  <option value="5">5</option>
-                  <option value="8">8</option>
-                  <option value="12" selected>12</option>
-                  <option value="15">15</option>
-                  <option value="20">20</option>
-                </select>
-              </label>
-              <label class="s2-field">
-                <span>Quality</span>
-                <select id="pcQualitySel">
-                  <option value="45">45</option>
-                  <option value="55">55</option>
-                  <option value="65" selected>65</option>
-                  <option value="75">75</option>
-                  <option value="85">85</option>
-                </select>
-              </label>
-              <div class="s2-actions">
-                <button class="btn btn-sm" id="pcSave"><svg class="i"><use href="#i-check"/></svg>Save</button>
-              </div>
-            </div>
-            <p class="hint pcstream-tip">Lower size and FPS cut latency far more than quality does. 1280×720 at 12 fps is the sweet spot on this hardware.</p>
-          </article>
-
-          <article class="card">
-            <header class="card-head">
-              <div><div class="label">Device</div><h2 class="card-title">Receiver</h2></div>
-              <button class="icon-btn" id="pcCopyLog" aria-label="Copy receiver log" title="Copy receiver log"><svg class="i"><use href="#i-copy"/></svg></button>
-            </header>
-            <dl class="pcstream-kv">
-              <div><dt>Receiver PID</dt><dd id="pcPid">—</dd></div>
+            <dl class="pcstream-facts">
+              <div><dt>PID</dt><dd id="pcPid">—</dd></div>
               <div><dt>Frame hold</dt><dd id="pcHold">—</dd></div>
               <div><dt>Override</dt><dd id="pcOverride">—</dd></div>
             </dl>
             <pre class="console pcstream-log" id="pcLog">Start a stream to see the receiver log.</pre>
           </article>
         </div>
+
+        <script>
+          /* pcSparkline(samples)            -> FPS sparkline (+ dashed target line from #pcFpsSel)
+             pcSparkline(samples, "kbps")    -> Throughput sparkline
+             pcSparkline({ fps: [], kbps: [] }) -> both. Keeps the last 30 samples, newest on the right. */
+          (function () {
+            var W = 120, H = 32, N = 30;
+            function yOf(v, max) { return (H - 2 - (Math.max(0, v) / max) * (H - 5)).toFixed(1); }
+            function draw(id, samples, floor) {
+              var svg = document.getElementById(id);
+              if (!svg) return 0;
+              var line = svg.querySelector(".pcstream-spark-line"), area = svg.querySelector(".pcstream-spark-area");
+              var pts = (samples || []).slice(-N).map(Number).filter(isFinite);
+              if (pts.length < 2) { line.setAttribute("d", ""); area.setAttribute("d", ""); return 0; }
+              var max = Math.max(floor || 0, Math.max.apply(null, pts)) * 1.12 || 1;
+              var step = pts.length > 1 ? W / (pts.length - 1) : W, x0 = 0;
+              var d = pts.map(function (v, i) { return (i ? "L" : "M") + (x0 + i * step).toFixed(1) + " " + yOf(v, max); }).join("");
+              line.setAttribute("d", d);
+              area.setAttribute("d", d + "L" + W + " " + H + "L" + x0.toFixed(1) + " " + H + "Z");
+              return max;
+            }
+            window.pcSparkline = function (samples, kind) {
+              if (samples && !Array.isArray(samples)) {
+                if (samples.kbps) window.pcSparkline(samples.kbps, "kbps");
+                if (samples.fps) window.pcSparkline(samples.fps, "fps");
+                return;
+              }
+              if (kind === "kbps") { draw("pcSparkKbps", samples, 0); return; }
+              var sel = document.getElementById("pcFpsSel");
+              var target = sel ? Number(sel.value) || 0 : 0;
+              var max = draw("pcSparkFps", samples, target);
+              var t = document.querySelector("#pcSparkFps .pcstream-spark-target");
+              var y = max && target ? yOf(target, max) : -10;
+              if (t) { t.setAttribute("y1", y); t.setAttribute("y2", y); }
+            };
+          })();
+        </script>
       </section>
 
       <!-- ============ Root Shell ============ -->
