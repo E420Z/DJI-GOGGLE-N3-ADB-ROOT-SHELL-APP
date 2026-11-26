@@ -89,6 +89,36 @@ Copy it to start a new app. `template/mod.json` is the manifest.
   input for now.
 - For live UI debugging, use `tools/debug_live.py` (160×90, ~57 fps).
 
+## Mod contract (learned the hard way, 2026-11-26)
+
+A mod loaded by `n3mods.so` must follow this or the loader rejects it:
+
+1. **Export `natartos_mod_init`:**
+   ```c
+   int natartos_mod_init(void *(*loader_dlsym)(void *, const char *));
+   ```
+   The loader passes its own `dlsym`; store it and use it for everything
+   (`dlopen`, `dlsym`, `pthread_create`, …).
+2. **Never reference `dlopen`/`dlsym` directly.** A direct reference fails at
+   load with `cannot locate symbol "dlopen" referenced by "<mod>.so"`.
+3. **Install mode 755** in `/vendor`. A 644 `.so` is not loaded.
+4. **Write `/vendor` through the `dji_services` push path** (the app's
+   `n3ctl.push_file`). The `su` adb shell can remount `/vendor` rw but cannot
+   write `vendor_file` itself.
+5. **Do not block the loader.** `natartos_mod_init` runs at UI start: hand work
+   to a thread.
+6. **`capture` and `overlay` are mutually exclusive** — they graft the same
+   symbols, and loading both double-hooks `push_frame`. The app replaces one
+   with the other automatically.
+
+## Available components
+
+Vendor OMX is reachable from inside `dji_glasses`:
+`dlopen("libOmxCore.so")` then `OMX_Init` / `OMX_GetHandle`. The core must be
+addressed with **OMX version 1.0.0** (`nVersion` 1.0.0); 1.1.2 returns
+`OMX_ErrorVersionMismatch` on every call. See `mods/h264/` for a worked example
+and `mods/h264/include/` for the Khronos headers.
+
 ## Safety
 
 - No `/system` writes, no dm-verity, no OTP/RPMB, no bootloader.

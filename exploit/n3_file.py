@@ -27,7 +27,8 @@ def tables():
     except Exception:
         pass
     # fallback: a local toolya checkout, if present
-    p = r'C:\Users\n3rootbuildxx\Downloads\toolya\core\src\lib.rs'
+    p = os.path.join(os.path.expanduser("~"), "Downloads", "toolya",
+                     "core", "src", "lib.rs")
     t = open(p, encoding='utf-8').read()
     i = t.find('pub const T8'); j = t.find('];', i)
     T8 = [int(x, 16) for x in re.findall(r'0x([0-9A-Fa-f]{2})', t[i:j])][:256]
