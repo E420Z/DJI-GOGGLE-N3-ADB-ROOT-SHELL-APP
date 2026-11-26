@@ -112,7 +112,38 @@ undocumented schema.
 **The remaining clean route is a small `libmdc` client** (`mdc_service_get_channel`
 → `createReceiver` on `zv900_app_liveview_chn` → write the AVC to a file/FIFO).
 That is the same API `omx_recordtest` used successfully before it crashed, so it
-is known to work; it just needs our own binary.
+is known to work; it just needs our own binary. `/system/lib64/libmdcclient.so`
+(136 KB) is on the device.
+
+## Why "do what the Fly app does" is not a shortcut
+
+`/system/etc/dji_media_service.json` lists the supported outputs, and every
+host-facing transport is **disabled** on this build:
+
+```json
+"app_liveview":  { "supportable": true,  "implement_in_rec_module": true },
+"wifi_liveview": { "supportable": false },
+"wifi_cast":     { "supportable": false },
+"wifi_sink":     { "supportable": false },
+"uvc_only":      { "supportable": false },
+"dp_sink":       { "supportable": false },
+"hdmi_dp_in":    { "supportable": false },
+"default_workmode": "liveview"
+```
+
+The only path is `app_liveview`, and it runs **inside the record module** — i.e.
+it is handed to the app-link layer over the DUSS bus (`@/duss/mb/0x1c07`), not
+put on a standard transport.
+
+The host-facing bulk pipes are the five `usb_bulk_raw` FunctionFS daemons
+(`bulk`, `bulk1`, `bulk4`, `bulk5`, `bulk6`). Their `/proc/<pid>/io` counters
+stay at **0 bytes** while the encoder runs, so the goggles does **not** push
+video to a host unless the app-link protocol asks for it and a host is
+negotiating.
+
+So "the same way the Fly app does" means reimplementing that app-link handshake
+over FunctionFS — a protocol reverse-engineering job, strictly bigger than the
+MDC client.
 
 ## Measured: the vendor recorder (`omx_recordtest`)
 
