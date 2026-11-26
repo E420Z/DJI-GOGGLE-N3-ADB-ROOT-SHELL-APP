@@ -414,9 +414,18 @@ class Api:
                                 timeout=secs + 40)
             files = self._s2_files()
             if not files:
+                log = text or ""
+                if "FORTIFY" in log or "parse command failed" in log:
+                    return _fail(
+                        "Blocked on this build: the vendor decoder aborts with "
+                        "'FORTIFY: fseeko: null FILE*' because it wants "
+                        "/etc/wl_liveview_venc.json, which does not exist. /etc "
+                        "is /system/etc (dm-verity, read-only) so it must never "
+                        "be created. -p and -k also fail to parse here, and the "
+                        "S2 link is down (logcat: recv_cnt 0).",
+                        text=_clip(text, 12000))
                 return _fail(
-                    "The decoder produced no file. Check the run log above; "
-                    "this build may reject -p (retry with stream 'auto').",
+                    "The decoder produced no file. Check the run log above.",
                     text=_clip(text, 12000))
             return _ok("Captured %d file(s) at %s." % (len(files), self.S2_DIR),
                        text=_clip(text, 12000), files=files)

@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased — S2 capture measured on-device (2026-11-26)
+
+- Ran the S2 capture path on the owner's N3 with the root shell up. **Result:
+  blocked, and correctly so.**
+  - Confirmed the S2 enumerates as `2ca3:1020` with interface 3 / EP `0x84`.
+  - `test_wl_vdec` exists and `-d` really is "dump encoded stream", but the
+    vendor's own `-t usb_vdec` example aborts with `FORTIFY: fseeko: null
+    FILE*` (SIGTRAP).
+  - Cause: `/system/etc/wlm_cfg.json` points `test.liveview_venc_cfg` at
+    `/etc/wl_liveview_venc.json`, which does not exist. `/etc` is
+    `/system/etc` on dm-verity, so it must never be created — that would be a
+    `/system` write and a guaranteed brick on reboot.
+  - `-p` and `-k` fail to parse on this build (`rc=255`, usage printed).
+  - `test.liveview.start_cmd` / `finish_cmd` are **empty arrays**, so
+    `006E0001`/`006E0000` are not configured here at all.
+  - The S2 link is down: logcat `recv_cnt 0, recv_bytes 0, freq 0, bitrate 0`.
+- The real readers are OMX nodes: `wlvdec` (`wl_port_id`, iface 0 EP `0x81`,
+  h265 640×360) and `media_server` holding iface 3 EP `0x84` for the main
+  stream. Documented in `SPARROW2.md` §10A.
+- The app now returns that exact diagnosis instead of a generic failure, and
+  the Sparrow2 card carries a "measured on this build" note.
+- Practical route for S2 video today: the existing E420Z live preview, which
+  mirrors the already-decoded goggles display.
+- Device left as found: decoder killed, test logs removed, only
+  `/data/local/tmp/s2cap.sh` added.
+
 ## Unreleased — S2 video capture (2026-11-26)
 
 - New **S2 video capture** mod (`s2cap`, type `tool`, data-only): installs
