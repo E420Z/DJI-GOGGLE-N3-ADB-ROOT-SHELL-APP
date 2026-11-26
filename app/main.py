@@ -397,9 +397,9 @@ class GogglesPage(ctk.CTkFrame):
                 "E420Z stock row",
                 "Install a native E420Z row in the stock goggles menu?\n\n"
                 "It adds a new E420Z row at the top and keeps Status, Album, "
-                "Transmission and Settings. Opening it shows a native E420Z "
-                "page in the same stock sidebar. No overlay, no input hooks. "
-                "A reboot restores the original menu.\n\n"
+                "Transmission and Settings. Opening it shows the stock "
+                "Settings-style content panel beside the sidebar. No overlay, "
+                "no input hooks. A reboot restores the original menu.\n\n"
                 "The row is added at runtime by /vendor/n3menuinject.so, so "
                 "/vendor/libew_gls.so is not modified."):
             return

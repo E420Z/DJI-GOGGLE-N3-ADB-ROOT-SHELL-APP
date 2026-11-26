@@ -19,6 +19,7 @@
 | [`SPARROW2.md`](SPARROW2.md) | **Sparrow2 deep dive: console (`sdr_shell`), factory suite, DUSS routing, channel inventory, AMT — no IQ path.** |
 | [`SPARROW2-EVIDENCE.md`](SPARROW2-EVIDENCE.md) | Verbatim Sparrow2 evidence: console errors, DUSS hosts, factory-flag recovery, channels, firmware, AMT strings. |
 | [`UI-INTERNALS.md`](UI-INTERNALS.md) | **Stock EW UI map: ELF/EW symbols, menu entry actions, string-resource IDs, physical control codes, static-menu plan.** |
+| [`UI-SDK.md`](UI-SDK.md) | **Native stock-UI SDK: menu row injection, data-source wrapping, stock actions, Settings-style panel.** |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history. |
 | [`RELEASE-v1.0.0.md`](RELEASE-v1.0.0.md) | Published prerelease notes + SHA256. |
 

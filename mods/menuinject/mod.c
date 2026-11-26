@@ -58,6 +58,7 @@ static void *g_vmt_main = 0;
 static void *g_vmt_more = 0;
 static void *g_reload_impl = 0;
 static void *g_dismiss_impl = 0;
+static void *g_dismiss_more_impl = 0;
 static void *g_menu_self = 0;
 static new_str_fn g_new_str = 0;
 static set_noi_fn g_set_noi = 0;
@@ -89,6 +90,27 @@ static unsigned char g_sub_item[SUB_COUNT][256] __attribute__((aligned(8)));
 static unsigned char g_sub_act[SUB_COUNT][64] __attribute__((aligned(8)));
 static void *g_sub_title[SUB_COUNT];
 
+/* E420Z content page (stock Settings / MoreMenu panel). */
+#define PAGE_COUNT 5
+static const char *PAGE_TITLES[PAGE_COUNT] = {
+    "STATUS", "BAND SCAN", "DISPLAY TEST", "ABOUT", "BACK"
+};
+static sub_slot g_page_slot[PAGE_COUNT];
+static unsigned char g_page_item[PAGE_COUNT][256] __attribute__((aligned(8)));
+static unsigned char g_page_act[PAGE_COUNT][64] __attribute__((aligned(8)));
+static void *g_page_title[PAGE_COUNT];
+static int g_page_ready = 0;
+static int g_e420z_page = 0;
+
+static void *g_ds_more = 0;
+static count_fn g_orig_size_more = 0;
+static get_item_fn g_orig_at_more = 0;
+static void *g_ds_more_vmt[32];
+static void *g_more_act_fn[8];
+static void *g_more_act_obj[8];
+static void *g_main_act_fn[8];
+static void *g_main_act_obj[8];
+
 /* ── custom N3 icon (EW ResourcesBitmap) ────────────────────────────────── */
 
 typedef struct { int x, y; } XPoint;
@@ -99,6 +121,7 @@ typedef void (*unlock_bmp_fn)(void *lock);
 typedef void *(*new_obj_fn)(void *classVMT, int dummy);
 typedef void (*res_init_fn)(void *bmp, void *raw);
 typedef void *(*load_bmp_fn)(const char *path);
+typedef void (*void_fn)(void);
 
 static create_bmp_fn g_create_bmp = 0;
 static lock_bmp_fn g_lock_bmp = 0;
@@ -109,6 +132,9 @@ static load_bmp_fn g_load_bmp = 0;
 static void *g_vmt_res_bmp = 0;
 static void *g_n3_icon = 0;
 static unsigned char g_icon_obj[128] __attribute__((aligned(8)));
+static void_fn g_open_settings = 0;
+static void *g_settings_obj = 0;
+static void *g_settings_method = 0;
 
 static void icon_rect(unsigned char *px, int pitchX, int pitchY, int w, int h,
                       int x0, int y0, int x1, int y1) {
@@ -212,10 +238,17 @@ static void defer_reload(int mode);
 static int prepare_item(void *ds);
 static int ds_is_wrapped(void *ds);
 
-static void menu_action(void *obj) {
+static void menu_action(void *obj, void *arg1, void *arg2, void *arg3) {
     (void)obj;
-    NTLOG("action: N3 row -> native submenu");
-    defer_reload(1);
+    NTLOG("action: E420Z -> stock settings panel");
+    g_e420z_page = 1;
+    if (g_settings_method) {
+        NTLOG_HEX("settings method=", (unsigned long)g_settings_method);
+        ((void (*)(void *, void *, void *, void *))g_settings_method)(
+            g_settings_obj, arg1, arg2, arg3);
+    } else if (g_open_settings) {
+        g_open_settings();
+    }
 }
 
 static void n3_action(void *obj) {
@@ -300,6 +333,128 @@ static int ds_is_wrapped(void *ds) {
     return v && v[DS_SIZE_SLOT] == (void *)wrap_size;
 }
 
+/* ── E420Z content page (the stock Settings-style panel) ────────────────── */
+
+static int wrap_size_more(void *ds) {
+    if (!g_orig_size_more) return 0;
+    if (g_e420z_page) return PAGE_COUNT;
+    return g_orig_size_more(ds);
+}
+
+static void *wrap_at_more(void *ds, int index) {
+    if (!g_orig_at_more) return 0;
+    if (g_e420z_page) {
+        if (index >= 0 && index < PAGE_COUNT) return g_page_item[index];
+        return 0;
+    }
+    return g_orig_at_more(ds, index);
+}
+
+static int more_ds_wrapped(void *ds) {
+    void **v = ds ? *(void ***)ds : 0;
+    return v && v[DS_SIZE_SLOT] == (void *)wrap_size_more;
+}
+
+static int patch_more_ds(void *ds) {
+    if (!ds) return 0;
+    void **v = *(void ***)ds;
+    if (!v) return 0;
+    if (v[DS_SIZE_SLOT] == (void *)wrap_size_more) {
+        g_ds_more = ds;
+        return 1;
+    }
+    g_orig_size_more = (count_fn)v[DS_SIZE_SLOT];
+    g_orig_at_more = (get_item_fn)v[DS_AT_SLOT];
+    if (!g_orig_size_more || !g_orig_at_more) return 0;
+
+    /* Capture the stock panel actions (Display, About, ...) before wrapping. */
+    int n = g_orig_size_more(ds);
+    for (int i = 0; i < 8 && i < n; i++) {
+        void *it = g_orig_at_more(ds, i);
+        if (!it) continue;
+        unsigned long *ip = (unsigned long *)it;
+        if (!ip[4]) continue;
+        unsigned long *a = (unsigned long *)ip[4];
+        g_more_act_obj[i] = (void *)a[4];
+        g_more_act_fn[i] = (void *)a[5];
+    }
+
+    for (int i = 0; i < 32; i++) g_ds_more_vmt[i] = v[i];
+    g_ds_more_vmt[DS_SIZE_SLOT] = (void *)wrap_size_more;
+    g_ds_more_vmt[DS_AT_SLOT] = (void *)wrap_at_more;
+    *(void ***)ds = g_ds_more_vmt;
+    g_ds_more = ds;
+    NTLOG("more ds copied");
+    return 1;
+}
+
+static void call_stock_action(void *fn, void *obj,
+                              void *a1, void *a2, void *a3) {
+    if (fn) ((void (*)(void *, void *, void *, void *))fn)(obj, a1, a2, a3);
+}
+
+static void n3_page_action(void *obj, void *a1, void *a2, void *a3) {
+    sub_slot *s = (sub_slot *)obj;
+    int idx = s ? s->idx : -1;
+    NTLOG_INT("page action=", idx);
+    switch (idx) {
+    case 0:  /* STATUS -> stock Status page */
+        call_stock_action(g_main_act_fn[0], g_main_act_obj[0], a1, a2, a3);
+        break;
+    case 1:  /* BAND SCAN -> stock Transmission panel */
+        call_stock_action(g_main_act_fn[2], g_main_act_obj[2], a1, a2, a3);
+        break;
+    case 2:  /* DISPLAY TEST -> stock Display panel */
+        call_stock_action(g_more_act_fn[3], g_more_act_obj[3], a1, a2, a3);
+        break;
+    case 3:  /* ABOUT -> stock About page */
+        call_stock_action(g_more_act_fn[4], g_more_act_obj[4], a1, a2, a3);
+        break;
+    case 4:  /* BACK -> close the panel */
+        if (g_menu_self) {
+            void **v = *(void ***)g_menu_self;
+            if (v && v[DISMISS_SLOT])
+                ((void (*)(void *))v[DISMISS_SLOT])(g_menu_self);
+        }
+        g_e420z_page = 0;
+        break;
+    }
+}
+
+static int prepare_page(void *ds) {
+    if (!g_new_str || !g_orig_size_more || !g_orig_at_more) return 0;
+    g_page_ready = 0;
+    int n = g_orig_size_more(ds);
+    if (n < 1) return 0;
+    void *tmpl = g_orig_at_more(ds, 0);
+    if (!tmpl) return 0;
+    unsigned long *tp = (unsigned long *)tmpl;
+
+    int ok = 1;
+    for (int i = 0; i < PAGE_COUNT; i++) {
+        g_page_slot[i].idx = i;
+        if (tp[4])
+            natartos_memcpy(g_page_act[i], (void *)tp[4], sizeof(g_page_act[i]));
+        else
+            natartos_memset(g_page_act[i], 0, sizeof(g_page_act[i]));
+        ((unsigned long *)g_page_act[i])[4] = (unsigned long)&g_page_slot[i];
+        ((unsigned long *)g_page_act[i])[5] = (unsigned long)n3_page_action;
+
+        g_page_title[i] = g_new_str(PAGE_TITLES[i]);
+        if (!g_page_title[i]) ok = 0;
+
+        natartos_memcpy(g_page_item[i], tmpl, sizeof(g_page_item[i]));
+        unsigned long *d = (unsigned long *)g_page_item[i];
+        d[4] = (unsigned long)g_page_act[i];
+        if (tp[5]) d[5] = tp[5];
+        if (g_page_title[i]) d[16] = (unsigned long)g_page_title[i];
+        d[17] = 0;
+    }
+    g_page_ready = ok;
+    NTLOG("page items ready");
+    return 1;
+}
+
 /* ── build items from a stock template ──────────────────────────────────── */
 
 static int prepare_item(void *ds) {
@@ -320,10 +475,34 @@ static int prepare_item(void *ds) {
         return 0;
     }
     unsigned long *tp = (unsigned long *)tmpl;
+
+    /* Capture the stock Status (0) and Transmission (2) actions for the
+     * E420Z page, before we replace their rows in the sidebar. */
+    for (int i = 0; i < n && i < 4; i++) {
+        if (i != 0 && i != 2) continue;
+        void *it = g_orig_at(ds, i);
+        if (!it) continue;
+        unsigned long *ip = (unsigned long *)it;
+        if (!ip[4]) continue;
+        unsigned long *a = (unsigned long *)ip[4];
+        g_main_act_obj[i] = (void *)a[4];
+        g_main_act_fn[i] = (void *)a[5];
+    }
+
     g_n3_icon = 0;
+    g_settings_obj = 0;
+    g_settings_method = 0;
     if (n > 3) {
-        void *settings = g_orig_at(ds, 3);     /* hexagon glyph */
-        if (settings) g_n3_icon = (void *)((unsigned long *)settings)[5];
+        void *settings = g_orig_at(ds, 3);     /* hexagon glyph + real action */
+        if (settings) {
+            unsigned long *sp = (unsigned long *)settings;
+            g_n3_icon = (void *)sp[5];
+            if (sp[4]) {
+                unsigned long *act = (unsigned long *)sp[4];
+                g_settings_obj = (void *)act[4];
+                g_settings_method = (void *)act[5];
+            }
+        }
     }
     if (!g_n3_icon) g_n3_icon = (void *)tp[5];
 
@@ -384,10 +563,6 @@ static void hook_reload(void *self) {
     reload_fn orig = (reload_fn)g_reload_impl;
     g_menu_self = self;
 
-    /* Diagnostic: /data/local/tmp/n3_submenu forces the N3 rows on open. */
-    if (sys_faccessat(AT_FDCWD, "/data/local/tmp/n3_submenu", F_OK) == 0)
-        g_mode = 1;
-
     void **vmt = *(void ***)self;
     const char *cls = "?";
     if ((void *)vmt == g_vmt_main) cls = "MAIN";
@@ -404,25 +579,44 @@ static void hook_reload(void *self) {
     NTLOG("reload"); NTLOG(cls); NTLOG_INT("items=", count);
 
     int inject = sys_faccessat(AT_FDCWD, FLAG_INJECT, F_OK) == 0;
-    if (inject && ds) {
+    if (cls[1] == 'O') {
+        if (g_e420z_page && ds) {
+            if (!more_ds_wrapped(ds)) patch_more_ds(ds);
+            if (more_ds_wrapped(ds)) prepare_page(ds);
+        }
+    } else if (inject && ds) {
         if (!ds_is_wrapped(ds)) patch_ds(ds);
         if (ds_is_wrapped(ds)) prepare_item(ds);
     }
 
     if (orig) orig(self);
 
-    if (inject && ds && ds_is_wrapped(ds)) {
-        if (g_set_noi) g_set_noi(self, 0);
-        void **v = *(void ***)self;
-        if (v && v[POSTRELOAD_SLOT])
-            ((void (*)(void *))v[POSTRELOAD_SLOT])(self);
+    if (ds) {
+        if (g_e420z_page && more_ds_wrapped(ds)) {
+            if (g_set_noi) g_set_noi(self, 0);
+            void **v = *(void ***)self;
+            if (v && v[POSTRELOAD_SLOT])
+                ((void (*)(void *))v[POSTRELOAD_SLOT])(self);
+        } else if (inject && ds_is_wrapped(ds)) {
+            if (g_set_noi) g_set_noi(self, 0);
+            void **v = *(void ***)self;
+            if (v && v[POSTRELOAD_SLOT])
+                ((void (*)(void *))v[POSTRELOAD_SLOT])(self);
+        }
     }
 }
 
 static void hook_dismiss(void *self) {
-    g_mode = 0;                       /* reopen the stock rows next time */
+    g_mode = 0;
+    g_e420z_page = 0;                 /* reopen the stock rows next time */
     if (g_dismiss_impl)
         ((void (*)(void *))g_dismiss_impl)(self);
+}
+
+static void hook_dismiss_more(void *self) {
+    g_e420z_page = 0;
+    if (g_dismiss_more_impl)
+        ((void (*)(void *))g_dismiss_more_impl)(self);
 }
 
 /* ── vtable patching (loader late thread) ───────────────────────────────── */
@@ -448,6 +642,9 @@ static int patch_menu(void *vmt, const char *name, int *patched) {
     int d = 1;
     if (vmt == g_vmt_main)
         d = patch_slot(v, DISMISS_SLOT, (void *)hook_dismiss, &g_dismiss_impl);
+    else
+        d = patch_slot(v, DISMISS_SLOT, (void *)hook_dismiss_more,
+                       &g_dismiss_more_impl);
     NTLOG_INT("reload patch=", r);
     NTLOG_INT("dismiss patch=", d);
     if (r && d) {
@@ -490,6 +687,8 @@ int natartos_mod_init(void *(*loader_dlsym)(void *, const char *)) {
     g_res_bmp_init = (res_init_fn)loader_dlsym(
         RTLD_DEFAULT, "ResourcesBitmap_Init");
     g_load_bmp = (load_bmp_fn)loader_dlsym(RTLD_DEFAULT, "EwLoadBitmap");
+    g_open_settings = (void_fn)loader_dlsym(
+        RTLD_DEFAULT, "DuMenuItemsEntryActions_AppSettingsEntryAction");
     NTLOG_HEX("new_str=", (unsigned long)g_new_str);
     NTLOG_HEX("set_noi=", (unsigned long)g_set_noi);
     NTLOG_HEX("set_h=", (unsigned long)g_set_h);

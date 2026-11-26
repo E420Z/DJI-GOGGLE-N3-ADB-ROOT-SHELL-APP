@@ -3,7 +3,7 @@
   "name": "E420Z stock row",
   "version": "0.3",
   "type": "hook",
-  "description": "Adds a native E420Z row to the stock goggles sidebar. Opening it switches the same stock menu control to a native E420Z page (STATUS / SDR SCAN / DISPLAY TEST / ABOUT / BACK). No overlay window, no input hooks, no frame compositing.",
+  "description": "Adds a native E420Z row to the stock goggles sidebar. Opening it opens the stock Settings-style content panel beside the sidebar (Safety / Control / Camera / Display / About). No overlay window, no input hooks, no frame compositing.",
   "risk": "medium",
   "status": "experimental/beta",
   "experimental": true,
