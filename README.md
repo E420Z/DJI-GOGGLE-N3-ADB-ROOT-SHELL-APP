@@ -101,6 +101,15 @@ More captures: [`docs/screenshots/`](docs/screenshots/).
   (selectable 160×90 up to 1920×1080; ~58 fps at 160×90, lower at higher
   resolutions), full-resolution screenshots, GIF recording, and quick actions
   for theme/background/menu.
+- **PC Stream page** — sends **this desktop into the goggles** over the USB link.
+  On/off toggle, live encode stats (fps, KB/s, frames), the goggles-side decode
+  and publish timings, dropped-frame count, and size / fps / quality settings.
+  Costs nothing on the goggles' radios — it is a display injection.
+  ![PC Stream page](docs/screenshots/web_pcstream.png)
+  The goggles decodes each frame in software, so it runs ~12 fps at 1280×720 and
+  ~5 fps at 1080p; frames are dropped to the newest so latency stays low.
+  See [`docs/VIDEO-OUT.md`](docs/VIDEO-OUT.md) and
+  [`mods/stream/README.md`](mods/stream/README.md).
 - **Sparrow2 page** — read-only radio research panel. Shows the firmware
   inventory and the shipped Sparrow2 console/test tools, and can send the
   read-only `sdr_shell help` query. It explains why the console is a

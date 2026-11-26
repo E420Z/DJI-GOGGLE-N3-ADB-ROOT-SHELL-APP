@@ -51,6 +51,16 @@ app/tools/ui_shot.ps1  headless screenshot helper
 | Logs | SAFE | Five tabs, auto-refresh, filter, copy, client-side clear. |
 | Settings | SAFE | Accent, motion, density, live scale, themes, safety key, DANGER card. |
 
+### PC Stream page
+
+Sends this desktop into the goggles. It needs ADB, the root shell (to label the
+on-device receiver) and the **Frame injection (PC stream)** mod; the page keeps
+Start disabled and explains itself when one is missing. Settings are size, fps
+and quality; the page shows both sides of the pipeline - sender fps/KB/s/frames
+and the goggles' decode/publish timings, dropped frames and errors.
+
+Full architecture, measured numbers and troubleshooting: [PC-STREAM.md](PC-STREAM.md).
+
 ## URL parameters (preview and screenshots)
 
 | Parameter | Effect |

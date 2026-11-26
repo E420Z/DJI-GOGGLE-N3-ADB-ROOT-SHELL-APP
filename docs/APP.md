@@ -23,6 +23,17 @@
   loader; long-press 5-way up opens/closes it, short up/down navigate, center
   selects, Back goes back. The power button has no input event.
 
+### PC Stream
+- Streams this desktop into the goggles over USB. **Start / Stop** are one
+  toggle; size, fps and quality sit in a settings strip.
+- Live figures: sender fps, throughput KB/s, frames sent, plus the goggles'
+  decode and publish timings, dropped frames, over-budget frames and errors.
+- Needs ADB, the root shell and the **Frame injection (PC stream)** mod. Start
+  stays disabled with a reason until all three are ready.
+- ~12 fps at 1280×720, ~5 fps at 1080p (software decode). Stale frames are
+  dropped so latency stays low; the OLED screen saver is dismissed
+  automatically while streaming. Details: [`PC-STREAM.md`](PC-STREAM.md).
+
 ### Root Shell
 Embedded console. Each command runs as uid 0 in `dji_services` in a fresh
 shell. Use `cd /path && command` if you need a working directory. Up/Down cycles
