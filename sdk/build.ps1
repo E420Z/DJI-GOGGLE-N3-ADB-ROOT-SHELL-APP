@@ -35,6 +35,7 @@ Write-Host "cc $srcPath -> $outPath"
 & $zig cc -target aarch64-linux-gnu -shared -fPIC -nostdlib `
     -fno-builtin -fno-stack-protector -fno-omit-frame-pointer -O2 `
     -I $here -I $natartos `
+    "-I$(Join-Path $here '..\mods\h264\include')" `
     "-Wl,-soname,$(Split-Path -Leaf $outPath)" `
     -o $outPath $srcPath (Join-Path $here "n3app.c")
 
