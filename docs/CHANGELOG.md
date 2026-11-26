@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — board/firmware naming (2026-11-26)
+
+- Searched firmware for the board markings: **`IE1000`, `ACG2430`, `NBSK39`,
+  `P44M76`, `AC00004` appear nowhere** — not in `/vendor`, `/system/etc`, the
+  `dji_wlm` / `dji_sdrs_agent` / `dji_glasses` binaries, the `sparrow2` images,
+  or `dmesg`.
+- What *is* there: platform `dji,e3t` / "DJI e3t zv300 V3 platform"; radio
+  firmware set `sparrow2` on `modem-sparrow-*` partitions; `dji_sdrs_agent`
+  strings `hold/release P1/S1 reset pin` and `dji.p1.heartbeat_disable` (two
+  radio dies); a Nordic **nRF52810** for the wireless-mic link.
+- Documented the three ways to get video on the PC: E420Z live preview (works,
+  display mirror), raw USB H.265 (blocked), OMX/LCDC tap (research).
+- `SPARROW2.md` §10A extended, new §10B "Board identifiers".
+
 ## Unreleased — S2 capture measured on-device (2026-11-26)
 
 - Ran the S2 capture path on the owner's N3 with the root shell up. **Result:

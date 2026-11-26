@@ -390,6 +390,46 @@ Until one of those changes, the practical way to get S2 video onto the PC is
 the existing **E420Z live preview**, which mirrors the goggles display — i.e.
 the already-decoded liveview.
 
+### Getting video on the PC: three options
+
+| Option | State | What it needs |
+|---|---|---|
+| **E420Z live preview** (display mirror) | **works today** | ADB + patched UI running `n3live.so`. Streams the decoded liveview the goggles is already showing, OSD included. |
+| Raw H.265 from USB iface 3 / EP `0x84` | blocked | Either the vendor decoder (needs a `/system` file) or our own aarch64 reader competing with `media_server`. |
+| OMX tap of `zv900_liveview_lcdc_chn` / `wlvdec` | research | Same competition problem; `lcdcwb_pipe.json` shows the vendor's own LCDC-writeback capture path. |
+
+The display mirror is the same pixels without any of those risks, so that is the
+one to use.
+
+## 10B. Board identifiers (hardware vs firmware)
+
+The SoC platform is `dji,e3t`, model **"DJI e3t zv300 V3 platform"**, kernel
+`5.4.123-rt59`, `splashboot=zv900`, `ro.board.platform=e3t`.
+
+Firmware naming that *is* present:
+
+- Radio firmware set `sparrow2` (`ap`, `cp`, `dsp`, `l1c`, `scp`, `pwr`, `amt`,
+  `cp_nvram`, `rf_nvram`), flashed to GPT partitions `modem-sparrow-*`.
+- `dji_sdrs_agent` strings: **`hold P1/S1 reset pin`**, **`release P1/S1 reset
+  pin`**, `dji.p1.heartbeat_disable` — two radio dies controlled as P1 and S1.
+- `dji_wlm` (wireless link manager) + `media_server` module `0x1c07` owning the
+  liveview USB endpoint.
+- `dji,wl-nrf52810-master` / `spislave_nrf52810_probe` — a **Nordic nRF52810**
+  handles the wireless-mic link, not the video.
+
+Firmware naming that is **not** present anywhere:
+
+- `IE1000`, `ACG2430`, `NBSK39`, `P44M76`, `AC00004` — searched `/vendor`,
+  `/system/etc`, the `dji_wlm` / `dji_sdrs_agent` / `dji_glasses` binaries, the
+  `sparrow2` firmware images and `dmesg`. **Zero hits.**
+
+So the chip markings on the board are DJI-internal part numbers that the
+software never uses. Two identical `IE1000` packages sit next to ANT0–ANT3 and
+the software drives exactly two radio dies (P1/S1), which is a good match — but
+that is inference from placement plus `P1/S1`, not something the firmware
+confirms. `ACG2430B` likewise cannot be identified from software; it is not
+named in any config or binary.
+
 ### Safety
 
 - Receive-only. The app never starts the link, never tunes, never transmits.
