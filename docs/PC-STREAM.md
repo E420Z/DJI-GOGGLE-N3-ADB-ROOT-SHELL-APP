@@ -88,3 +88,34 @@ UI, so the key is invisible.
 | `Permission denied` running the receiver | wrong SELinux label; it must be `system_data_file` and run from `u:r:su:s0` |
 | Seconds of lag | sending faster than the goggles decodes — lower size or fps |
 | Screen saver flicker | the 20 s BACK nudge is disabled (`fb_hold` missing) |
+
+## Why it tops out at ~12 fps (and the faster path)
+
+The USB link is not the limit. `fb_receiver` decodes JPEG with **stb_image**
+(software) and converts RGB -> BGRA with a scalar loop; at 1280x720 that is
+~45 ms per frame. The device does have libjpeg-turbo
+(`/system/lib64/libjpeg.so`), so a turbo/scaled decode is a possible quick win.
+The better route is:
+
+```
+PC H.264 (10-20 Mbps, zerolatency, no B-frames)
+  -> vendor decoder (OMX.dji.video_decoder.avc.vc8000d / .ffmpeg)
+  -> NV12
+  -> NV12 -> BGRA (libyuv/NEON) or a YUV overlay
+  -> display
+```
+
+That removes the JPEG decode entirely and cuts USB bandwidth by ~3-5x.
+
+Two open items:
+
+1. **Decoder callbacks.** The earlier probe padded every access unit to the full
+   buffer and never set `OMX_BUFFERFLAG_ENDOFFRAME`. `mods/h264/videc.c`
+   (`n3videc.so`) feeds one real AU per buffer with `ENDOFFRAME`, no B-frames,
+   and reports how many frames arrive **before EOS** - the go/no-go test for a
+   live decoder.
+2. **Display format.** The injection hook only accepts BGRA in `fb_shared`;
+   decoded NV12 needs a NEON/libyuv conversion (~2-4 ms at 720p) or a YUV
+   overlay plane.
+
+Neither is wired into the page yet; both are bench tests.

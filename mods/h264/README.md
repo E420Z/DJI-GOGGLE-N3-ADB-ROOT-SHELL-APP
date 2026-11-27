@@ -108,3 +108,19 @@ sdk\build.ps1 -Src ..\mods\h264\decode.c -Out ..\mods\h264\n3h264.so
 
 Push to `/vendor/n3h264.so`, chmod 755, add it to `/data/local/tmp/n3mods.list`,
 restart the UI. The decoder runs on a worker thread so UI init is never blocked.
+
+## PC -> goggles decoder probe (experimental)
+
+`videc.c` / `n3videc.so` answers whether the vendor H.264 decoder can be used as
+a live display source:
+
+- feeds `/data/local/tmp/vdec_in.h264` as **one real access unit per buffer**
+  with `OMX_BUFFERFLAG_ENDOFFRAME` (no zero padding, no immediate EOS);
+- tests `OMX.dji.video_decoder.avc.ffmpeg` by default, or
+  `OMX.dji.video_decoder.avc.vc8000d` when `/data/local/tmp/vdec_vc` exists;
+- logs `pre_eos frames` (the key number), `empty calls`, `eos`, and writes the
+  first 8 NV12 frames to `/data/local/tmp/vdec_out.nv12`;
+- armed by `/data/local/tmp/vdec_on`, one shot, full buffer/FreeHandle teardown.
+
+A non-zero `pre_eos frames` means the decoder is usable for a live path. The
+remaining piece is NV12 -> BGRA for `fb_shared` (libyuv/NEON) or a YUV overlay.
