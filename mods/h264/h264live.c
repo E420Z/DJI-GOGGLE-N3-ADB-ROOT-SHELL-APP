@@ -24,6 +24,15 @@ typedef int (*pthread_create_fn)(unsigned long *, const void *, void *(*)(void *
 #define STAT_PATH "/data/local/tmp/h264live.stat"
 #define PORT 5572
 #define MAX_AU (1024 * 1024)
+#define FB_W 1920
+#define FB_H 1080
+#define FB_SIZE ((long)FB_W * FB_H * 4)
+#define SHM_HEADER 64
+#define SHM_SIZE (SHM_HEADER + 2L * FB_SIZE)
+#define SHM_PATH "/data/local/tmp/fb_shared"
+#define OVR_PATH "/data/local/tmp/fb_override"
+#define HOLD_PATH "/data/local/tmp/fb_hold"
+#define STOP_PATH "/data/local/tmp/fb_stop"
 
 /* sockets */
 #define __NR_socket      198
@@ -33,6 +42,8 @@ typedef int (*pthread_create_fn)(unsigned long *, const void *, void *(*)(void *
 #define __NR_setsockopt  208
 #define __NR_fcntl       25
 #define __NR_unlinkat    35
+#define __NR_ftruncate   46
+#define __NR_mmap        222
 
 struct sockaddr_in_t {
     unsigned short sin_family;
@@ -85,6 +96,20 @@ static inline long sys_unlink(const char *p) {
     __asm__ volatile("svc 0" : "+r"(x0) : "r"(x1), "r"(x2), "r"(x8) : "memory");
     return x0;
 }
+static inline long sys_ftruncate(int fd, long len) {
+    register long x0 __asm__("x0") = fd; register long x1 __asm__("x1") = len;
+    register long x8 __asm__("x8") = __NR_ftruncate;
+    __asm__ volatile("svc 0" : "+r"(x0) : "r"(x1), "r"(x8) : "memory");
+    return x0;
+}
+static inline void *sys_mmap(void *addr, long len, int prot, int flags, int fd, long off) {
+    register long x0 __asm__("x0") = (long)addr; register long x1 __asm__("x1") = len;
+    register long x2 __asm__("x2") = prot; register long x3 __asm__("x3") = flags;
+    register long x4 __asm__("x4") = fd; register long x5 __asm__("x5") = off;
+    register long x8 __asm__("x8") = __NR_mmap;
+    __asm__ volatile("svc 0" : "+r"(x0) : "r"(x1), "r"(x2), "r"(x3), "r"(x4), "r"(x5), "r"(x8) : "memory");
+    return (void *)x0;
+}
 
 static dlsym_fn g_dlsym;
 static OMX_HANDLETYPE g_comp;
@@ -93,6 +118,10 @@ static volatile int g_state_ok, g_err, g_eos;
 static volatile int g_fill_calls, g_empty_calls, g_frames;
 static volatile long g_bytes;
 static int g_fd = -1;
+static int g_display;
+static void publish_nv12(const unsigned char *yuv);
+static void display_stop(void);
+static int display_init(void);
 static OMX_BUFFERHEADERTYPE *g_ib[4], *g_ob[4];
 static int g_ni, g_no;
 static OMX_U32 g_in_port, g_out_port;
@@ -134,6 +163,7 @@ static OMX_ERRORTYPE on_fill(OMX_HANDLETYPE h, OMX_PTR a, OMX_BUFFERHEADERTYPE *
     if (b->nFilledLen) {
         g_frames++;
         g_bytes += (long)b->nFilledLen;
+        if (g_display) publish_nv12(b->pBuffer + b->nOffset);
         if (g_frames <= 3) {
             NTLOG_INT("fill len=", (int)b->nFilledLen);
             NTLOG_INT("  flags=", (int)b->nFlags);
@@ -156,6 +186,7 @@ static OMX_ERRORTYPE on_fill(OMX_HANDLETYPE h, OMX_PTR a, OMX_BUFFERHEADERTYPE *
 static OMX_CALLBACKTYPE g_cbs = { on_event, on_empty, on_fill };
 
 static void teardown(void) {
+    if (g_display) { display_stop(); g_display = 0; }
     if (g_comp) {
         g_state_ok = 0;
         OMX_SendCommand(g_comp, OMX_CommandStateSet, OMX_StateIdle, 0);
@@ -177,6 +208,85 @@ static int read_full(int fd, void *buf, int n) {
         got += (int)r;
     }
     return got;
+}
+
+/* ---- display: NV12 -> BGRA -> fb_shared -> hook_overlay --------------- */
+static unsigned char *g_shm, *g_pixels;
+static volatile unsigned int *g_counter;
+static int g_tab;
+static int gy[256], grv[256], ggu[256], ggv[256], gbu[256];
+
+static int touch_file(const char *p) {
+    int fd = (int)sys_openat(AT_FDCWD, p, O_WRONLY | O_CREAT, 0644);
+    if (fd >= 0) { sys_close(fd); return 0; }
+    return -1;
+}
+
+static void display_stop(void) {
+    sys_unlink(OVR_PATH);
+    touch_file(STOP_PATH);
+}
+
+static int display_init(void) {
+    int fd = (int)sys_openat(AT_FDCWD, SHM_PATH, 2 | O_CREAT, 0666);
+    if (fd < 0) { NTLOG("fb_shared open failed"); return -1; }
+    if (sys_ftruncate(fd, SHM_SIZE) != 0) {
+        NTLOG("fb_shared ftruncate failed"); sys_close(fd); return -1;
+    }
+    void *p = sys_mmap(0, SHM_SIZE, 3 /*RW*/, 1 /*SHARED*/, fd, 0);
+    sys_close(fd);
+    if ((long)p < 0 && (long)p > -4096) { NTLOG("fb_shared mmap failed"); return -1; }
+    g_shm = (unsigned char *)p;
+    g_counter = (volatile unsigned int *)g_shm;
+    g_pixels = g_shm + SHM_HEADER;
+    *g_counter = 0;
+    sys_unlink(STOP_PATH);
+    touch_file(OVR_PATH);
+    touch_file(HOLD_PATH);
+    return 0;
+}
+
+static inline unsigned char cl8(int v) {
+    return v < 0 ? 0 : (v > 255 ? 255 : (unsigned char)v);
+}
+
+static void table_init(void) {
+    for (int i = 0; i < 256; i++) {
+        gy[i]  = (int)(1.164 * (i - 16) * 256.0);
+        grv[i] = (int)(1.793 * (i - 128) * 256.0);
+        ggu[i] = (int)(-0.213 * (i - 128) * 256.0);
+        ggv[i] = (int)(-0.533 * (i - 128) * 256.0);
+        gbu[i] = (int)(2.112 * (i - 128) * 256.0);
+    }
+}
+
+static void publish_nv12(const unsigned char *yuv) {
+    if (!g_shm) return;
+    if (!g_tab) { table_init(); g_tab = 1; }
+    unsigned int c = __atomic_load_n(g_counter, __ATOMIC_RELAXED);
+    unsigned char *base = g_pixels + (unsigned long)((c + 1) & 1u) * FB_SIZE;
+    const unsigned char *yp = yuv;
+    const unsigned char *uv = yuv + (long)FB_W * FB_H;
+    for (int y = 0; y < FB_H; y++) {
+        const unsigned char *yr = yp + (long)y * FB_W;
+        const unsigned char *ur = uv + (long)(y >> 1) * FB_W;
+        unsigned char *dst = base + (long)y * FB_W * 4;
+        for (int x = 0; x < FB_W; x += 2) {
+            int c0 = gy[yr[x]], c1 = gy[yr[x + 1]];
+            int u = ur[x], v = ur[x + 1];
+            int rv = grv[v], gu = ggu[u], gv = ggv[v], bu = gbu[u];
+            dst[0] = cl8((c0 + bu) >> 8);
+            dst[1] = cl8((c0 + gu + gv) >> 8);
+            dst[2] = cl8((c0 + rv) >> 8);
+            dst[3] = 255;
+            dst[4] = cl8((c1 + bu) >> 8);
+            dst[5] = cl8((c1 + gu + gv) >> 8);
+            dst[6] = cl8((c1 + rv) >> 8);
+            dst[7] = 255;
+            dst += 8;
+        }
+    }
+    __atomic_add_fetch(g_counter, 1, __ATOMIC_RELEASE);
 }
 
 static void worker(void) {
@@ -256,6 +366,10 @@ static void worker(void) {
     NTLOG_INT("exec=", g_state_ok);
     if (!g_state_ok) { teardown(); return; }
     for (int i = 0; i < g_no; i++) OMX_FillThisBuffer(g_comp, g_ob[i]);
+
+    g_display = (display_init() == 0);
+    NTLOG_INT("display=", g_display);
+    if (g_display) touch_file(HOLD_PATH);
 
     int lfd = (int)sys_socket(2, 1, 0);
     if (lfd < 0) { NTLOG("socket failed"); teardown(); return; }
