@@ -10,6 +10,10 @@ in-goggles menu apps, a live USB debug preview, and an in-goggles app SDK.
 > vendor OMX components are build-specific, so patches may fail or misbehave.
 > Check your version before using anything that writes to `/vendor`.
 
+**What you need:** Windows 10/11 x64, Python 3.12, and the goggles on a USB-C
+**data** cable. The root shell needs the libusb0 driver; live preview, file pulls
+and PC Stream also need ADB. Full list: [Requirements](#requirements).
+
 ![N3 ROOT connection page](docs/screenshot.png)
 
 *Refreshed control deck: grouped navigation, safety badges, session-only actions,
@@ -160,14 +164,38 @@ transmit/jam. Follow local law. See [`docs/SAFETY.md`](docs/SAFETY.md).
 
 ## Requirements
 
-- Windows 10/11 x64.
-- Python **3.12**.
-- `pip install -r requirements.txt` (CustomTkinter, Pillow).
-- Android **platform-tools** (`adb.exe`) in `PATH` or `C:\platform-tools`.
-- **libusb0** driver bound to the goggles' blackbox interface (use Zadig,
-  WinUSB/libusb0). This is what the root-shell transport uses.
-- Your goggles, a data USB cable, and the O4 air unit powered if you want a live
-  camera link (the UI itself works without one).
+### Hardware
+
+- **DJI Goggles N3**, firmware **0900** (the only version tested).
+- A USB-C **data** cable — charge-only cables will not enumerate.
+- Optional: the O4 air unit / aircraft powered on for a live camera link. The UI,
+  root shell and PC Stream all work without one.
+
+### PC
+
+- **Windows 10/11 x64.**
+- **Python 3.12.**
+- Python packages: `py -3.12 -m pip install -r requirements.txt`
+  (`pywebview`, `Pillow`, and `customtkinter` for the Tk fallback).
+- **Microsoft Edge WebView2 runtime** — preinstalled on Windows 11 and most
+  Windows 10 installs; if the window is blank, install the Evergreen runtime.
+- **libusb0 driver** bound to the goggles' blackbox interface (Zadig →
+  WinUSB/libusb0). This is the transport the root shell uses. Without it,
+  **Start root** cannot talk to the device.
+- **Android platform-tools** (`adb.exe`) in `PATH` or `C:\platform-tools`. Needed
+  for ADB, live preview, screenshots, file pulls and PC Stream.
+
+### Per feature
+
+| Feature | Also needs |
+|---|---|
+| Control deck UI | WebView2 runtime (falls back to the Tk app) |
+| Root shell | libusb0 driver on the goggles |
+| ADB / files / logs | `adb.exe` from platform-tools |
+| E420Z live preview + screenshots | ADB, plus the `n3live` mod installed from Mods & UI |
+| PC Stream (desktop → goggles) | ADB **and** the root shell, plus the **Frame injection (PC stream)** mod |
+| Themes / custom background | a local copy of the stock `libew_gls_stock.so` (DJI binary, not in this repo) |
+| E420Z stock row / panel | install the menu mods from Mods & UI |
 
 The Linux/macOS app can use an already-enabled ADB connection; the
 `dji_blackbox` root-shell step is Windows-only in this release. A small
@@ -184,10 +212,12 @@ py -3.12 -m pip install -r requirements.txt
 powershell -ExecutionPolicy Bypass -File run.ps1
 ```
 
-Or double-click **`Start N3 ROOT.cmd`**, or:
+Or double-click **`Start N3 ROOT.cmd`**. It launches the pywebview UI and falls
+back to the Tk app automatically if pywebview or the web files are missing:
 
 ```powershell
-py -3.12 app\main.py
+py -3.12 app\webapp.py    # control deck (default)
+py -3.12 app\main.py      # classic Tk app (fallback)
 ```
 
 ### First run
@@ -195,14 +225,16 @@ py -3.12 app\main.py
 1. Connect the goggles by USB and power them on.
 2. Open **Connection** → **Start root** (the blackbox RCE listens on
    `192.168.60.2:4444`).
-3. **Enable ADB** if you want the live preview / screenshots / file pulls.
+3. **Enable ADB** if you want live preview / screenshots / PC Stream / file pulls.
 4. Open **E420Z** → **Start live** for the live UI preview.
-5. Use **Mods & UI** for theme, background, and the custom menu.
+5. **PC Stream** → install **Frame injection (PC stream)** in Mods & UI, restart
+   the UI, then **Start stream**.
+6. Use **Mods & UI** for theme, background, and the custom menu.
 
 ### Recover from a black screen
 
 ```powershell
-py -3.12 app\main.py
+py -3.12 app\webapp.py     # or app\main.py
 ```
 
 Then **Connection → Recover stock UI**, or from a terminal:
