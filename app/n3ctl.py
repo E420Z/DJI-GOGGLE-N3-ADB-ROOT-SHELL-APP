@@ -17,6 +17,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import threading
 import time
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -26,13 +27,13 @@ sys.path.insert(0, TOOLS)
 import spawn_shell          # noqa: E402
 import libusb0_dji as L     # noqa: E402
 
-HOST = os.environ.get("N3_HOST", "192.168.60.2")
+_EXPLICIT_HOST = os.environ.get("N3_HOST")
+HOST = _EXPLICIT_HOST or "192.168.60.2"
 PORT = 4444
 RCV_PORT = 9010
 VID = 0x2CA3
 
-# Kills the temporary :4444 listener and its respawn subshell without needing
-# a second root-shell connection. Runs through the same dji_blackbox RCE.
+# Kills the temporary :4444 listener and its respawn subshell without needing# a second root-shell connection. Runs through the same dji_blackbox RCE.
 STOP_RCE = (
     r"""foo;for i in 1 2 3;do """
     r"""p=$(netstat -tlnp|grep ':4444 '|head -1|sed 's/.* \([0-9]*\)\/.*/\1/');"""
@@ -70,12 +71,124 @@ def _noop(_msg):
 
 # ---------------------------------------------------------------- root shell
 
+# The goggles' RNDIS address is not guaranteed to be 192.168.60.2 (a different
+# firmware or a Windows ICS adapter can move the subnet). Discover it from the
+# PC's own RNDIS/USB IPv4 subnet instead of relying on one hardcoded address.
+_LOCAL_IPS = None
+_LOCAL_AT = 0.0
+_SCAN_LOCK = threading.Lock()
+_SCAN_AT = 0.0
+_SCANNING = False
+
+
+def _local_ipv4():
+    """IPv4 addresses of the PC's RNDIS/USB adapters (cached 20 s)."""
+    global _LOCAL_IPS, _LOCAL_AT
+    now = time.time()
+    if _LOCAL_IPS is not None and now - _LOCAL_AT < 20:
+        return _LOCAL_IPS
+    ips = []
+    try:
+        cmd = (
+            "Get-CimInstance Win32_NetworkAdapterConfiguration "
+            "-Filter 'IPEnabled=TRUE' | ForEach-Object { "
+            "$_.Description + '|' + ($_.IPAddress -join ',') }"
+        )
+        r = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", cmd],
+            capture_output=True, text=True, timeout=6)
+        entries = []
+        for line in (r.stdout or "").splitlines():
+            desc, _sep, addrs = line.strip().partition("|")
+            v4 = [ip for ip in addrs.split(",")
+                  if ip.count(".") == 3 and not ip.startswith("169.254.")]
+            if v4:
+                entries.append((desc.lower(), v4))
+        preferred = [ip for desc, v4 in entries
+                     if any(k in desc for k in ("rndis", "remote ndis", "usb"))
+                     for ip in v4]
+        ips = preferred or [ip for _desc, v4 in entries for ip in v4]
+    except Exception:  # noqa: BLE001
+        ips = []
+    _LOCAL_IPS = ips
+    _LOCAL_AT = now
+    return ips
+
+
+def candidate_hosts():
+    """Likely goggles addresses: explicit override, then local /24 .2/.1/.129."""
+    if _EXPLICIT_HOST:
+        return [_EXPLICIT_HOST]
+    local = _local_ipv4()
+    out = ["192.168.60.2"]
+    for ip in local:
+        base = ".".join(ip.split(".")[:3])
+        for last in ("2", "1", "129"):
+            host = "%s.%s" % (base, last)
+            if host in local:          # never probe the PC itself
+                continue
+            if host not in out:
+                out.append(host)
+    return out
+
+
+def _probe_host(host: str, timeout: float = 0.35) -> bool:
+    try:
+        s = socket.create_connection((host, PORT), timeout=timeout)
+        s.close()
+        return True
+    except OSError:
+        return False
+
+
+def find_root(timeout: float = 8.0, log=_noop) -> bool:
+    """Find the running shell, scanning local RNDIS subnets if needed."""
+    global HOST
+    if _probe_host(HOST):
+        return True
+    cands = candidate_hosts()
+    log("Scanning for the root shell: %s" % ", ".join(cands))
+    end = time.time() + timeout
+    while time.time() < end:
+        for host in cands:
+            if host == HOST:
+                continue
+            if _probe_host(host):
+                HOST = host
+                log("Root shell found at %s:%d." % (HOST, PORT))
+                return True
+        time.sleep(0.25)
+    return False
+
+
+def maybe_discover() -> None:
+    """Background scan, throttled, so status can recover a moved address."""
+    global _SCAN_AT, _SCANNING
+    now = time.time()
+    with _SCAN_LOCK:
+        if _SCANNING or now - _SCAN_AT < 10:
+            return
+        _SCAN_AT = now
+        _SCANNING = True
+
+    def work():
+        global _SCANNING
+        try:
+            find_root(4.0, _noop)
+        finally:
+            with _SCAN_LOCK:
+                _SCANNING = False
+
+    threading.Thread(target=work, daemon=True).start()
+
+
 def is_root() -> bool:
     try:
         s = socket.create_connection((HOST, PORT), timeout=1.5)
         s.close()
         return True
     except OSError:
+        maybe_discover()
         return False
 
 
@@ -115,22 +228,20 @@ def run_root(cmd: str, timeout: float = 8.0, retries: int = 0) -> str:
 
 def start_root(log=_noop) -> bool:
     """Start the root shell via the stock dji_blackbox RCE."""
-    if is_root():
+    if find_root(2.0, log):
         log("Root shell is already running on %s:%d." % (HOST, PORT))
         return True
     log("Sending root-shell payload via dji_blackbox...")
     rc, out = spawn_shell.send(spawn_shell.SHELL_CMD, wait_ms=1800)
     acks = ", ".join("ack=%02x" % ack for ack, _ in out) or "no reply"
     log("RCE reply: %s" % acks)
-    for _ in range(24):
-        if is_root():
-            log("Root shell is up: %s:%d (uid 0, dji_services)." % (HOST, PORT))
-            return True
-        time.sleep(0.25)
-    log("Root shell did not answer on %s:%d." % (HOST, PORT))
-    log("The payload was accepted, so check the RNDIS adapter with ipconfig. "
-        "If its subnet is not 192.168.60.x, start the app with "
-        "N3_HOST=<goggles IP> (or edit HOST in app/n3ctl.py).")
+    if find_root(10.0, log):
+        log("Root shell is up: %s:%d (uid 0, dji_services)." % (HOST, PORT))
+        return True
+    log("Root shell did not answer on any local RNDIS address (tried %s)."
+        % ", ".join(candidate_hosts()))
+    log("Check that the goggles' RNDIS adapter is present in ipconfig, and that "
+        "the firmware matches a tested build (0900).")
     return False
 
 

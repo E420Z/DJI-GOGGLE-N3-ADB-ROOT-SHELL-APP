@@ -126,13 +126,17 @@ the `dji_services` root shell (RCE) if they need cleaning.
 `ack=c0` only means `dji_blackbox` accepted the log payload. It does **not**
 prove the shell bound. Check, in order:
 
-1. **RNDIS address.** The app defaults to `192.168.60.2`. Run `ipconfig`: the
-   goggles adapter must be `192.168.60.x` (PC `.1`). If there is no such
-   adapter, RNDIS is down even though the blackbox bulk interface works.
-2. **Different subnet.** Set `N3_HOST` before launching, then press **Start
-   root** (not Enable ADB, which needs root first):
-   `set N3_HOST=192.168.42.129` (cmd) or `$env:N3_HOST="192.168.42.129"`
-   (PowerShell). You can also edit `HOST` in `app/n3ctl.py`.
+1. **RNDIS address.** The app now **scans the RNDIS subnet** for the shell:
+   it reads the IPv4 address of the `Remote NDIS`/USB adapter and probes
+   `x.y.z.2` and `x.y.z.129` on port 4444, then adopts whichever answers. It
+   never scans Wi-Fi/LAN. `N3_HOST` still overrides the scan.
+   Run `ipconfig`: if there is no RNDIS adapter at all, RNDIS is down even
+   though the blackbox bulk interface works.
+2. **Manual override.** If scanning is blocked or you know the address, set
+   `N3_HOST` before launching, then press **Start root** (not Enable ADB, which
+   needs root first): `set N3_HOST=192.168.42.129` (cmd) or
+   `$env:N3_HOST="192.168.42.129"` (PowerShell). You can also edit `HOST` in
+   `app/n3ctl.py`.
 3. **Port.** `Test-NetConnection <ip> -Port 4444` must succeed. Refused means
    the payload did not start.
 4. **Firmware.** Only **0900** is tested. On 1.09 the `dji_blackbox` build or
