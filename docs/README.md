@@ -27,6 +27,7 @@
 Start with `APP.md` for usage and `ROOT-EXPLOIT.md` for the transport.
 | [VIDEO-OUT.md](VIDEO-OUT.md) | **1080p out to the PC: the goggles already encodes H.264 at 50 fps.** |
 | [PC-STREAM.md](PC-STREAM.md) | **Desktop into the goggles: architecture, measured fps, latency, anti burn-in, troubleshooting.** |
+| [PC-TO-GOGGLES.md](PC-TO-GOGGLES.md) | **1080p60 PC → goggles: `extra_blending` URL/port config, why the probe was black, H.264 vs H.265.** |
 | [LIVEVIEW-SHARE.md](LIVEVIEW-SHARE.md) | **Share Liveview: property toggle, 60 fps measurement, AOA transport, why PC capture is blocked.** |
 | [GSTREAM.md](GSTREAM.md) | **Goggles -> PC video out: 1080p60 H.264 over TCP, real SPS/PPS, ffmpeg/MSE page, 10 Mbps pipe ceiling.** |
 | [RELEASE-v1.2.0.md](RELEASE-v1.2.0.md) | **v1.2.0 release notes: Goggles Stream + RNDIS auto-discovery.** |
@@ -36,4 +37,5 @@ Start with `APP.md` for usage and `ROOT-EXPLOIT.md` for the transport.
 | [`../perma-root-exp/STATIC-ANALYSIS.md`](../perma-root-exp/STATIC-ANALYSIS.md) | **Static boot/SELinux/AVB analysis for the perma-root path.** |
 | [`../perma-root-exp/BOOT-ADB.md`](../perma-root-exp/BOOT-ADB.md) | **Boot ADB gate, runtime proof, perma hook, expected output.** |
 | [`../perma-root-exp/DEVICE-WIDE-ROOT.md`](../perma-root-exp/DEVICE-WIDE-ROOT.md) | **Device-wide root capabilities and the `/system` verity limit.** |
+| [`../perma-root-exp/VERITY-BYPASS-EXP.md`](../perma-root-exp/VERITY-BYPASS-EXP.md) | **Why userspace root cannot disable dm-verity/AVB; `/system` stays read-only.** |
 | [`../perma-root-exp/PLAN.md`](../perma-root-exp/PLAN.md) | **Phased benign → armed test and recovery.** |

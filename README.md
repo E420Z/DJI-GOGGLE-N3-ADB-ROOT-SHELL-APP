@@ -75,7 +75,8 @@ irreversible.
   encoder, no transcode. The vendor pipe caps it at **10 Mbps**.
 - **PC → goggles:** the shipped path is JPEG; a validated **H.264 + hardware
   decoder** path is in development (see
-  [`docs/PC-STREAM.md`](docs/PC-STREAM.md)).
+  [`docs/PC-STREAM.md`](docs/PC-STREAM.md)). The 1080p60 display-sink route is
+  in [`docs/PC-TO-GOGGLES.md`](docs/PC-TO-GOGGLES.md).
 - **Find N3:** matches the goggles by `USB\VID_2CA3` and reads the IP/neighbours
   of **its** RNDIS adapter. It never falls back to Wi-Fi or a home LAN, and it
   says whether the failure is “no USB”, “no RNDIS” or “RNDIS up, no shell”.

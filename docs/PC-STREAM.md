@@ -3,6 +3,11 @@
 Turn the goggles into a second monitor for your PC over the existing USB link.
 No radio, no Wi-Fi, no capture card.
 
+> For the **1080p60 display-sink route** (H.264/HEVC, `extra_blending`), see
+> [`PC-TO-GOGGLES.md`](PC-TO-GOGGLES.md). The JPEG path below is the shipped
+> fallback; the H.264 transport/decoder is proven, but the vendor display sink
+> still needs its URL/port config.
+
 ## How it works
 
 ```

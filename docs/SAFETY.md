@@ -66,6 +66,8 @@ If any instruction or tool asks you to write `/system`, stop.
 - Device-wide limits: root covers non-verity paths; `/system` stays
   read-only. See [`DEVICE-WIDE-ROOT.md`](../perma-root-exp/DEVICE-WIDE-ROOT.md).
   Never run `adb remount` or remount `/system`.
+- Why verity/AVB cannot be safely disabled:
+  [`VERITY-BYPASS-EXP.md`](../perma-root-exp/VERITY-BYPASS-EXP.md).
 
 ## Recovery
 

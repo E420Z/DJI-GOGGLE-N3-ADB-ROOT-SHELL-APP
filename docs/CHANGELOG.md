@@ -14,6 +14,11 @@
   `DEVICE-WIDE-ROOT.md` (capability matrix; `/system` remains read-only).
 - Added `host/rootctl.py`: guarded `ls`/`cat`/`pull`/`push`/`exec` over root
   adb; `/system` and block-device writes are refused.
+- Added `docs/PC-TO-GOGGLES.md`: the `extra_blending` 1080p main + 640x360 sub
+  config, the `OMX_SetParameter(0x0100000D)` URL, why the earlier probe was
+  black, and H.264 vs H.265.
+- Added `perma-root-exp/VERITY-BYPASS-EXP.md`: why userspace root cannot
+  disable dm-verity/AVB; `/system` stays read-only.
 - Trimmed unsupported capture notes from `SPARROW2.md`.
 
 ## 1.3.0 — Deterministic Find N3 (2026-11-27)

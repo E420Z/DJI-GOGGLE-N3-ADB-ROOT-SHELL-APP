@@ -57,6 +57,7 @@ itself from `boot-adb.sh`.
 | `STATIC-ANALYSIS.md` | Boot gate, SELinux, hook, AVB, risks |
 | `BOOT-ADB.md` | Exact adbd gate, runtime proof, perma hook, expected output |
 | `DEVICE-WIDE-ROOT.md` | Capability matrix; what root can write; why `/system` stays read-only |
+| `VERITY-BYPASS-EXP.md` | Why dm-verity/AVB cannot be safely disabled; `/system` remains read-only |
 | `PLAN.md` | Phased benign -> armed test and recovery |
 
 ## Safety
