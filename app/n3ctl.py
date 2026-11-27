@@ -19,6 +19,7 @@ import subprocess
 import sys
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 TOOLS = os.path.join(APP_DIR, "tools")
@@ -107,7 +108,13 @@ def _local_ipv4():
         preferred = [ip for desc, v4 in entries
                      if any(k in desc for k in ("rndis", "remote ndis", "usb"))
                      for ip in v4]
-        ips = preferred or [ip for _desc, v4 in entries for ip in v4]
+        if not preferred:
+            bad = ("wi-fi", "wireless", "802.11", "tailscale", "vpn", "wireguard",
+                   "hyper-v", "vmware", "virtualbox", "npcap", "loopback", "bluetooth")
+            preferred = [ip for desc, v4 in entries
+                         if not any(k in desc for k in bad)
+                         for ip in v4]
+        ips = preferred
     except Exception:  # noqa: BLE001
         ips = []
     _LOCAL_IPS = ips
@@ -141,20 +148,55 @@ def _probe_host(host: str, timeout: float = 0.35) -> bool:
         return False
 
 
-def find_root(timeout: float = 8.0, log=_noop) -> bool:
-    """Find the running shell, scanning local RNDIS subnets if needed."""
+def _scan_hosts(hosts, timeout: float = 0.3):
+    """Threaded port probe; returns the first host that answers, or None."""
+    with ThreadPoolExecutor(max_workers=64) as ex:
+        futs = {ex.submit(_probe_host, h, timeout): h for h in hosts}
+        for f in as_completed(futs):
+            try:
+                if f.result():
+                    return futs[f]
+            except Exception:  # noqa: BLE001
+                pass
+    return None
+
+
+def _sweep_rndis(log=_noop):
+    """Full /24 sweep of the RNDIS subnet (the device's DHCP lease is unknown)."""
+    local = set(_local_ipv4())
+    for ip in _local_ipv4():
+        base = ".".join(ip.split(".")[:3])
+        hosts = ["%s.%d" % (base, n) for n in range(1, 255)
+                 if "%s.%d" % (base, n) not in local]
+        log("Sweeping %s.1-254 for port %d..." % (base, PORT))
+        found = _scan_hosts(hosts)
+        if found:
+            return found
+    return None
+
+
+def find_root(timeout: float = 8.0, log=_noop, sweep: bool = True) -> bool:
+    """Find the running shell; optionally sweep the RNDIS /24."""
     global HOST
     if _probe_host(HOST):
         return True
     cands = candidate_hosts()
     log("Scanning for the root shell: %s" % ", ".join(cands))
     end = time.time() + timeout
+    swept = False
     while time.time() < end:
         for host in cands:
             if host == HOST:
                 continue
             if _probe_host(host):
                 HOST = host
+                log("Root shell found at %s:%d." % (HOST, PORT))
+                return True
+        if sweep and not _EXPLICIT_HOST and not swept:
+            swept = True
+            found = _sweep_rndis(log)
+            if found:
+                HOST = found
                 log("Root shell found at %s:%d." % (HOST, PORT))
                 return True
         time.sleep(0.25)
@@ -174,7 +216,7 @@ def maybe_discover() -> None:
     def work():
         global _SCANNING
         try:
-            find_root(4.0, _noop)
+            find_root(4.0, _noop, sweep=False)
         finally:
             with _SCAN_LOCK:
                 _SCANNING = False
@@ -228,20 +270,44 @@ def run_root(cmd: str, timeout: float = 8.0, retries: int = 0) -> str:
 
 def start_root(log=_noop) -> bool:
     """Start the root shell via the stock dji_blackbox RCE."""
-    if find_root(2.0, log):
+    if find_root(2.0, log, sweep=False):
         log("Root shell is already running on %s:%d." % (HOST, PORT))
         return True
+
+    def attempt(full: bool) -> None:
+        label = "full" if full else "minimal"
+        try:
+            if full:
+                # clear any half-started listener, then run the DJI-Assistant
+                # style session init before the RCE frame
+                spawn_shell.send(spawn_shell.STOP_CMD, wait_ms=800)
+                time.sleep(0.3)
+            rc, out = spawn_shell.send(
+                spawn_shell.SHELL_CMD,
+                wait_ms=2500 if full else 1800,
+                full_init=full)
+            acks = ", ".join("ack=%02x" % ack for ack, _ in out) or "no reply"
+            log("RCE reply (%s init): %s" % (label, acks))
+        except Exception as exc:  # noqa: BLE001
+            log("RCE send failed (%s init): %s" % (label, exc))
+
     log("Sending root-shell payload via dji_blackbox...")
-    rc, out = spawn_shell.send(spawn_shell.SHELL_CMD, wait_ms=1800)
-    acks = ", ".join("ack=%02x" % ack for ack, _ in out) or "no reply"
-    log("RCE reply: %s" % acks)
-    if find_root(10.0, log):
+    attempt(False)
+    if find_root(7.0, log):
         log("Root shell is up: %s:%d (uid 0, dji_services)." % (HOST, PORT))
         return True
+
+    log("No listener; retrying with the full DUML session init...")
+    attempt(True)
+    if find_root(8.0, log):
+        log("Root shell is up: %s:%d (uid 0, dji_services)." % (HOST, PORT))
+        return True
+
     log("Root shell did not answer on any local RNDIS address (tried %s)."
         % ", ".join(candidate_hosts()))
-    log("Check that the goggles' RNDIS adapter is present in ipconfig, and that "
-        "the firmware matches a tested build (0900).")
+    log("The payload was accepted but nothing bound. If the handshake reported "
+        "0 replies, the 1.09 blackbox path differs from 0900; this build is "
+        "untested and may need new offsets.")
     return False
 
 

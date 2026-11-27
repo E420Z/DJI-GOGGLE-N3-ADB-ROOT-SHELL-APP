@@ -126,12 +126,12 @@ the `dji_services` root shell (RCE) if they need cleaning.
 `ack=c0` only means `dji_blackbox` accepted the log payload. It does **not**
 prove the shell bound. Check, in order:
 
-1. **RNDIS address.** The app now **scans the RNDIS subnet** for the shell:
-   it reads the IPv4 address of the `Remote NDIS`/USB adapter and probes
-   `x.y.z.2` and `x.y.z.129` on port 4444, then adopts whichever answers. It
-   never scans Wi-Fi/LAN. `N3_HOST` still overrides the scan.
-   Run `ipconfig`: if there is no RNDIS adapter at all, RNDIS is down even
-   though the blackbox bulk interface works.
+1. **RNDIS address.** The app reads the IPv4 of the `Remote NDIS`/USB adapter
+   and probes `x.y.z.2` and `x.y.z.129` on port 4444. If neither answers it
+   **sweeps the whole RNDIS /24** (`x.y.z.1-254`), because Windows ICS can hand
+   the goggles any DHCP lease. It never scans Wi-Fi/VPN/LAN subnets.
+   `N3_HOST` still overrides the scan. Run `ipconfig`: no RNDIS adapter at all
+   means RNDIS is down even though the blackbox bulk interface works.
 2. **Manual override.** If scanning is blocked or you know the address, set
    `N3_HOST` before launching, then press **Start root** (not Enable ADB, which
    needs root first): `set N3_HOST=192.168.42.129` (cmd) or
@@ -139,9 +139,13 @@ prove the shell bound. Check, in order:
    `app/n3ctl.py`.
 3. **Port.** `Test-NetConnection <ip> -Port 4444` must succeed. Refused means
    the payload did not start.
-4. **Firmware.** Only **0900** is tested. On 1.09 the `dji_blackbox` build or
-   its `busybox`/`nc` path may differ; `ack=c0` can still occur with no
-   listener. Do not loop; keep `/system/bin/dji_blackbox` from that build for a
-   comparison.
+4. **Firmware / handshake.** Only **0900** is tested. On a working 0900 the log
+   says `handshake replies: 1`; **`handshake replies: 0` is a red flag** — the
+   minimal DUML init was not acknowledged. The app now retries automatically
+   after the **full DUML session init** (the DJI-Assistant-style init used for
+   file reads) and the shell command tries
+   `/system/xbin/busybox`, `/system/bin/busybox`, then `/system/bin/toybox`.
+   If both attempts still fail, the 1.09 `dji_blackbox` path likely changed;
+   keep that build's `/system/bin/dji_blackbox` for comparison. Do not loop.
 5. **Link.** Try another USB port/cable, no hub, and wait ~30 s; RNDIS can take
    a few seconds to re-enumerate.
