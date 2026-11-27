@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.2.1 — RNDIS auto-recovery (2026-11-27)
+
+- **The root-shell helper now finds the DJI network adapter itself** by USB PnP
+  ID (`VID_2CA3`); it never touches Wi-Fi, VPN, Tailscale or a normal Ethernet
+  adapter.
+- **APIPA recovery.** If the adapter only has a `169.254.x` address (no DHCP
+  lease), it renews DHCP, then temporarily adds `192.168.60.1/24`,
+  `192.168.42.1/24` or `192.168.137.1/24` to that adapter and sweeps the /24 for
+  port 4444. The temporary address is removed on Stop root or app exit; this
+  needs administrator.
+- **Full /24 sweep** for any DHCP lease, not just `.2`/`.129`.
+- **Full DUML session init retry**: if the minimal handshake yields no listener,
+  the RCE is retried after the DJI-Assistant-style init used for file reads.
+- **Multi-`nc` payload**: `/system/xbin/busybox`, `/system/bin/busybox`, then
+  `/system/bin/toybox`.
+- `handshake replies: 0` is called out as a red flag in the troubleshooting
+  docs. Firmware 1.09 remains untested; these are fallbacks, not a verified
+  1.09 exploit.
+- Goggles Stream is unchanged from 1.2.0 (1080p60, 10 Mbps confirmed).
+
 ## 1.2.0 — Goggles Stream (2026-11-27)
 
 - **Goggles Stream page + `app/gstream.py`**: plays the goggles' own
