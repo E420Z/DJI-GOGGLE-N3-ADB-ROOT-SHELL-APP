@@ -19,6 +19,9 @@
   black, and H.264 vs H.265.
 - Added `perma-root-exp/VERITY-BYPASS-EXP.md`: why userspace root cannot
   disable dm-verity/AVB; `/system` stays read-only.
+- Added `perma-root-exp/SELINUX-PERMISSIVE.md`: what permissive would unlock
+  (SELinux checks only), why `su`/`dji_services` cannot `setenforce`, and why
+  `/system`/verity are unaffected.
 - Trimmed unsupported capture notes from `SPARROW2.md`.
 
 ## 1.3.0 — Deterministic Find N3 (2026-11-27)

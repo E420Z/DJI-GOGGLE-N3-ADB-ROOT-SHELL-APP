@@ -38,4 +38,5 @@ Start with `APP.md` for usage and `ROOT-EXPLOIT.md` for the transport.
 | [`../perma-root-exp/BOOT-ADB.md`](../perma-root-exp/BOOT-ADB.md) | **Boot ADB gate, runtime proof, perma hook, expected output.** |
 | [`../perma-root-exp/DEVICE-WIDE-ROOT.md`](../perma-root-exp/DEVICE-WIDE-ROOT.md) | **Device-wide root capabilities and the `/system` verity limit.** |
 | [`../perma-root-exp/VERITY-BYPASS-EXP.md`](../perma-root-exp/VERITY-BYPASS-EXP.md) | **Why userspace root cannot disable dm-verity/AVB; `/system` stays read-only.** |
+| [`../perma-root-exp/SELINUX-PERMISSIVE.md`](../perma-root-exp/SELINUX-PERMISSIVE.md) | **What permissive would/would not unlock; `setenforce` policy.** |
 | [`../perma-root-exp/PLAN.md`](../perma-root-exp/PLAN.md) | **Phased benign → armed test and recovery.** |

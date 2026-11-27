@@ -64,6 +64,19 @@ For `/vendor`, the app has written mods in the past, but the policy/denial
 picture is mixed. Test one small file at runtime and verify the mount, rather
 than assuming `su` can do it.
 
+## SELinux permissive?
+
+The policy has **no `(permissive ...)` declaration** and `dji_domain` is
+`neverallow`ed from `setenforce`. `su` has `sys_admin` but no
+`security (setenforce)` allow; only `kernel` can set the state. A runtime
+`setenforce 0` from the perma-ADB `su` shell is denied.
+
+If it were permissive, SELinux checks would be logged and allowed: `/data`
+exec, mount/bind, relabel, property sets. It would **not** disable
+dm-verity/AVB; `/system` raw writes still brick, and reboot returns to
+Enforcing unless the boot cmdline, kernel, or policy changed. See
+[`SELINUX-PERMISSIVE.md`](SELINUX-PERMISSIVE.md).
+
 ## Routes, safest first
 
 ### A. Perma-ADB + `su` (recommended)

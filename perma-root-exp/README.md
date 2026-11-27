@@ -58,6 +58,7 @@ itself from `boot-adb.sh`.
 | `BOOT-ADB.md` | Exact adbd gate, runtime proof, perma hook, expected output |
 | `DEVICE-WIDE-ROOT.md` | Capability matrix; what root can write; why `/system` stays read-only |
 | `VERITY-BYPASS-EXP.md` | Why dm-verity/AVB cannot be safely disabled; `/system` remains read-only |
+| `SELINUX-PERMISSIVE.md` | What permissive would/would not unlock; who can call `setenforce` |
 | `PLAN.md` | Phased benign -> armed test and recovery |
 
 ## Safety

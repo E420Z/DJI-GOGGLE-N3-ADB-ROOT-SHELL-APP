@@ -68,6 +68,8 @@ If any instruction or tool asks you to write `/system`, stop.
   Never run `adb remount` or remount `/system`.
 - Why verity/AVB cannot be safely disabled:
   [`VERITY-BYPASS-EXP.md`](../perma-root-exp/VERITY-BYPASS-EXP.md).
+- What SELinux permissive would change (and why the current root cannot flip
+  it): [`SELINUX-PERMISSIVE.md`](../perma-root-exp/SELINUX-PERMISSIVE.md).
 
 ## Recovery
 
