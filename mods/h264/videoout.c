@@ -475,6 +475,9 @@ static void *mod_worker(void *arg) {
                 struct timeval_t tv;
                 tv.tv_sec = 1; tv.tv_usec = 0;
                 sys_setsockopt(fd, 1, 20 /*SO_SNDTIMEO*/, &tv, sizeof(tv));
+                int nodelay = 1;
+                sys_setsockopt(fd, 6 /*IPPROTO_TCP*/, 1 /*TCP_NODELAY*/,
+                               &nodelay, 4);
                 lock();
                 g_head = 0;
                 g_tail = 0;

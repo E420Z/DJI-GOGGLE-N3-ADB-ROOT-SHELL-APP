@@ -34,7 +34,7 @@ MARKER = "/data/local/tmp/videoout_on"
 STAT_PATH = "/data/local/tmp/videoout.stat"
 STREAM_URL = "http://127.0.0.1:%d/stream.mp4" % HTTP_PORT
 
-BOX_CAP = 4 * 1024 * 1024
+BOX_CAP = 512 * 1024
 
 
 def find_ffmpeg() -> str:
@@ -189,6 +189,7 @@ class _Handler(BaseHTTPRequestHandler):
                     continue
                 seg, cursor = item
                 self.wfile.write(seg)
+                self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError, OSError):
             pass
 
@@ -320,6 +321,10 @@ class GogglesStream:
             if sock is None:
                 raise RuntimeError("No listener on %s:%d (mod did not arm)." % (HOST, TCP_PORT))
             self.sock = sock
+            try:
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            except OSError:
+                pass
 
             self._start_http()
             self._start_ffmpeg()
@@ -394,7 +399,8 @@ class GogglesStream:
             "-probesize", "32", "-analyzeduration", "0",
             "-framerate", "60", "-f", "h264", "-i", "pipe:0",
             "-c", "copy",
-            "-movflags", "+frag_keyframe+empty_moov+default_base_moof",
+            "-movflags", "+frag_every_frame+empty_moov+default_base_moof",
+            "-flush_packets", "1",
             "-f", "mp4", "pipe:1",
         ]
         flags = 0

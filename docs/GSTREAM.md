@@ -73,6 +73,26 @@ extracted frame was the real goggles UI at 1920×1080.
 The channel's own stats confirm the encoder: `avg_fps 60.01`, `avg_interval
 16.66 ms`.
 
+## Latency
+
+The first build fragmented the MP4 only at keyframes (`frag_keyframe`), so the
+muxer could hold a whole GOP (~0.8 s) before the browser saw anything. The
+current pipeline:
+
+- **`-movflags +frag_every_frame`** — one `moof`/`mdat` per frame (~16.7 ms),
+  plus `-flush_packets 1`.
+- **512 KB ring** (was 4 MB) and `flush()` after every segment.
+- **`TCP_NODELAY`** on both the goggles socket and the PC socket.
+- MSE keeps **0.12 s** behind the live edge and jumps when it falls more than
+  **0.6 s** behind (was 0.4 s / 2 s).
+
+Offline validation against a captured 1080p60 stream: **312 frames → 312
+fragments**, `ffprobe` 1920×1080 at ~60 fps, **0 decode errors**.
+
+The page shows the player buffer (`gsPlayer`). End-to-end glass-to-glass still
+needs a device run; `app/state/gstream_latency_test.py` samples the real
+WebView2 player.
+
 ## Why the bitrate stops at 10 Mbps
 
 `/system/etc/app_liveview_pipe.json` builds the graph:

@@ -4,7 +4,6 @@ Goal: PC sends H.264, the goggles decodes it with the hardware/ffmpeg decoder
 and puts it on the display, so 1080p60 fits in ~1 MB/s.
 
 ## Goggles → PC video out (2026-11-27)
-
 The other direction is now shipped: `videoout.c` / `n3videoout.so` reads the
 encoded channel with `OMX.dji.video_reader.avc.mdc`, prepends the **real**
 vc8000e SPS/PPS and serves Annex-B H.264 on **TCP 5571**.
@@ -23,6 +22,31 @@ vc8000e SPS/PPS and serves Annex-B H.264 on **TCP 5571**.
 1080p YUV channel (`zv900_liveview_lcdc_chn`) at 59.3 fps. A second vc8000e
 instance accepts 60 Mbps, so a custom reader→encoder graph is the only way past
 the 10 Mbps pipe cap (which lives in read-only `/system`).
+
+## 60 Mbps encoder probe (experimental, not shipped)
+
+`encprobe.c` / `n3encprobe.so` opens a **second vc8000e** at 60 Mbps, copies the
+LCDC YUV frames into it, and writes the elementary stream to
+`/data/local/tmp/enc_hi.h264`.
+
+- Armed by `/data/local/tmp/enc_on`; one shot.
+- `/data/local/tmp/enc_synth` replaces the UI frames with a moving pattern, to
+  measure the encoder's true bitrate ceiling (the UI is mostly static).
+- 3 s / 24 MB cap, then Idle → free buffers → `OMX_FreeHandle` (resolved by
+  `dlsym`; this core does not export it in the global namespace).
+- Writes only `/data/local/tmp`; the display pipeline is untouched.
+
+Manual run:
+
+```sh
+touch /data/local/tmp/enc_synth          # optional: synthetic motion
+touch /data/local/tmp/enc_on
+sleep 4
+# pull /data/local/tmp/enc_hi.h264
+```
+
+The next step is a TCP 5572 variant so the page can play the 60 Mbps stream
+directly, with the encoder's own CSD (SPS/PPS) as the sequence header.
 
 ## Status
 

@@ -16,8 +16,8 @@
   var POLL_MS = 1000;
   var SPARK_N = 60;                               // one sample per poll: 60 s of bitrate
   var MIME = 'video/mp4; codecs="avc1.640034"';   // H.264 High @ L5.2
-  var LAG_MAX = 2;                                // seconds behind live edge before we jump
-  var LAG_TARGET = 0.4;                           // where we land after a jump
+  var LAG_MAX = 0.6;                              // seconds behind live edge before we jump
+  var LAG_TARGET = 0.12;                          // where we land after a jump
   var BACK_BUFFER = 20;                           // seconds of played media kept in the SourceBuffer
   var QUEUE_MAX = 8 * 1024 * 1024;                // pending bytes before the player is rebuilt
   var STATES = ["idle", "starting", "live", "error"];

@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — lower-latency video out + 60 Mbps research (2026-11-27)
+
+- Goggles Stream now fragments the fMP4 **every frame** (`frag_every_frame`)
+  instead of at keyframes, flushes each packet, uses a **512 KB** ring, sets
+  **TCP_NODELAY** on both ends, and keeps the MSE playhead **0.12 s** behind the
+  live edge (jump at 0.6 s). Offline: 312 frames → 312 fragments, 0 decode
+  errors.
+- New **`mods/h264/encprobe.c` / `n3encprobe.so`**: second vc8000e at 60 Mbps
+  fed from the LCDC channel, with a synthetic-pattern mode to measure the
+  encoder ceiling. 3 s / 24 MB cap, guaranteed Idle + buffer free + FreeHandle,
+  one-shot marker. Not integrated into the app yet; needs an on-device run.
+
 ## 1.2.1 — RNDIS auto-recovery (2026-11-27)
 
 - **The root-shell helper now finds the DJI network adapter itself** by USB PnP
