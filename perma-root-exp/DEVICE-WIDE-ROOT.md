@@ -30,6 +30,40 @@ not verity-protected" and "write `/system`", which remains a brick.
 | `/proc`, `/sys` | partial | SELinux-restricted; not arbitrary |
 | `/dev/block/*` | read mostly | block writes are off-limits |
 
+## Verified vs unverified
+
+| Path | Evidence | Status |
+|---|---|---|
+| `/data` | live `su` read/execute/write; some paths deny rename/unlink | verified |
+| `/blackbox` | live `dji_services` writes; hook files | verified |
+| `/system` | dm-verity mode 2 | **never write** |
+| `/cache`, `/factory_data` | fstab rw; SELinux policy says exec denied, write not yet tested | **live test needed** |
+| `/vendor` | raw ext4; app has written mods in the past; `su` mount is denied | **live test needed; AVB unproven** |
+| `/tmp`, `/sdcard` | tmpfs/vold | expected; low risk |
+
+## Static policy vs live proof
+
+The 0900 OTA policy (`plat_sepolicy` + `vendor_sepolicy`) says:
+
+- `dji_services` may set `system_prop`, `default_prop`, `dji_prop`,
+  `logd_prop`, `ctl_default_prop` — but **not** `system_radio_prop`
+  (`sys.usb.config`); only `shell` may set it.
+- `dji_services` may execute `base_typeattr_350` (`shell_exec`,
+  `toolbox_exec`, `system_file`) but **not** `system_data_file` (`/data`).
+- `su` can execute `/data` (live proof), but has no `mount`, `chcon`, or
+  relabel; no `permissive`, no `sys_admin`.
+- There is no `typetransition` from a `dji_*` domain to `shell`/`su`.
+
+**However:** the live build 29024 ADB breakthrough set `sys.usb.config` from
+the `dji_services` root shell, and adbd started. That means the live policy or
+property context differs from the OTA text, or the switch ran in a different
+domain. Treat the live proof as **build-specific**; `usb_adb.sh` auto-reverts
+if the property set fails. Re-test on the unit before relying on it.
+
+For `/vendor`, the app has written mods in the past, but the policy/denial
+picture is mixed. Test one small file at runtime and verify the mount, rather
+than assuming `su` can do it.
+
 ## Routes, safest first
 
 ### A. Perma-ADB + `su` (recommended)
@@ -49,6 +83,11 @@ This is a device-wide root shell. It can:
 - execute `/data` binaries and scripts;
 - start/stop services, set properties, run the patched UI/apps;
 - use `adb push/pull` to non-verity paths.
+
+`host/rootctl.py` wraps the common operations (`ls`, `cat`, `pull`, `push`,
+`exec`) with a `/system` guard. It refuses `/system`, block devices,
+`/proc`, and `/sys` writes; `/vendor` needs `--allow-vendor` and is
+runtime-only. It never mounts or runs `adb remount`.
 
 It cannot:
 

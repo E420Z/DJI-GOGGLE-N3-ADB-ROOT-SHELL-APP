@@ -12,6 +12,8 @@
   documented.
 - Added `BOOT-ADB.md` (exact gate + expected output) and
   `DEVICE-WIDE-ROOT.md` (capability matrix; `/system` remains read-only).
+- Added `host/rootctl.py`: guarded `ls`/`cat`/`pull`/`push`/`exec` over root
+  adb; `/system` and block-device writes are refused.
 - Trimmed unsupported capture notes from `SPARROW2.md`.
 
 ## 1.3.0 — Deterministic Find N3 (2026-11-27)

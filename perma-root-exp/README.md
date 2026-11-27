@@ -53,6 +53,7 @@ itself from `boot-adb.sh`.
 | `device/usb_adb.sh` | Proven runtime USB switch, with auto-revert |
 | `host/install_hook.py` | `--check`, `--benign`, `--arm`, `--kill`, `--resume`, `--remove` |
 | `host/verify.py` | PC-side check: `perma_ok`, `adb devices`, `adb shell id` |
+| `host/rootctl.py` | Guarded `ls`/`cat`/`pull`/`push`/`exec` over root adb; `/system` refused |
 | `STATIC-ANALYSIS.md` | Boot gate, SELinux, hook, AVB, risks |
 | `BOOT-ADB.md` | Exact adbd gate, runtime proof, perma hook, expected output |
 | `DEVICE-WIDE-ROOT.md` | Capability matrix; what root can write; why `/system` stays read-only |
@@ -77,6 +78,23 @@ itself from `boot-adb.sh`.
   patched UI or custom daemons.
 - The stock UI/display path is untouched; `boot-adb.sh` does not stop
   `dji_glasses`.
+
+## Device-wide writes
+
+`host/rootctl.py` wraps the common operations over root adb:
+
+```powershell
+py -3.12 perma-root-exp\host\rootctl.py --check
+py -3.12 perma-root-exp\host\rootctl.py ls /data/dji
+py -3.12 perma-root-exp\host\rootctl.py cat /data/dji/perma.log
+py -3.12 perma-root-exp\host\rootctl.py push local.bin /data/dji/local.bin
+py -3.12 perma-root-exp\host\rootctl.py pull /data/dji/perma.log perma.log
+py -3.12 perma-root-exp\host\rootctl.py exec "id; getprop ro.build.type"
+```
+
+It always refuses `/system`, `/dev/block`, `/proc`, and `/sys` writes.
+`/vendor` writes require `--allow-vendor` and are runtime-only (AVB
+unproven). It never mounts/remounts and never runs `adb remount`.
 
 ## What it does not do
 
