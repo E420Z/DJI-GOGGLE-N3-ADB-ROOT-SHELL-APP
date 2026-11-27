@@ -26,7 +26,7 @@ sys.path.insert(0, TOOLS)
 import spawn_shell          # noqa: E402
 import libusb0_dji as L     # noqa: E402
 
-HOST = "192.168.60.2"
+HOST = os.environ.get("N3_HOST", "192.168.60.2")
 PORT = 4444
 RCV_PORT = 9010
 VID = 0x2CA3
@@ -128,6 +128,9 @@ def start_root(log=_noop) -> bool:
             return True
         time.sleep(0.25)
     log("Root shell did not answer on %s:%d." % (HOST, PORT))
+    log("The payload was accepted, so check the RNDIS adapter with ipconfig. "
+        "If its subnet is not 192.168.60.x, start the app with "
+        "N3_HOST=<goggles IP> (or edit HOST in app/n3ctl.py).")
     return False
 
 

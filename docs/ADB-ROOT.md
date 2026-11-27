@@ -120,3 +120,24 @@ Persistence options still open:
 
 `/data/ui/*` still holds the earlier copies; `su` cannot unlink them, so use
 the `dji_services` root shell (RCE) if they need cleaning.
+
+## "Root shell did not answer" but the RCE replied `ack=c0`
+
+`ack=c0` only means `dji_blackbox` accepted the log payload. It does **not**
+prove the shell bound. Check, in order:
+
+1. **RNDIS address.** The app defaults to `192.168.60.2`. Run `ipconfig`: the
+   goggles adapter must be `192.168.60.x` (PC `.1`). If there is no such
+   adapter, RNDIS is down even though the blackbox bulk interface works.
+2. **Different subnet.** Set `N3_HOST` before launching, then press **Start
+   root** (not Enable ADB, which needs root first):
+   `set N3_HOST=192.168.42.129` (cmd) or `$env:N3_HOST="192.168.42.129"`
+   (PowerShell). You can also edit `HOST` in `app/n3ctl.py`.
+3. **Port.** `Test-NetConnection <ip> -Port 4444` must succeed. Refused means
+   the payload did not start.
+4. **Firmware.** Only **0900** is tested. On 1.09 the `dji_blackbox` build or
+   its `busybox`/`nc` path may differ; `ack=c0` can still occur with no
+   listener. Do not loop; keep `/system/bin/dji_blackbox` from that build for a
+   comparison.
+5. **Link.** Try another USB port/cable, no hub, and wait ~30 s; RNDIS can take
+   a few seconds to re-enumerate.
