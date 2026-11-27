@@ -1,7 +1,7 @@
 # N3 ROOT — DJI Goggles N3 control deck
 
 <p align="center">
-  <img src="docs/readme-hero.jpg" width="880" alt="N3 ROOT control deck — Connection page">
+  <a href="docs/screenshot.png"><img src="docs/readme-hero.jpg" width="880" alt="N3 ROOT control deck — Connection page"></a>
 </p>
 
 <p align="center">
@@ -89,19 +89,19 @@ irreversible.
 
 <table>
 <tr>
-<td align="center" width="33%"><img src="docs/screenshots/thumbs/web_connection.jpg" width="360" alt="Connection page"><br><sub><b>Connection</b> — USB, root shell, ADB, recovery</sub></td>
-<td align="center" width="33%"><img src="docs/screenshots/thumbs/web_e420z.jpg" width="360" alt="E420Z page"><br><sub><b>E420Z</b> — live preview, scales, screenshots</sub></td>
-<td align="center" width="33%"><img src="docs/screenshots/thumbs/web_pcstream.jpg" width="360" alt="PC Stream page"><br><sub><b>PC Stream</b> — desktop → goggles</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/web_connection.png"><img src="docs/screenshots/thumbs/web_connection.jpg" width="360" alt="Connection page"></a><br><sub><b>Connection</b> — USB, root shell, ADB, recovery</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/web_e420z.png"><img src="docs/screenshots/thumbs/web_e420z.jpg" width="360" alt="E420Z page"></a><br><sub><b>E420Z</b> — live preview, scales, screenshots</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/web_pcstream.png"><img src="docs/screenshots/thumbs/web_pcstream.jpg" width="360" alt="PC Stream page"></a><br><sub><b>PC Stream</b> — desktop → goggles</sub></td>
 </tr>
 <tr>
-<td align="center" width="33%"><img src="docs/screenshots/thumbs/web_gstream.jpg" width="360" alt="Goggles Stream page"><br><sub><b>Goggles Stream</b> — 1080p60 → PC</sub></td>
-<td align="center" width="33%"><img src="docs/screenshots/thumbs/web_sparrow2.jpg" width="360" alt="Sparrow2 page"><br><sub><b>Sparrow2</b> — read-only radio research</sub></td>
-<td align="center" width="33%"><img src="docs/screenshots/thumbs/web_root_shell.jpg" width="360" alt="Root Shell page"><br><sub><b>Root Shell</b> — uid 0 console</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/web_gstream.png"><img src="docs/screenshots/thumbs/web_gstream.jpg" width="360" alt="Goggles Stream page"></a><br><sub><b>Goggles Stream</b> — 1080p60 → PC</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/web_sparrow2.png"><img src="docs/screenshots/thumbs/web_sparrow2.jpg" width="360" alt="Sparrow2 page"></a><br><sub><b>Sparrow2</b> — read-only radio research</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/web_root_shell.png"><img src="docs/screenshots/thumbs/web_root_shell.jpg" width="360" alt="Root Shell page"></a><br><sub><b>Root Shell</b> — uid 0 console</sub></td>
 </tr>
 <tr>
-<td align="center" width="33%"><img src="docs/screenshots/thumbs/web_mods.jpg" width="360" alt="Mods and UI page"><br><sub><b>Mods &amp; UI</b> — install, themes, revert</sub></td>
-<td align="center" width="33%"><img src="docs/screenshots/thumbs/web_logs.jpg" width="360" alt="Logs page"><br><sub><b>Logs</b> — five live tabs</sub></td>
-<td align="center" width="33%"><img src="docs/screenshots/thumbs/web_settings.jpg" width="360" alt="Settings page"><br><sub><b>Settings</b> — prefs, theme, safety key</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/web_mods.png"><img src="docs/screenshots/thumbs/web_mods.jpg" width="360" alt="Mods and UI page"></a><br><sub><b>Mods &amp; UI</b> — install, themes, revert</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/web_logs.png"><img src="docs/screenshots/thumbs/web_logs.jpg" width="360" alt="Logs page"></a><br><sub><b>Logs</b> — five live tabs</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/web_settings.png"><img src="docs/screenshots/thumbs/web_settings.jpg" width="360" alt="Settings page"></a><br><sub><b>Settings</b> — prefs, theme, safety key</sub></td>
 </tr>
 </table>
 
@@ -109,13 +109,13 @@ irreversible.
 
 <table>
 <tr>
-<td align="center" width="33%"><img src="docs/screenshots/thumbs/e420z_sidebar.jpg" width="360" alt="E420Z row in the stock sidebar"><br><sub><b>Sidebar</b> — native E420Z row</sub></td>
-<td align="center" width="33%"><img src="docs/screenshots/thumbs/e420z_panel.jpg" width="360" alt="E420Z panel"><br><sub><b>Panel</b> — stock-styled content area</sub></td>
-<td align="center" width="33%"><img src="docs/screenshots/thumbs/e420z_panel_list.jpg" width="360" alt="Panel list"><br><sub><b>List</b> — BAND SCAN selected</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/e420z_sidebar.png"><img src="docs/screenshots/thumbs/e420z_sidebar.jpg" width="360" alt="E420Z row in the stock sidebar"></a><br><sub><b>Sidebar</b> — native E420Z row</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/e420z_panel.png"><img src="docs/screenshots/thumbs/e420z_panel.jpg" width="360" alt="E420Z panel"></a><br><sub><b>Panel</b> — stock-styled content area</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/e420z_panel_list.png"><img src="docs/screenshots/thumbs/e420z_panel_list.jpg" width="360" alt="Panel list"></a><br><sub><b>List</b> — BAND SCAN selected</sub></td>
 </tr>
 <tr>
-<td align="center" width="33%"><img src="docs/screenshots/thumbs/e420z_status.jpg" width="360" alt="E420Z status page"><br><sub><b>STATUS</b> — read-only detail</sub></td>
-<td align="center" width="33%"><img src="docs/screenshots/thumbs/e420z_band_scan.jpg" width="360" alt="E420Z band scan page"><br><sub><b>BAND SCAN</b> — simulated, read-only</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/e420z_status.png"><img src="docs/screenshots/thumbs/e420z_status.jpg" width="360" alt="E420Z status page"></a><br><sub><b>STATUS</b> — read-only detail</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/e420z_band_scan.png"><img src="docs/screenshots/thumbs/e420z_band_scan.jpg" width="360" alt="E420Z band scan page"></a><br><sub><b>BAND SCAN</b> — simulated, read-only</sub></td>
 <td align="center" width="33%"></td>
 </tr>
 </table>
