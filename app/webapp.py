@@ -28,7 +28,7 @@ import theme_builder  # noqa: E402
 from ui.live import LiveStream, capture_png, SCALE_BY_LABEL  # noqa: E402
 from pcsender import PcStream, SIZES as PC_SIZES  # noqa: E402
 
-VERSION = "1.0"
+VERSION = "1.1"
 PREFS = os.path.join(APP_DIR, "state", "web_prefs.json")
 SHOTS = os.path.join(APP_DIR, "state", "screenshots")
 
