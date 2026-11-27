@@ -40,3 +40,6 @@ renderer; the detail pages are read-only.
 
 | `web_pcstream.png` | PC Stream sends this desktop into the goggles. |
 | `web_gstream.png` | Goggles Stream plays the goggles' 1080p60 encoder on the PC. |
+
+The README uses 480 px JPEG thumbnails from `thumbs/` (11-21 KB each); the
+full-size PNG originals in this folder are kept for documentation and review.
