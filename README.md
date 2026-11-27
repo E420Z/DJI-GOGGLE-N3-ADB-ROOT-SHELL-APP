@@ -40,6 +40,21 @@ untested: the root payload, menu/vtable addresses, USB composition,
 
 ---
 
+## Support the project
+
+N3 ROOT is open source. Donations go straight back into hardware, testing and
+late-night debugging.
+
+| | Address |
+|---|---|
+| **Bitcoin (BTC)** | `bc1qrs9rdj9rklllyp624hlkd6n0v347nsvaae4sa0` |
+| **Ethereum (ETH)** | `0x49d006ff56d4848d2D21F161abDE80BD09210e74` |
+
+Always double-check the address before sending — crypto transfers are
+irreversible.
+
+---
+
 ## What it does
 
 | Page | What it does |
@@ -340,18 +355,3 @@ to `/vendor`.
 - Built with **Claude Code** and **DeepSeek V4.1 Flash**.
 
 **Use only on hardware you own. No warranty.**
-
----
-
-## Support the project
-
-N3 ROOT is open source. Donations go straight back into hardware, testing and
-late-night debugging.
-
-| | Address |
-|---|---|
-| **Bitcoin (BTC)** | `bc1qrs9rdj9rklllyp624hlkd6n0v347nsvaae4sa0` |
-| **Ethereum (ETH)** | `0x49d006ff56d4848d2D21F161abDE80BD09210e74` |
-
-Always double-check the address before sending — crypto transfers are
-irreversible.
