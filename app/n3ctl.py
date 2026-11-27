@@ -80,6 +80,129 @@ _LOCAL_AT = 0.0
 _SCAN_LOCK = threading.Lock()
 _SCAN_AT = 0.0
 _SCANNING = False
+_DJ_ADAPTER = None
+_DJ_AT = 0.0
+_ADDED_IP = None
+
+
+def _ps(cmd: str, timeout: float = 8.0):
+    try:
+        r = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", cmd],
+            capture_output=True, text=True, timeout=timeout)
+        return (r.stdout or "").strip(), (r.stderr or "").strip()
+    except Exception as exc:  # noqa: BLE001
+        return "", str(exc)
+
+
+def goggles_adapter():
+    """(name, description) of the network adapter on the DJI USB device."""
+    global _DJ_ADAPTER, _DJ_AT
+    now = time.time()
+    if _DJ_ADAPTER is not None and now - _DJ_AT < 15:
+        return _DJ_ADAPTER
+    cmd = (
+        "Get-NetAdapter | ForEach-Object { "
+        "$id = (Get-NetAdapterHardwareInfo -Name $_.Name "
+        "-ErrorAction SilentlyContinue).PnpDeviceID; "
+        "if ($id -like '*VID_2CA3*') { $_.Name + '|' + $_.InterfaceDescription } }"
+    )
+    out, _err = _ps(cmd, 12)
+    found = None
+    for line in out.splitlines():
+        name, _sep, desc = line.partition("|")
+        if name.strip():
+            found = (name.strip(), desc.strip())
+            break
+    _DJ_ADAPTER = found
+    _DJ_AT = now
+    return found
+
+
+def _adapter_ipv4(name: str):
+    safe = name.replace("'", "''")
+    out, _err = _ps(
+        "Get-NetIPAddress -InterfaceAlias '%s' -AddressFamily IPv4 "
+        "-ErrorAction SilentlyContinue | ForEach-Object { $_.IPAddress }" % safe, 8)
+    return [x.strip() for x in out.splitlines() if x.strip().count(".") == 3]
+
+
+def _add_adapter_ip(name: str, ip: str) -> bool:
+    safe = name.replace("'", "''")
+    _out, err = _ps(
+        "New-NetIPAddress -InterfaceAlias '%s' -IPAddress %s -PrefixLength 24 "
+        "-ErrorAction Stop | Out-Null" % (safe, ip), 10)
+    return not err
+
+
+def _del_adapter_ip(name: str, ip: str) -> None:
+    safe = name.replace("'", "''")
+    _ps("Remove-NetIPAddress -InterfaceAlias '%s' -IPAddress %s -Confirm:$false "
+        "-ErrorAction SilentlyContinue" % (safe, ip), 8)
+
+
+def _reset_local_cache() -> None:
+    global _LOCAL_IPS, _LOCAL_AT
+    _LOCAL_IPS = None
+    _LOCAL_AT = 0.0
+
+
+def ensure_goggles_link(log=_noop) -> bool:
+    """Make sure the DJI RNDIS adapter has an IPv4 address (renew DHCP once)."""
+    ad = goggles_adapter()
+    if not ad:
+        return False
+    name, _desc = ad
+    ips = _adapter_ipv4(name)
+    if any(not ip.startswith("169.254.") for ip in ips):
+        return True
+    log("Goggles RNDIS adapter '%s' has no DHCP lease (%s); renewing..."
+        % (name, ", ".join(ips) or "no IPv4"))
+    _ps('ipconfig /renew "%s"' % name, 20)
+    ips = _adapter_ipv4(name)
+    if any(not ip.startswith("169.254.") for ip in ips):
+        log("RNDIS lease: %s" % ", ".join(ips))
+        return True
+    log("Still no DHCP lease; will try static RNDIS subnets after the payload.")
+    return False
+
+
+def try_static_link(log=_noop) -> bool:
+    """Add a temporary IP on the DJI adapter and sweep known RNDIS subnets."""
+    global _ADDED_IP
+    if _EXPLICIT_HOST:
+        return False
+    ad = goggles_adapter()
+    if not ad:
+        return False
+    name, _desc = ad
+    for base in ("192.168.60", "192.168.42", "192.168.137"):
+        ip = base + ".1"
+        if ip in _adapter_ipv4(name):
+            continue
+        log("Trying %s/24 on '%s'..." % (base, name))
+        if not _add_adapter_ip(name, ip):
+            log("Could not set %s. Run N3 ROOT as administrator, or set the "
+                "RNDIS adapter manually." % ip)
+            return False
+        _ADDED_IP = (name, ip)
+        _reset_local_cache()
+        if find_root(3.0, log, sweep=True):
+            return True
+        _del_adapter_ip(name, ip)
+        _ADDED_IP = None
+        _reset_local_cache()
+    return False
+
+
+def restore_network() -> None:
+    """Remove any temporary address this session added to the DJI adapter."""
+    global _ADDED_IP
+    if _ADDED_IP:
+        name, ip = _ADDED_IP
+        _del_adapter_ip(name, ip)
+        _ADDED_IP = None
+        _reset_local_cache()
 
 
 def _local_ipv4():
@@ -270,6 +393,7 @@ def run_root(cmd: str, timeout: float = 8.0, retries: int = 0) -> str:
 
 def start_root(log=_noop) -> bool:
     """Start the root shell via the stock dji_blackbox RCE."""
+    ensure_goggles_link(log)
     if find_root(2.0, log, sweep=False):
         log("Root shell is already running on %s:%d." % (HOST, PORT))
         return True
@@ -300,6 +424,10 @@ def start_root(log=_noop) -> bool:
     log("No listener; retrying with the full DUML session init...")
     attempt(True)
     if find_root(8.0, log):
+        log("Root shell is up: %s:%d (uid 0, dji_services)." % (HOST, PORT))
+        return True
+
+    if try_static_link(log):
         log("Root shell is up: %s:%d (uid 0, dji_services)." % (HOST, PORT))
         return True
 
@@ -354,6 +482,7 @@ def stop_root(log=_noop) -> bool:
     """Kill the temporary root shell and its respawn wrapper."""
     if not is_root():
         log("Root shell is already stopped.")
+        restore_network()
         return True
     log("Stopping root shell...")
     try:
@@ -363,6 +492,7 @@ def stop_root(log=_noop) -> bool:
     time.sleep(2.0)
     ok = not is_root()
     log("Root shell stopped." if ok else "Root shell is still answering on :4444.")
+    restore_network()
     return ok
 
 

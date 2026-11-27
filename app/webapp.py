@@ -844,6 +844,10 @@ def main() -> int:
                 api._gstream.stop()
         except Exception:  # noqa: BLE001
             pass
+        try:
+            n3ctl.restore_network()
+        except Exception:  # noqa: BLE001
+            pass
     return 0
 
 

@@ -149,3 +149,13 @@ prove the shell bound. Check, in order:
    keep that build's `/system/bin/dji_blackbox` for comparison. Do not loop.
 5. **Link.** Try another USB port/cable, no hub, and wait ~30 s; RNDIS can take
    a few seconds to re-enumerate.
+
+**APIPA fallback (no DHCP lease).** If the DJI adapter only has a `169.254.x`
+address, the app renews DHCP on that adapter. If it still gets nothing, it adds
+a temporary `192.168.60.1/24` — then `192.168.42.1/24`, then
+`192.168.137.1/24` — **only to the adapter whose PnP ID contains `VID_2CA3`**,
+and sweeps that /24 for port 4444. It never touches Wi-Fi/VPN/LAN, and removes
+the temporary address on **Stop root** or app exit. This needs administrator;
+if Windows refuses, the log says so and you can set the address manually with
+`netsh interface ipv4 set address name="Ethernet 3" static 192.168.60.1
+255.255.255.0` (revert with `... dhcp`).
