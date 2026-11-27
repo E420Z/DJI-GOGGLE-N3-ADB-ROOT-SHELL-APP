@@ -8,6 +8,7 @@ This module is optional: it imports dxcam/PyAV only when started.
 from __future__ import annotations
 
 import socket
+import struct
 import threading
 import time
 
@@ -31,7 +32,8 @@ class H264Sender:
 
     def start(self, host: str, port: int = 5570, width: int = 1920,
               height: int = 1080, fps: int = 60,
-              bitrate: int = 20_000_000, region=None) -> bool:
+              bitrate: int = 20_000_000, region=None,
+              framed: bool = True) -> bool:
         if self.running:
             return True
         try:
@@ -60,6 +62,7 @@ class H264Sender:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1 << 18)
             self._sock = sock
             self._width, self._height = width, height
+            self._framed = framed
             self._stop.clear()
             self._thread = threading.Thread(target=self._loop, daemon=True)
             self._thread.start()
@@ -91,6 +94,8 @@ class H264Sender:
                 for pkt in self._codec.encode(vf):
                     data = bytes(pkt)
                     if data:
+                        if self._framed:
+                            data = struct.pack("<I", len(data)) + data
                         self._sock.sendall(data)
                         self.bytes += len(data)
                         self.frames += 1

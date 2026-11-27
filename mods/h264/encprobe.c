@@ -262,6 +262,7 @@ static void worker(void) {
             pd.format.video.nFrameHeight = H;
             pd.format.video.nStride = W;
             pd.format.video.nSliceHeight = H;
+            pd.format.video.xFramerate = 60 << 16;
             pd.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
             pd.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
             pd.nBufferCountActual = IN_BUFS;
@@ -271,6 +272,8 @@ static void worker(void) {
             pd.format.video.eCompressionFormat = OMX_VIDEO_CodingAVC;
             pd.format.video.nFrameWidth = W;
             pd.format.video.nFrameHeight = H;
+            pd.format.video.nBitrate = BITRATE;
+            pd.format.video.xFramerate = 60 << 16;
             pd.nBufferCountActual = OUT_BUFS;
             NTLOG_INT("  set out=", (int)OMX_SetParameter(
                 g_enc, OMX_IndexParamPortDefinition, &pd));
@@ -278,23 +281,39 @@ static void worker(void) {
     }
 
     OMX_VIDEO_PARAM_BITRATETYPE br;
-    for (unsigned i = 0; i < sizeof(br); i++) ((unsigned char *)&br)[i] = 0;
-    ver(&br, sizeof(br)); br.nPortIndex = 1;
-    br.eControlRate = OMX_Video_ControlRateVariable;
-    br.nTargetBitrate = BITRATE;
-    NTLOG_INT("bitrate=", (int)OMX_SetParameter(g_enc, OMX_IndexParamVideoBitrate, &br));
+    int br_ok = 0;
+    for (int v = 0; v < 2; v++) {
+        for (int p = 0; p < 2; p++) {
+            for (unsigned i = 0; i < sizeof(br); i++) ((unsigned char *)&br)[i] = 0;
+            br.nSize = sizeof(br);
+            br.nVersion.s.nVersionMajor = v ? 1 : 1;
+            br.nVersion.s.nVersionMinor = v ? 1 : 0;
+            br.nVersion.s.nRevision = v ? 2 : 0;
+            br.nPortIndex = p;
+            br.eControlRate = OMX_Video_ControlRateVariable;
+            br.nTargetBitrate = BITRATE;
+            int r = (int)OMX_SetParameter(g_enc, OMX_IndexParamVideoBitrate, &br);
+            NTLOG_INT("bitrate v/p=", v * 10 + p);
+            NTLOG_INT("  ret=", r);
+            if (r == 0) br_ok = 1;
+        }
+    }
+    NTLOG_INT("bitrate ok=", br_ok);
 
     OMX_CONFIG_FRAMERATETYPE fr;
-    for (unsigned i = 0; i < sizeof(fr); i++) ((unsigned char *)&fr)[i] = 0;
-    ver(&fr, sizeof(fr)); fr.nPortIndex = 1; fr.xEncodeFramerate = 60 << 16;
-    NTLOG_INT("fps=", (int)OMX_SetParameter(g_enc, OMX_IndexConfigVideoFramerate, &fr));
+    for (int p = 0; p < 2; p++) {
+        for (unsigned i = 0; i < sizeof(fr); i++) ((unsigned char *)&fr)[i] = 0;
+        fr.nSize = sizeof(fr);
+        fr.nVersion.s.nVersionMajor = 1;
+        fr.nVersion.s.nVersionMinor = 0;
+        fr.nPortIndex = p;
+        fr.xEncodeFramerate = 60 << 16;
+        NTLOG_INT("fps port=", p);
+        NTLOG_INT("  ret=", (int)OMX_SetParameter(
+            g_enc, OMX_IndexConfigVideoFramerate, &fr));
+    }
 
-    g_enc_state = 0; g_err = 0;
-    OMX_SendCommand(g_enc, OMX_CommandStateSet, OMX_StateIdle, 0);
-    for (int i = 0; i < 300 && !g_enc_state && !g_err; i++) { struct timespec_t t={0,10000000}; sys_nanosleep(&t,0); }
-    NTLOG_INT("enc idle=", g_enc_state);
-    if (!g_enc_state) goto out;
-
+    /* Allocate buffers BEFORE Idle: this component needs them to finish it. */
     for (int p = 0; p < 2; p++) {
         for (unsigned i = 0; i < sizeof(pd); i++) ((unsigned char *)&pd)[i] = 0;
         ver(&pd, sizeof(pd)); pd.nPortIndex = p;
@@ -314,10 +333,30 @@ static void worker(void) {
     if (!g_in_n || !g_out_n) goto out;
 
     g_enc_state = 0; g_err = 0;
+    OMX_SendCommand(g_enc, OMX_CommandStateSet, OMX_StateIdle, 0);
+    for (int i = 0; i < 300 && !g_enc_state && !g_err; i++) { struct timespec_t t={0,10000000}; sys_nanosleep(&t,0); }
+    NTLOG_INT("enc idle=", g_enc_state);
+    if (!g_enc_state) goto out;
+
+    g_enc_state = 0; g_err = 0;
     OMX_SendCommand(g_enc, OMX_CommandStateSet, OMX_StateExecuting, 0);
     for (int i = 0; i < 300 && !g_enc_state && !g_err; i++) { struct timespec_t t={0,10000000}; sys_nanosleep(&t,0); }
     NTLOG_INT("enc exec=", g_enc_state);
     if (!g_enc_state) goto out;
+
+    /* runtime bitrate config (the param index above is unsupported here) */
+    OMX_VIDEO_CONFIG_BITRATETYPE cb;
+    for (int p = 0; p < 2; p++) {
+        for (unsigned i = 0; i < sizeof(cb); i++) ((unsigned char *)&cb)[i] = 0;
+        cb.nSize = sizeof(cb);
+        cb.nVersion.s.nVersionMajor = 1;
+        cb.nVersion.s.nVersionMinor = 0;
+        cb.nPortIndex = p;
+        cb.nEncodeBitrate = BITRATE;
+        NTLOG_INT("cfg bitrate port=", p);
+        NTLOG_INT("  ret=", (int)OMX_SetParameter(
+            g_enc, OMX_IndexConfigVideoBitrate, &cb));
+    }
     for (int i = 0; i < g_out_n; i++) OMX_FillThisBuffer(g_enc, g_ob[i]);
 
     /* ---- reader ---- */
@@ -349,12 +388,6 @@ static void worker(void) {
     OMX_GetParameter(g_rd, OMX_IndexParamPortDefinition, &pd);
     NTLOG_INT("rd size=", (int)pd.nBufferSize);
 
-    g_rd_state = 0; g_err = 0;
-    OMX_SendCommand(g_rd, OMX_CommandStateSet, OMX_StateIdle, 0);
-    for (int i = 0; i < 300 && !g_rd_state && !g_err; i++) { struct timespec_t t={0,10000000}; sys_nanosleep(&t,0); }
-    NTLOG_INT("rd idle=", g_rd_state);
-    if (!g_rd_state) goto out;
-
     for (int i = 0; i < 3; i++) {
         OMX_BUFFERHEADERTYPE *bh = 0;
         if (OMX_AllocateBuffer(g_rd, &bh, g_rd_port, 0, pd.nBufferSize) != OMX_ErrorNone) break;
@@ -362,6 +395,12 @@ static void worker(void) {
     }
     NTLOG_INT("rd bufs=", g_rd_n);
     if (!g_rd_n) goto out;
+
+    g_rd_state = 0; g_err = 0;
+    OMX_SendCommand(g_rd, OMX_CommandStateSet, OMX_StateIdle, 0);
+    for (int i = 0; i < 300 && !g_rd_state && !g_err; i++) { struct timespec_t t={0,10000000}; sys_nanosleep(&t,0); }
+    NTLOG_INT("rd idle=", g_rd_state);
+    if (!g_rd_state) goto out;
 
     g_fd = (int)sys_openat(AT_FDCWD, OUT_PATH, 0x241, 0644);
     NTLOG_INT("fd=", g_fd);

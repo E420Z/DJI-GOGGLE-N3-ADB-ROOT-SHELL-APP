@@ -265,8 +265,17 @@ class GogglesStream:
         if not self.n3.start_ui(log=lambda _m: None,
                                 mods=["/vendor/hook_overlay.so", MOD_REMOTE]):
             return "The goggles UI did not restart with the video-out mod."
-        time.sleep(1.0)
-        return ""
+        # start_ui returns after ~6 s; give the loader and mod a moment to map
+        for _ in range(20):
+            st = self.n3.ui_state() or {}
+            pid = st.get("pid")
+            if pid:
+                mapped = self._sh(
+                    "grep -c %s /proc/%s/maps 2>/dev/null" % (MOD_NAME, pid), 8).strip()
+                if mapped and mapped != "0":
+                    return ""
+            time.sleep(0.5)
+        return "The video-out mod did not load into the goggles UI."
 
     def _read_device(self) -> None:
         out = self._sh("cat %s 2>/dev/null" % STAT_PATH, 8)
@@ -312,7 +321,7 @@ class GogglesStream:
             self._sh("touch %s" % MARKER, 10)
 
             sock = None
-            for _ in range(16):
+            for _ in range(60):
                 try:
                     sock = socket.create_connection((HOST, TCP_PORT), timeout=2)
                     break

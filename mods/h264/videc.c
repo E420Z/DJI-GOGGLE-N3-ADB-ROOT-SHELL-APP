@@ -185,17 +185,40 @@ static void worker(void) {
         pd.nPortIndex = p == 0 ? in_port : out_port;
         if (OMX_GetParameter(g_comp, OMX_IndexParamPortDefinition, &pd) != OMX_ErrorNone)
             continue;
-        if (p == 1) {
+        if (p == 0) {
+            pd.format.video.nFrameWidth = 1920;
+            pd.format.video.nFrameHeight = 1080;
+            pd.format.video.eCompressionFormat = OMX_VIDEO_CodingAVC;
+            pd.nBufferCountActual = 4;
+            NTLOG_INT("set in=", (int)OMX_SetParameter(
+                g_comp, OMX_IndexParamPortDefinition, &pd));
+        } else {
             pd.format.video.nFrameWidth = 1920;
             pd.format.video.nFrameHeight = 1080;
             pd.format.video.nStride = 1920;
             pd.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
-            NTLOG_INT("set out=", (int)OMX_SetParameter(g_comp, OMX_IndexParamPortDefinition, &pd));
+            pd.nBufferCountActual = 4;
+            NTLOG_INT("set out=", (int)OMX_SetParameter(
+                g_comp, OMX_IndexParamPortDefinition, &pd));
         }
-        int cnt = p == 0 ? 4 : 6;
+        /* re-query: the component may change nBufferSize/count after the set */
+        for (unsigned k = 0; k < sizeof(pd); k++) ((unsigned char *)&pd)[k] = 0;
+        set_ver(&pd);
+        pd.nPortIndex = p == 0 ? in_port : out_port;
+        OMX_GetParameter(g_comp, OMX_IndexParamPortDefinition, &pd);
+        NTLOG_INT(p == 0 ? "in size now=" : "out size now=", (int)pd.nBufferSize);
+        int cnt = (int)pd.nBufferCountActual;
+        if (cnt < 1) cnt = p == 0 ? 4 : 4;
+        if (cnt > (p == 0 ? 4 : 6)) cnt = p == 0 ? 4 : 6;
         for (int i = 0; i < cnt; i++) {
             OMX_BUFFERHEADERTYPE *bh = 0;
-            if (OMX_AllocateBuffer(g_comp, &bh, pd.nPortIndex, 0, pd.nBufferSize) != OMX_ErrorNone) break;
+            OMX_ERRORTYPE a = OMX_AllocateBuffer(g_comp, &bh, pd.nPortIndex, 0,
+                                                 pd.nBufferSize);
+            if (a != OMX_ErrorNone) {
+                NTLOG_INT("alloc failed port=", p);
+                NTLOG_INT("  ret=", (int)a);
+                break;
+            }
             if (p == 0) ib[ni++] = bh; else ob[no++] = bh;
         }
     }

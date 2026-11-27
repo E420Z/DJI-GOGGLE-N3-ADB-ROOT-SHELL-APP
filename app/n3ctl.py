@@ -353,7 +353,6 @@ def is_root() -> bool:
         s.close()
         return True
     except OSError:
-        maybe_discover()
         return False
 
 
@@ -401,11 +400,10 @@ def start_root(log=_noop) -> bool:
     def attempt(full: bool) -> None:
         label = "full" if full else "minimal"
         try:
-            if full:
-                # clear any half-started listener, then run the DJI-Assistant
-                # style session init before the RCE frame
-                spawn_shell.send(spawn_shell.STOP_CMD, wait_ms=800)
-                time.sleep(0.3)
+            # stop an older one-shot listener first so the persistent -ll
+            # server can bind port 4444
+            spawn_shell.send(spawn_shell.STOP_CMD, wait_ms=700)
+            time.sleep(0.3)
             rc, out = spawn_shell.send(
                 spawn_shell.SHELL_CMD,
                 wait_ms=2500 if full else 1800,
