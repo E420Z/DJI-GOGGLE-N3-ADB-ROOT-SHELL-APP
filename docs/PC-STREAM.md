@@ -119,3 +119,34 @@ Two open items:
    overlay plane.
 
 Neither is wired into the page yet; both are bench tests.
+
+## Lowest-latency 1080p60 path (PC half validated)
+
+The best path is **H.264 all the way**, not JPEG:
+
+```
+dxcam (DXGI, 60 fps) -> NVENC 1080p60 (p1/ll, bf=0, CBR 20 Mbps)
+  -> Annex-B over TCP (NODELAY)
+  -> goggles vendor decoder (vc8000d/ffmpeg)
+  -> NV12 -> BGRA (NEON) -> fb_shared -> hook_overlay
+```
+
+Measured PC side on the RTX 4070 SUPER (`app/h264send.py`, local sink):
+
+- **60.0 fps**, **19.99 Mbps**, 270 frames in 4.5 s.
+- Capture + scale + NVENC: **9.3 ms** average (16.7 ms on the first
+  full-screen 2048x1536 -> 1920x1080 run).
+- Stream is raw **Annex-B** (starts `00 00 00 01 67 ...`), decoded with
+  **0 errors** at 1920x1080.
+- `dxcam` is used because `gdigrab` only reached ~24 fps at 4K and ~47-59 fps
+  for a 1080p region; DXGI holds 60 fps.
+
+Remaining gate: the goggles decoder. `mods/h264/videc.c` tests it with real
+access units + `ENDOFFRAME` and reports frames **before EOS**. If that is
+non-zero, the receiver becomes: AU splitter -> decoder -> NV12 -> BGRA ->
+`fb_shared`. Expected glass-to-glass ~35-50 ms, versus 100-300 ms for the
+JPEG/stb path.
+
+If the vendor decoder cannot be driven, the fallback is **libjpeg-turbo**
+(the device has `/system/lib64/libjpeg.so`) with half-scale decode, which can
+reach 720p60 but not 1080p60.
