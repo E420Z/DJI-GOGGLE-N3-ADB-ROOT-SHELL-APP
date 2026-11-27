@@ -23,6 +23,8 @@ $url = "file:///" + ($index -replace '\\', '/' -replace ' ', '%20') + "?mock=1&m
 if ($Page) { $url += "&page=$Page" }
 
 $profile = Join-Path $env:TEMP ("n3shot-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+if (-not [System.IO.Path]::IsPathRooted($Out)) { $Out = Join-Path (Get-Location).Path $Out }
+$Out = [System.IO.Path]::GetFullPath($Out)
 Remove-Item $Out -Force -ErrorAction SilentlyContinue
 
 # Edge writes its progress line to stderr, so ignore the exit code and check

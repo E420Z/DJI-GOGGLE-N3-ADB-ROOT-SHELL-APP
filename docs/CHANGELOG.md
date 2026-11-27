@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased — Goggles → PC video out (2026-11-27)
+
+- **New Goggles Stream page**: plays the goggles' own **1920×1080 H.264** on the
+  PC with no re-encode, a telemetry rail (state, fps, bitrate, frames, dropped,
+  device counters) and fullscreen (button, double-click, `F`). Built with
+  Claude Code + OpenDesign's `linear-app` design system, then wired into the app.
+- **`mods/h264/videoout.c` / `n3videoout.so`**: reads
+  `zv900_app_liveview_chn` with `OMX.dji.video_reader.avc.mdc`, prepends the real
+  vc8000e SPS/PPS (`67 64 00 34 … 68 ee 3c b0`), and serves Annex-B H.264 on
+  **TCP 5571**. 4 MB drop-to-newest ring; read-only consumer.
+- Measured **59–60 fps**, ~2.0–2.2 Mbps on a static UI (10 Mbps pipe cap), and a
+  4 s pull from the PC endpoint decoded with **0 errors**.
+- `app/gstream.py`: deploy/arm, ffmpeg `-c copy` to fragmented MP4, loopback
+  **HTTP 8771** + CORS, MSE playback; Start/Stop clears the vendor properties.
+- **Bitrate ceiling**: `bitRate 10000000` is a literal in read-only
+  `/system/etc/app_liveview_pipe.json`; never edited. The raw LCDC YUV channel
+  reads at **59.3 fps** and a second vc8000e accepts **60 Mbps**, so a custom
+  reader→encoder mode is the only route above 10 Mbps.
+- `ui_shot.ps1` now accepts relative `-Out` paths; the page shows “—” instead of
+  a fake `0 ms` latency.
+
 ## Unreleased - PC stream working (2026-11-26)
 
 - **PC screen to goggles works**, verified end to end: 11.8 fps sustained at

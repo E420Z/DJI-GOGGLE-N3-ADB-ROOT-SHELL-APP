@@ -105,6 +105,27 @@ pcstream_set(size, fps, quality) -> { ok, message, settings }
 `fb_receiver`, then starts the in-app sender thread. It needs ADB plus the root
 shell. Everything it writes is under `/data/local/tmp`.
 
+## Goggles stream (goggles → PC)
+
+```ts
+gstream_info() -> {
+  ok, state: "idle" | "starting" | "live" | "error", message,
+  stream_url,                       // http://127.0.0.1:8771/stream.mp4 when live
+  stats: { fps, kbps, frames, dropped, width, height, latency_ms, bytes },
+  device: { mod, fills, sent, drops, props },
+  ffmpeg: { available, path }
+}
+gstream_start() -> { ok, message, state, stream_url? }
+gstream_stop()  -> { ok, message, stats }
+```
+
+`gstream_start` deploys `n3videoout.so` to `/vendor`, restarts the goggles UI
+only if the mod is not already mapped, turns the vendor liveview properties on,
+and connects to TCP 5571. The Python side remuxes with ffmpeg to fragmented MP4
+and serves it on **127.0.0.1:8771** for the page. `gstream_stop` removes the
+marker, clears the properties, and stops ffmpeg. No `/system` writes; see
+[`docs/GSTREAM.md`](../docs/GSTREAM.md).
+
 ## Sparrow2 / radio (read-only)
 ```ts
 sparrow_report() -> { ok, data: object }

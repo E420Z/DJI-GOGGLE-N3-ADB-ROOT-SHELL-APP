@@ -1,0 +1,128 @@
+# Goggles Stream — 1080p60 video out to the PC
+
+The goggles' **own hardware encoder** (vc8000e) is read live and sent to this PC
+over the USB link, with no re-encode. This is the goggles → PC direction; the
+PC Stream page is the opposite.
+
+Measured on the owner's N3 (firmware 0900), 2026-11-27.
+
+## What you get
+
+| | |
+|---|---|
+| Resolution | 1920×1080 |
+| Frame rate | **59–60 fps** |
+| Bitrate | ~2.0–2.2 Mbps on a static UI; **10 Mbps cap** in motion |
+| Codec | H.264 High, level 5.2 (vc8000e) |
+| Transport | TCP 5571 over RNDIS (`192.168.60.2`) |
+| PC playback | ffmpeg remux to fragmented MP4 → loopback HTTP 8771 → MSE |
+| Re-encode | **none** — the bitstream is copied |
+
+The stream starts with the real sequence header taken from the vendor encoder
+(`00 00 00 01 67 64 00 34 … 00 00 00 01 68 ee 3c b0`, 40 bytes), so decoders
+can start immediately even though the MDC channel itself carries only slices.
+
+## Architecture
+
+```
+goggles                                                        PC
+──────────────────────────────────────────────────────────────────────────────
+OMX.dji.video_reader.avc.mdc                                   app/gstream.py
+  channel zv900_app_liveview_chn   ── H.264 ── TCP 5571 ──►  socket reader
+  (already fed by media_server)                                │
+        ▲                                                      ▼
+        │                                              ffmpeg -c copy
+  n3videoout.so (preload in dji_glasses)                frag_keyframe MP4
+  prepends SPS/PPS, 4 MB drop-to-newest ring                   │
+                                                               ▼
+                                                    127.0.0.1:8771/stream.mp4
+                                                               │
+                                                      WebView2 page (MSE)
+```
+
+- The mod is a **read-only consumer** of the channel. It never starts or stops
+  the media pipeline.
+- The page is `app/web/goggles-stream.*`; the backend is `app/gstream.py`.
+- Writes are limited to `/vendor/n3videoout.so` and `/data/local/tmp`
+  (`videoout_on`, `videoout.stat`). **Nothing in `/system` is touched.**
+
+## Using it
+
+1. Connect the goggles over USB and start the root shell (Connection page).
+2. Install **ffmpeg** on the PC (see Requirements).
+3. Open **Goggles Stream** → **Start stream**.
+4. The first start may restart the goggles UI to load the mod (~25 s); later
+   starts are much faster.
+5. **Stop stream** removes the marker, turns the vendor liveview properties off
+   and stops ffmpeg. The page can go fullscreen (button, double-click or `F`).
+
+The status file `/data/local/tmp/videoout.stat` reports what the mod did:
+`client`, `frames`, `bytes`, `dropped`, `sent`.
+
+## Measured
+
+```
+captured 1 681 871 bytes in 6.01 s = 2237 kbps
+nal: slice 349, IDR 7, SPS 1, PPS 1, AUD 355
+fps (AUD): 58.87
+```
+
+A 4-second pull from the local HTTP endpoint decoded with **0 errors**; the
+extracted frame was the real goggles UI at 1920×1080.
+
+The channel's own stats confirm the encoder: `avg_fps 60.01`, `avg_interval
+16.66 ms`.
+
+## Why the bitrate stops at 10 Mbps
+
+`/system/etc/app_liveview_pipe.json` builds the graph:
+
+```
+LCDC writeback → OMX.dji.video_reader.mdc → vc8000e encoder (bitRate 10000000)
+              → OMX.dji.iv_renderer.avc.mdc_sender → zv900_app_liveview_chn
+```
+
+`bitRate` is a literal in a **read-only `/system` file**. This project never
+writes `/system` (dm-verity mode 2, no unbrick), so the existing pipe cannot be
+raised above 10 Mbps.
+
+### The 60 Mbps path (tested pieces)
+
+- The raw LCDC YUV channel (`zv900_liveview_lcdc_chn`) can be read at
+  **59.3 fps**, real 1920×1080 frames, while the normal pipe runs.
+- A second vc8000e instance is available and **accepts 60 Mbps** (the vendor
+  encoder test reports a 40-byte sequence header).
+- A 60 Mbps mode therefore needs our own reader → encoder graph inside
+  `dji_glasses` (copying or sharing the YUV buffers), not a `/system` edit.
+  It is a separate, heavier mod and is not part of this page yet.
+
+Until then the page reports the honest ceiling: 1080p60, ~10 Mbps max.
+
+## Requirements
+
+- Root shell (the mod is preloaded into `dji_glasses`).
+- **ffmpeg** on the PC, in `PATH`, in `tools\ffmpeg.exe`, or via
+  `FFMPEG=C:\path\to\ffmpeg.exe`. Without it the page explains what is missing
+  and will not start a session.
+- The mod source is `mods/h264/videoout.c`; build it with
+  `sdk/build.ps1 -Src ..\mods\h264\videoout.c -Out ..\mods\h264\n3videoout.so`.
+
+## Troubleshooting
+
+| Symptom | Cause / fix |
+|---|---|
+| “No listener on 5571” | The mod is not in the UI. Press Start again (it restarts the UI), or check `grep n3videoout /proc/$(pidof dji_glasses_patched)/maps`. |
+| “ffmpeg was not found” | Install ffmpeg or set `FFMPEG`. |
+| Black video for <1 s | The stream starts mid-GOP; the next IDR arrives within ~0.8 s. |
+| Video freezes, stats stop | The USB link dropped; press Stop then Start. Props are reset on stop. |
+| Props left at 1 | The app crashed mid-session. Run `setprop test.applv.func.on 0; setprop test.applv.enable 0` from Root Shell, or reboot. |
+| UI looks wrong after a start | **Recover stock UI** on Connection; nothing is installed in the boot chain. |
+
+## Safety
+
+- Read-only tap of a channel `media_server` already writes; the mod does not
+  start, stop or reconfigure the pipeline.
+- `/vendor` is remounted read-write only for the push, then read-only again.
+- `Stop stream` always removes the marker and clears the vendor properties.
+- If the screen goes black, use **Recover stock UI** or power-cycle the goggles.
+- No `/system`, verity, partition, OTP or radio writes.

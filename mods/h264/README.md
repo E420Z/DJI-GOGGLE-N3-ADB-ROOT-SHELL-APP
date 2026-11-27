@@ -3,6 +3,27 @@
 Goal: PC sends H.264, the goggles decodes it with the hardware/ffmpeg decoder
 and puts it on the display, so 1080p60 fits in ~1 MB/s.
 
+## Goggles → PC video out (2026-11-27)
+
+The other direction is now shipped: `videoout.c` / `n3videoout.so` reads the
+encoded channel with `OMX.dji.video_reader.avc.mdc`, prepends the **real**
+vc8000e SPS/PPS and serves Annex-B H.264 on **TCP 5571**.
+
+- Armed by `/data/local/tmp/videoout_on`; stops when the file is removed.
+- 4 MB drop-to-newest ring; one client at a time; sender thread never blocks
+  the OMX callback.
+- Stats: `/data/local/tmp/videoout.stat` (`client`, `frames`, `bytes`,
+  `dropped`, `sent`).
+- Measured **59–60 fps at 1920×1080**; 10 Mbps is the vendor pipe's cap.
+- Build: `sdk\build.ps1 -Src ..\mods\h264\videoout.c -Out ..\mods\h264\n3videoout.so`
+- The PC side is `app/gstream.py` + the **Goggles Stream** page. See
+  [`docs/GSTREAM.md`](../../docs/GSTREAM.md).
+
+`yuvprobe.c` is the read-only probe for the **60 Mbps** route: it reads the raw
+1080p YUV channel (`zv900_liveview_lcdc_chn`) at 59.3 fps. A second vc8000e
+instance accepts 60 Mbps, so a custom reader→encoder graph is the only way past
+the 10 Mbps pipe cap (which lives in read-only `/system`).
+
 ## Status
 
 | Step | State |

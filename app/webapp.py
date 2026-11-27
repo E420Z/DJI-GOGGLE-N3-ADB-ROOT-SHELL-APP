@@ -27,6 +27,7 @@ import background  # noqa: E402
 import theme_builder  # noqa: E402
 from ui.live import LiveStream, capture_png, SCALE_BY_LABEL  # noqa: E402
 from pcsender import PcStream, SIZES as PC_SIZES  # noqa: E402
+from gstream import GogglesStream  # noqa: E402
 
 VERSION = "1.1"
 PREFS = os.path.join(APP_DIR, "state", "web_prefs.json")
@@ -64,6 +65,7 @@ class Api:
         self._log = []
         self._status_cache = None
         self._pc = PcStream(note=self._note)
+        self._gstream = None
 
     # ---------------------------------------------------------------- helper
     def _note(self, message: str) -> None:
@@ -507,6 +509,23 @@ class Api:
             "quality": self._pc.quality,
         })
 
+    # ------------------------------------------------------------ goggles out
+    def _gs(self) -> GogglesStream:
+        if self._gstream is None:
+            self._gstream = GogglesStream(n3ctl)
+        return self._gstream
+
+    def gstream_info(self) -> dict:
+        return self._gs().info()
+
+    def gstream_start(self) -> dict:
+        result = self._gs().start()
+        self._note("gstream: %s" % result.get("message", ""))
+        return result
+
+    def gstream_stop(self) -> dict:
+        return self._gs().stop()
+
     # -------------------------------------------------------------- sparrow2
     S2_DIR = "/data/local/tmp/s2cap"
     S2_SH = "/data/local/tmp/s2cap.sh"
@@ -815,9 +834,16 @@ def main() -> int:
         background_color="#0B0710",
         text_select=True,
     )
-    webview.start(_selftest if selftest else None, window,
-                  http_server=True, debug="--debug" in sys.argv,
-                  private_mode=False)
+    try:
+        webview.start(_selftest if selftest else None, window,
+                      http_server=True, debug="--debug" in sys.argv,
+                      private_mode=False)
+    finally:
+        try:
+            if api._gstream is not None:
+                api._gstream.stop()
+        except Exception:  # noqa: BLE001
+            pass
     return 0
 
 

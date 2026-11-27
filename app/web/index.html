@@ -6,6 +6,7 @@
 <meta name="color-scheme" content="dark">
 <title>N3 ROOT</title>
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="goggles-stream.css">
 </head>
 <body data-mode="pending">
 
@@ -69,6 +70,7 @@
       <button class="nav-item" data-go="live"><svg class="i"><use href="#i-goggles"/></svg><span>E420Z</span><kbd>Alt 2</kbd></button>
       <button class="nav-item" data-go="sparrow"><svg class="i"><use href="#i-radio"/></svg><span>Sparrow2</span><kbd>Alt 3</kbd></button>
       <button class="nav-item" data-go="pcstream"><svg class="i"><use href="#i-monitor"/></svg><span>PC Stream</span><kbd>Alt 8</kbd></button>
+<button class="nav-item" data-go="gstream"><svg class="i"><use href="#i-camera"/></svg><span>Goggles Stream</span><kbd>Alt 9</kbd></button>
 
       <div class="nav-label">System</div>
       <button class="nav-item" data-go="shell"><svg class="i"><use href="#i-terminal"/></svg><span>Root Shell</span><kbd>Alt 4</kbd></button>
@@ -570,6 +572,157 @@
         </script>
       </section>
 
+      <!-- ============ Goggles Stream ============ -->
+      <!-- Insert immediately after the #page-pcstream section. Driven by goggles-stream.js (window.GogglesStream). -->
+      <section class="page gs-page" id="page-gstream" aria-labelledby="pageTitle">
+        <div class="stagger">
+          <div class="banner banner-info gs-banner">
+            <span class="banner-icon"><svg class="i"><use href="#i-goggles"/></svg></span>
+            <div class="min0">
+              <h3>Goggles encoder → this PC <span class="badge" data-risk="EXPERIMENTAL">Experimental</span><span class="badge" data-tone="accent">Read-only</span></h3>
+              <p>This is the goggles' own <code>vc8000e</code> hardware encoder, read by the vendor MDC reader and sent over the USB link on TCP <code>5571</code>. The H.264 bitstream is copied into fMP4 with no re-encode, so what you see is exactly what the goggles produced. The page only reads the stream and never changes anything on the goggles.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="stagger">
+          <!-- Hero: state, one-line session summary, transport controls -->
+          <article class="card gs-hero" id="gsHero" data-state="idle">
+            <div class="gs-hero-state">
+              <div class="label">Stream</div>
+              <div class="gs-hero-row">
+                <span class="gs-pill" id="gsPill" data-state="idle" role="status" aria-live="polite">
+                  <span class="gs-pill-dot" aria-hidden="true"></span><span id="gsPillText">Idle</span>
+                </span>
+                <span class="gs-hero-meta mono" id="gsHeroMeta">No active session</span>
+              </div>
+            </div>
+            <div class="gs-hero-actions">
+              <span class="badge" data-risk="EXPERIMENTAL">Experimental</span>
+              <button class="btn btn-sm btn-ghost" id="gsRefresh" type="button" title="Refresh stream info"><svg class="i"><use href="#i-refresh"/></svg><span>Refresh</span></button>
+              <button class="btn btn-sm gs-fs-btn" id="gsFsBtn" type="button" data-fs="off" aria-pressed="false" title="Fullscreen (F or double-click the video)">
+                <span class="gs-glyph gs-fs-enter" aria-hidden="true">⛶</span><svg class="i gs-fs-exit" aria-hidden="true"><use href="#i-x"/></svg><span id="gsFsLabel">Fullscreen</span>
+              </button>
+              <span class="gs-divider" aria-hidden="true"></span>
+              <button class="btn btn-danger" id="gsStop" type="button" disabled><svg class="i"><use href="#i-stop"/></svg><span>Stop stream</span></button>
+              <button class="btn btn-primary" id="gsStart" type="button"><svg class="i"><use href="#i-play"/></svg><span>Start stream</span></button>
+            </div>
+          </article>
+        </div>
+
+        <div class="grid gs-layout stagger">
+          <!-- Stage: 16:9 video with HUD and state overlays -->
+          <div class="card gs-stage-card">
+            <div class="gs-stage" id="gsStage" data-state="idle" data-video="none" data-mock="false" tabindex="0" aria-label="Goggles video. Double-click or press F for fullscreen.">
+              <video class="gs-video" id="gsVideo" muted autoplay playsinline disablepictureinpicture disableremoteplayback aria-label="Live goggles video"></video>
+
+              <!-- Mock placeholder: only shown in browser preview -->
+              <div class="gs-mock" aria-hidden="true">
+                <div class="gs-mock-grid"></div>
+                <div class="gs-mock-horizon"></div>
+                <div class="gs-mock-reticle"><span></span></div>
+                <div class="gs-mock-sweep"></div>
+                <div class="gs-mock-tag mono">MOCK FEED · 1920×1080 · H.264 High</div>
+              </div>
+
+              <div class="gs-overlay" id="gsOverlay">
+                <div class="gs-overlay-inner">
+                  <span class="empty-icon gs-overlay-icon"><svg class="i"><use id="gsOverlayIcon" href="#i-goggles"/></svg></span>
+                  <h3 id="gsOverlayTitle">Stream is off</h3>
+                  <p id="gsOverlayText">Press Start stream to watch the goggles' encoder output.</p>
+                </div>
+              </div>
+
+              <button class="gs-play" id="gsPlay" type="button" hidden>
+                <span class="gs-play-icon"><svg class="i"><use href="#i-play"/></svg></span>
+                <span>Click to play</span>
+              </button>
+
+              <div class="gs-corners" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+
+              <div class="gs-hud gs-hud-top">
+                <span class="chip gs-chip-live" id="gsChipLive"><span class="gs-pill-dot" aria-hidden="true"></span><span id="gsChipLiveText">OFF</span></span>
+                <span class="chip" id="gsChipRes">—</span>
+                <span class="chip" id="gsChipFps">— fps</span>
+                <span class="chip gs-hud-end gs-tc" id="gsChipTc" title="Timecode derived from frame count">TC --:--:--:--</span>
+              </div>
+              <div class="gs-hud gs-hud-bottom">
+                <span class="chip" id="gsChipRate">— Mb/s</span>
+                <span class="chip gs-chip-mock" id="gsChipMock" hidden>MOCK</span>
+                <button class="icon-btn sm gs-hud-end gs-stage-fs" id="gsStageFs" type="button" aria-label="Toggle fullscreen" title="Fullscreen (F)"><span class="gs-glyph" aria-hidden="true">⛶</span></button>
+              </div>
+            </div>
+
+            <div class="gs-statusline">
+              <svg class="i"><use id="gsStatusIcon" href="#i-info"/></svg>
+              <span class="gs-status-text" id="gsStatus">Idle. Press Start stream, then double-click the video or press F for fullscreen.</span>
+              <span class="gs-url mono" id="gsUrl" title="Stream URL">—</span>
+            </div>
+          </div>
+
+          <!-- Telemetry rail -->
+          <aside class="gs-rail" aria-label="Stream telemetry">
+            <div class="gs-note" id="gsNote" data-tone="risky" hidden>
+              <svg class="i"><use href="#i-alert"/></svg>
+              <div class="min0">
+                <div class="gs-note-title" id="gsNoteTitle">Stream error</div>
+                <p class="hint" id="gsNoteText"></p>
+              </div>
+            </div>
+
+            <article class="card gs-card">
+              <header class="gs-card-head">
+                <span class="label">Stream</span>
+                <span class="gs-card-aside mono" id="gsSparkLabel">bitrate · 60 s</span>
+              </header>
+              <div class="gs-lead">
+                <div class="gs-lead-cell">
+                  <div class="gs-lead-value"><span id="gsFps">—</span><small>fps</small></div>
+                </div>
+                <div class="gs-lead-cell">
+                  <div class="gs-lead-value"><span id="gsRate">—</span><small>Mb/s</small></div>
+                </div>
+              </div>
+              <svg class="gs-spark" id="gsSpark" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true">
+                <path class="gs-spark-area" d=""/>
+                <path class="gs-spark-line" d="" vector-effect="non-scaling-stroke"/>
+              </svg>
+              <dl class="gs-kv">
+                <div><dt>Resolution</dt><dd id="gsRes">—</dd></div>
+                <div><dt>Frames</dt><dd id="gsFrames">—</dd></div>
+                <div><dt>Dropped</dt><dd id="gsDropped">—</dd></div>
+                <div><dt>Latency</dt><dd id="gsLatency">—</dd></div>
+                <div><dt>Session</dt><dd id="gsBytes">—</dd></div>
+              </dl>
+            </article>
+
+            <article class="card gs-card">
+              <header class="gs-card-head"><span class="label">Link</span></header>
+              <dl class="gs-kv">
+                <div><dt>Transport</dt><dd>USB · 192.168.60.2:5571</dd></div>
+                <div><dt>Encoder</dt><dd>vc8000e · H.264 High</dd></div>
+                <div><dt>Codec</dt><dd>avc1.640034 · L5.2</dd></div>
+                <div><dt>Mode</dt><dd>copy (no transcode)</dd></div>
+                <div><dt>Muxer</dt><dd id="gsFfmpeg">—</dd></div>
+                <div><dt>Player</dt><dd id="gsPlayer">—</dd></div>
+              </dl>
+            </article>
+
+            <article class="card gs-card">
+              <header class="gs-card-head"><span class="label">Device</span></header>
+              <dl class="gs-kv">
+                <div><dt>Reader mod</dt><dd id="gsMod">—</dd></div>
+                <div><dt>Fills</dt><dd id="gsFills">—</dd></div>
+                <div><dt>Sent</dt><dd id="gsSent">—</dd></div>
+                <div><dt>Reader drops</dt><dd id="gsDrops">—</dd></div>
+                <div><dt>Pipeline props</dt><dd id="gsProps">—</dd></div>
+              </dl>
+              <p class="hint gs-card-foot">Fills are encoder buffers the MDC reader picked up; sent are the ones forwarded over TCP.</p>
+            </article>
+          </aside>
+        </div>
+      </section>
+
       <!-- ============ Root Shell ============ -->
       <section class="page" id="page-shell" aria-labelledby="pageTitle">
         <div class="stagger">
@@ -815,6 +968,7 @@
   </div>
 </div>
 
+<script src="goggles-stream.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

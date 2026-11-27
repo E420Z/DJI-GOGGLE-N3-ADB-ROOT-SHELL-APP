@@ -120,6 +120,14 @@ More captures: [`docs/screenshots/`](docs/screenshots/).
   ~5 fps at 1080p; frames are dropped to the newest so latency stays low.
   See [`docs/VIDEO-OUT.md`](docs/VIDEO-OUT.md) and
   [`mods/stream/README.md`](mods/stream/README.md).
+- **Goggles Stream page** — the other direction: the goggles' **own 1080p60
+  H.264 encoder** is read live and played on this PC with no re-encode. Video
+  plus a telemetry rail (state, resolution, fps, bitrate, frames, dropped,
+  latency), Start/Stop and fullscreen. Measured **59–60 fps** at 1920×1080; the
+  vendor pipe caps the bitrate at **10 Mbps** (a literal in read-only
+  `/system/etc/app_liveview_pipe.json`). Requires the root shell and
+  **ffmpeg** on the PC. See [`docs/GSTREAM.md`](docs/GSTREAM.md).
+  ![Goggles Stream page](docs/screenshots/web_gstream.png)
 - **Sparrow2 page** — read-only radio research panel. Shows the firmware
   inventory and the shipped Sparrow2 console/test tools, and can send the
   read-only `sdr_shell help` query. It explains why the console is a
@@ -184,6 +192,8 @@ transmit/jam. Follow local law. See [`docs/SAFETY.md`](docs/SAFETY.md).
   **Start root** cannot talk to the device.
 - **Android platform-tools** (`adb.exe`) in `PATH` or `C:\platform-tools`. Needed
   for ADB, live preview, screenshots, file pulls and PC Stream.
+- **ffmpeg** in `PATH`, `tools\ffmpeg.exe`, or via `FFMPEG=...` for the
+  **Goggles Stream** page (it remuxes the H.264 to fragmented MP4).
 
 ### Per feature
 
@@ -194,6 +204,7 @@ transmit/jam. Follow local law. See [`docs/SAFETY.md`](docs/SAFETY.md).
 | ADB / files / logs | `adb.exe` from platform-tools |
 | E420Z live preview + screenshots | ADB, plus the `n3live` mod installed from Mods & UI |
 | PC Stream (desktop → goggles) | ADB **and** the root shell, plus the **Frame injection (PC stream)** mod |
+| Goggles Stream (goggles → PC) | the root shell, the **video-out** mod, and **ffmpeg** on the PC |
 | Themes / custom background | a local copy of the stock `libew_gls_stock.so` (DJI binary, not in this repo) |
 | E420Z stock row / panel | install the menu mods from Mods & UI |
 

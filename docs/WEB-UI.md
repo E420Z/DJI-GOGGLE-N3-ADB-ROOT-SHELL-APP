@@ -45,6 +45,7 @@ app/tools/ui_shot.ps1  headless screenshot helper
 | Connection | RISKY | USB / root / ADB state, device summary, first-run checklist, all connection actions. |
 | E420Z | EXPERIMENTAL | Live mirror, scale selector, FPS chips, screenshot. |
 | PC Stream | EXPERIMENTAL | Desktop -> goggles: on/off toggle, encode + device stats, size/fps/quality settings. |
+| Goggles Stream | EXPERIMENTAL | Goggles -> PC: 1080p60 H.264 viewer with telemetry rail and fullscreen. |
 | Sparrow2 | SAFE | Read-only report, tool inventory, console help, doc links. |
 | Root Shell | RISKY | uid 0 command prompt with history and `/system` blocking. |
 | Mods & UI | EXPERIMENTAL | Install/uninstall mods with risk confirmations. |
@@ -60,6 +61,17 @@ and quality; the page shows both sides of the pipeline - sender fps/KB/s/frames
 and the goggles' decode/publish timings, dropped frames and errors.
 
 Full architecture, measured numbers and troubleshooting: [PC-STREAM.md](PC-STREAM.md).
+
+### Goggles Stream page
+
+Plays the goggles' **own 1080p60 H.264 encoder** on this PC. Start arms the
+vendor MDC reader (`n3videoout.so`), ffmpeg remuxes the bitstream to fragmented
+MP4, and the page plays it with MSE. The rail shows state, resolution, fps,
+bitrate, frames, dropped, latency and the device-side counters; the stage has
+a fullscreen button (also double-click or `F`). Measured 59–60 fps at 1920×1080.
+The bitrate is capped at 10 Mbps by the read-only vendor pipe, so the page
+reports that ceiling honestly. Requires the root shell and ffmpeg.
+Details: [GSTREAM.md](GSTREAM.md).
 
 ## URL parameters (preview and screenshots)
 

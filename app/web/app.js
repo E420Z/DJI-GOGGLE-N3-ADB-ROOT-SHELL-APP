@@ -50,6 +50,8 @@ const PAGES = [
     subtitle: "Tail device and app logs. Refreshes every 3 seconds while open." },
   { id: "settings", title: "Settings", group: "System", icon: "sliders", risk: "SAFE",
     subtitle: "Preferences, goggles theme and the safety reference." },
+  { id: "gstream", title: "Goggles Stream", group: "Device", icon: "camera", risk: "EXPERIMENTAL",
+    subtitle: "1080p60 H.264 from the goggles, straight to this PC." },
 ];
 
 const RISK_INFO = {
@@ -327,6 +329,12 @@ function setMode(mode) {
   $("#sideMock").hidden = mode !== "mock";
   $("#aboutMode").textContent = mode === "mock" ? "Mock data (browser preview)" : "pywebview host";
   logWeb(mode === "mock" ? "Mode: mock data — no pywebview host detected" : "Mode: pywebview host connected");
+  if (mode === "host" && state.page === "gstream") {
+    // The page may have mounted in the pending/mock window before the bridge
+    // existed; remount so it polls the real backend instead of mock data.
+    window.GogglesStream?.unmount();
+    window.GogglesStream?.mount();
+  }
 
   clearInterval(state.timers.status);
   state.timers.status = setInterval(refreshStatus, STATUS_INTERVAL);
@@ -534,7 +542,9 @@ function moveIndicator(instant = false) {
 }
 
 function onPageEnter(id) {
-  if (!state.backend || !id) return;
+  if (!id) return;
+  if (id === "gstream" && state.backend) window.GogglesStream?.mount();
+  if (!state.backend) return;
   if (id === "live") {
     state.visitedLive = true;
     renderStatus();
@@ -550,6 +560,7 @@ function onPageLeave(id) {
   if (id === "logs") clearInterval(state.timers.logs);
   if (id === "live") clearTimeout(state.live.timer);
   if (id === "pcstream") clearInterval(state.timers.pc);
+  if (id === "gstream") window.GogglesStream?.unmount();
 }
 
 /* ==========================================================================
