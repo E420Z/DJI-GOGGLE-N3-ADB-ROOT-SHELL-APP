@@ -37,3 +37,6 @@ powershell -File app/tools/ui_shot.ps1 -Page connection
 These are dmabuf captures from the owner's N3 at 1920x1080. The panel is drawn
 in the same area as the stock Settings panel and reuses the native sidebar
 renderer; the detail pages are read-only.
+
+| `web_pcstream.png` | PC Stream sends this desktop into the goggles. |
+| `web_gstream.png` | Goggles Stream plays the goggles' 1080p60 encoder on the PC. |

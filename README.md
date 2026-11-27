@@ -1,174 +1,125 @@
 # N3 ROOT — DJI Goggles N3 control deck
 
+<p align="center">
+  <img src="docs/screenshot.png" width="880" alt="N3 ROOT control deck — Connection page">
+</p>
+
+<p align="center">
+  <a href="https://github.com/E420Z/DJI-GOGGLE-N3-ADB-ROOT-SHELL-APP/releases/latest"><img src="https://img.shields.io/badge/release-v1.2.1-7c3aed" alt="Release v1.2.1"></a>
+  <img src="https://img.shields.io/badge/firmware-0900-0ea5e9" alt="Firmware 0900">
+  <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-1f2937" alt="Windows 10 / 11">
+  <img src="https://img.shields.io/badge/license-MIT%20%2B%20AGPL-22c55e" alt="MIT + AGPL">
+</p>
+
 A Windows desktop app for **your own** DJI Goggles N3: a session-only root
-shell, ADB, a modern UI control deck, purple theme patches, custom background,
-in-goggles menu apps, a live USB debug preview, **1080p60 goggles → PC video
-out**, and an in-goggles app SDK.
+shell, ADB, a modern control deck, theme and background patches, a native
+in-goggles **E420Z** panel, **1080p60 goggles → PC video out**, a live USB
+debug preview, and an in-goggles app SDK.
 
-> **Tested on firmware 0900 only.** Everything here was developed and verified
-> against the N3 running firmware **0900**. Other firmware builds are **untested**:
-> the menu/vtable addresses, USB composition, `dji_glasses` internals and the
-> vendor OMX components are build-specific, so patches may fail or misbehave.
-> Check your version before using anything that writes to `/vendor`.
+Built and tested against firmware **0900** only. Other firmware builds are
+untested: the root payload, menu/vtable addresses, USB composition,
+`dji_glasses` internals and the vendor OMX components are build-specific.
 
-**What you need:** Windows 10/11 x64, Python 3.12, and the goggles on a USB-C
-**data** cable. The root shell needs the libusb0 driver; live preview, file pulls
-and PC Stream also need ADB. Goggles Stream also needs **ffmpeg**. Full list:
-[Requirements](#requirements).
+> [!WARNING]
+> **Never write to `/system`.** The goggles run dm-verity mode 2
+> (`restart_on_corruption`). A `/system` write without a full hash-tree
+> recalculation bricks the device on the next reboot, and there is **no known
+> unbrick path**. This project writes only `/vendor` and `/data/local/tmp`.
+> Read [`docs/SAFETY.md`](docs/SAFETY.md) first.
 
-![N3 ROOT connection page](docs/screenshot.png)
+> [!IMPORTANT]
+> **Experimental software.** The E420Z menu row/panel, PC Stream, Goggles Stream
+> and all display/input hooks are experimental and can leave the UI in a bad
+> state. **Connection → Recover stock UI** (or a power cycle) always restores
+> stock, because nothing is installed in the boot chain.
 
-*Refreshed control deck: grouped navigation, safety badges, session-only actions,
-and the native E420Z stock-menu panel.*
-
----
-
-## Support the project
-
-**N3 ROOT is open source**, built with love by **Claude Code** and
-**DeepSeek V4.1 Flash**. Every donation is genuinely appreciated and goes
-straight back into hardware, testing and late-night debugging.
-
-| | Address |
-|---|---|
-| **Bitcoin (BTC)** | `bc1qrs9rdj9rklllyp624hlkd6n0v347nsvaae4sa0` |
-| **Ethereum (ETH)** | `0x49d006ff56d4848d2D21F161abDE80BD09210e74` |
-
-Always double-check the address before sending — crypto transfers are
-irreversible.
-
----
-
-> ## 🚫 NEVER WRITE TO `/system`
->
-> The goggles run **dm-verity mode 2 (`restart_on_corruption`)** on `/system`.
-> Any `/system` write without a full hash-tree recalculation **bricks the
-> device on the next reboot** (fast bootloop; USB will not enumerate). Zeroing
-> verity metadata also makes the partition unmountable. **There is no known
-> unbrick path.** This project only writes `/vendor` and `/data/local/tmp`.
-> See [docs/SAFETY.md](docs/SAFETY.md).
-
-> ## ⚠️ Experimental software
->
-> The **stock-menu row / E420Z panel** and **display/input hooks** are
-> experimental. A previous `displayFrame` hook build **black-screened** on
-> 2026-11-25; those display hooks are now compile-time **off**. If the screen
-> ever goes black: **Connection → Recover stock UI**, or power-cycle.
->
-> Read **[docs/EXPERIMENTAL.md](docs/EXPERIMENTAL.md)** before using the menu
-> mod or enabling any experimental hook.
-
-> **Session-only and reversible.** Nothing is written to `/system`, dm-verity is
-> not touched, and OTP/RPMB/bootloader are never used. A reboot restores the
-> stock UI. The app has a one-click **Recover stock UI** escape hatch.
-
----
-
-## Native E420Z panel (new)
-
-![E420Z panel](docs/screenshots/e420z_panel.png)
-
-A native **E420Z** row is added to the stock left sidebar (no stock row is
-replaced). Opening it shows a stock-styled content panel beside the sidebar
-with **STATUS / BAND SCAN / DISPLAY TEST / ABOUT / EXIT**. Up/down navigates,
-center opens, Back returns, and EXIT restores the sidebar. No `/system`
-changes; it is a runtime `/vendor` mod.
-
-More captures: [`docs/screenshots/`](docs/screenshots/).
-
----
-
-## The app
-
-![N3 ROOT control deck](docs/screenshots/web_connection.png)
-
-The desktop control deck is **Python + HTML/CSS/JS** hosted by `pywebview`
-(WebView2). Same backend as always, with real animations and a professional
-shell.
-
-```powershell
-py -3.12 -m pip install -r requirements.txt
-py -3.12 app/webapp.py      # web UI (default)
-py -3.12 app/main.py        # classic Tk fallback
-```
-
-`Start N3 ROOT.cmd` and `run.ps1` pick the web UI and fall back to Tk on their
-own. The web UI calls a narrow API in [`app/webapp.py`](app/webapp.py); the
-static files under `app/web/` never touch ADB or the root shell. See
-[`docs/WEB-UI.md`](docs/WEB-UI.md) and [`app/web/API.md`](app/web/API.md).
-
-OpenDesign is used as a **design reference** for the dashboard layout; it is
-not a runtime dependency. Claude/OpenDesign work is restricted to `app/web/`.
-
-More captures: [`docs/screenshots/`](docs/screenshots/).
+> [!NOTE]
+> **Session-only.** The root shell is the stock `dji_blackbox` RCE and is removed
+> by **Stop root** or a reboot. `/vendor` is remounted read-write only for a
+> push, then set back to read-only.
 
 ---
 
 ## What it does
 
-- **Connection page** — live USB / root shell / ADB status, with buttons to
-  enable ADB, start/stop the root shell, restart the patched UI, or recover the
-  stock UI.
-- **E420Z page** — the goggles side: a **live preview** of the UI over USB
-  (selectable 160×90 up to 1920×1080; ~58 fps at 160×90, lower at higher
-  resolutions), full-resolution screenshots, GIF recording, and quick actions
-  for theme/background/menu.
-- **PC Stream page** — sends **this desktop into the goggles** over the USB link.
-  On/off toggle, live encode stats (fps, KB/s, frames), the goggles-side decode
-  and publish timings, dropped-frame count, and size / fps / quality settings.
-  Costs nothing on the goggles' radios — it is a display injection.
-  ![PC Stream page](docs/screenshots/web_pcstream.png)
-  The goggles decodes each frame in software, so it runs ~12 fps at 1280×720 and
-  ~5 fps at 1080p; frames are dropped to the newest so latency stays low.
-  See [`docs/VIDEO-OUT.md`](docs/VIDEO-OUT.md) and
-  [`mods/stream/README.md`](mods/stream/README.md).
-- **Goggles Stream page** — the other direction: the goggles' **own 1080p60
-  H.264 encoder** is read live and played on this PC with no re-encode. Video
-  plus a telemetry rail (state, resolution, fps, bitrate, frames, dropped,
-  latency), Start/Stop and fullscreen. Measured **59–60 fps** at 1920×1080; the
-  vendor pipe caps the bitrate at **10 Mbps** (a literal in read-only
-  `/system/etc/app_liveview_pipe.json`). Requires the root shell and
-  **ffmpeg** on the PC. See [`docs/GSTREAM.md`](docs/GSTREAM.md).
-  ![Goggles Stream page](docs/screenshots/web_gstream.png)
-- **Sparrow2 page** — read-only radio research panel. Shows the firmware
-  inventory and the shipped Sparrow2 console/test tools, and can send the
-  read-only `sdr_shell help` query. It explains why the console is a
-  **factory-PC** tool (`test:7` host, `-1002`/`-1007`) instead of pretending it
-  works, and it records that the AP-side channels are logs/dumps only — no IQ.
-  No writes, no factory mode, no IQ claim. Details in
-  [`docs/SPARROW2.md`](docs/SPARROW2.md) and
-  [`docs/RADIO-PROBE.md`](docs/RADIO-PROBE.md).
-- **Root Shell page** — an embedded console. Type commands, see output, keep
-  history. Runs as uid 0 in `dji_services`.
-- **Mods & UI page** — install/remove `/vendor` mods, apply purple or
-  menu-only themes, set a custom background, launch the custom menu app, or
-  revert everything.
-- **Logs page** — tail `natartos.log`, `n3mods.log`, `dji_glasses.log`, and the
-  text-tint log.
-- **Settings** — paths, auto-refresh, restore-on-exit, app version.
+| Page | What it does |
+|---|---|
+| **Connection** | Live USB / root shell / ADB state, first-run checklist, ADB enable, UI restart and stock-UI recovery. |
+| **E420Z** | Goggles-side live preview (160×90 … 1920×1080), full-resolution screenshots, GIF recording and quick theme/menu actions. |
+| **PC Stream** | Sends this desktop **into** the goggles over USB (JPEG injection). ~12 fps at 1280×720, ~5 fps at 1080p; frames drop to the newest to keep latency low. |
+| **Goggles Stream** | The opposite direction: the goggles' own **1080p60 H.264** encoder, played on the PC with no re-encode. Telemetry rail and fullscreen. |
+| **Sparrow2** | Read-only radio research: firmware inventory, shipped console/test tools, and the documented limits. No transmit, no IQ. |
+| **Root Shell** | Embedded uid 0 console in `dji_services`, with `/system` writes blocked. |
+| **Mods & UI** | Install/remove `/vendor` mods, themes, custom background, menu apps, and full revert. |
+| **Logs** | Tail NATARTOS / N3MODS / UI / CAPTURE / WEB logs. |
+| **Settings** | Preferences, accent, motion, density, theme picker, safety key and app version. |
 
-The app is the single control point for N3 work. New mods/tools are added to
-`app/plugins/` or `app/tools/` and appear in the app.
+**Highlights**
+
+- **Goggles → PC:** 1920×1080 at 59–60 fps, H.264 straight from the vc8000e
+  encoder, no transcode. The vendor pipe caps it at **10 Mbps**.
+- **PC → goggles:** the shipped path is JPEG; a validated **H.264 + hardware
+  decoder** path is in development (see
+  [`docs/PC-STREAM.md`](docs/PC-STREAM.md)).
+- **Native E420Z panel:** a real row in the stock sidebar, no stock row replaced,
+  runtime `/vendor` mod only.
+- **In-goggles SDK:** build freestanding `.so` apps with the natartos-style
+  loader contract ([`sdk/`](sdk/)).
 
 ---
 
-## Safety
+## Screenshots
 
-This project is for **your own goggles**, on your bench.
+### Control deck
 
-- No `/system` writes, no dm-verity/partition changes.
-- No OTP, RPMB, fuse, bootloader, or SPI/NVRAM writes.
-- The root shell is the stock `dji_blackbox` log-export RCE; it is
-  **session-only** and removed by `Stop root` or a reboot.
-- `/vendor` is remounted read-write only while pushing theme/mod files, then
-  set back to read-only.
-- **Recover stock UI** always restarts `dji_glasses` even if a mod breaks the
-  screen.
-- The live preview and debug hooks are **read-only**; the menu app never
-  suppresses real display frames.
+<table>
+<tr>
+<td align="center" width="33%"><img src="docs/screenshots/web_connection.png" width="360" alt="Connection page"><br><sub><b>Connection</b> — USB, root shell, ADB, recovery</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/web_e420z.png" width="360" alt="E420Z page"><br><sub><b>E420Z</b> — live preview, scales, screenshots</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/web_pcstream.png" width="360" alt="PC Stream page"><br><sub><b>PC Stream</b> — desktop → goggles</sub></td>
+</tr>
+<tr>
+<td align="center" width="33%"><img src="docs/screenshots/web_gstream.png" width="360" alt="Goggles Stream page"><br><sub><b>Goggles Stream</b> — 1080p60 → PC</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/web_sparrow2.png" width="360" alt="Sparrow2 page"><br><sub><b>Sparrow2</b> — read-only radio research</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/web_root_shell.png" width="360" alt="Root Shell page"><br><sub><b>Root Shell</b> — uid 0 console</sub></td>
+</tr>
+<tr>
+<td align="center" width="33%"><img src="docs/screenshots/web_mods.png" width="360" alt="Mods and UI page"><br><sub><b>Mods &amp; UI</b> — install, themes, revert</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/web_logs.png" width="360" alt="Logs page"><br><sub><b>Logs</b> — five live tabs</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/web_settings.png" width="360" alt="Settings page"><br><sub><b>Settings</b> — prefs, theme, safety key</sub></td>
+</tr>
+</table>
 
-Do not use this to intercept third-party radio traffic, decrypt firmware, or
-transmit/jam. Follow local law. See [`docs/SAFETY.md`](docs/SAFETY.md).
+### Native E420Z panel
+
+<table>
+<tr>
+<td align="center" width="33%"><img src="docs/screenshots/e420z_sidebar.png" width="360" alt="E420Z row in the stock sidebar"><br><sub><b>Sidebar</b> — native E420Z row</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/e420z_panel.png" width="360" alt="E420Z panel"><br><sub><b>Panel</b> — stock-styled content area</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/e420z_panel_list.png" width="360" alt="Panel list"><br><sub><b>List</b> — BAND SCAN selected</sub></td>
+</tr>
+<tr>
+<td align="center" width="33%"><img src="docs/screenshots/e420z_status.png" width="360" alt="E420Z status page"><br><sub><b>STATUS</b> — read-only detail</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/e420z_band_scan.png" width="360" alt="E420Z band scan page"><br><sub><b>BAND SCAN</b> — simulated, read-only</sub></td>
+<td align="center" width="33%"></td>
+</tr>
+</table>
+
+### Legacy fallback
+
+<p align="center">
+  <img src="docs/screenshots/app_ui.png" width="520" alt="Classic Tk fallback launcher"><br>
+  <sub><b>Classic Tk</b> — automatic fallback if pywebview or the web files are missing</sub>
+</p>
+
+### Hardware
+
+<p align="center">
+  <img src="docs/goggles.png" width="520" alt="DJI Goggles N3">
+</p>
+
+More captures and reproduction notes:
+[`docs/screenshots/README.md`](docs/screenshots/README.md).
 
 ---
 
@@ -179,7 +130,7 @@ transmit/jam. Follow local law. See [`docs/SAFETY.md`](docs/SAFETY.md).
 - **DJI Goggles N3**, firmware **0900** (the only version tested).
 - A USB-C **data** cable — charge-only cables will not enumerate.
 - Optional: the O4 air unit / aircraft powered on for a live camera link. The UI,
-  root shell and PC Stream all work without one.
+  root shell, PC Stream and Goggles Stream all work without one.
 
 ### PC
 
@@ -188,14 +139,13 @@ transmit/jam. Follow local law. See [`docs/SAFETY.md`](docs/SAFETY.md).
 - Python packages: `py -3.12 -m pip install -r requirements.txt`
   (`pywebview`, `Pillow`, and `customtkinter` for the Tk fallback).
 - **Microsoft Edge WebView2 runtime** — preinstalled on Windows 11 and most
-  Windows 10 installs; if the window is blank, install the Evergreen runtime.
+  Windows 10 installs; install the Evergreen runtime if the window is blank.
 - **libusb0 driver** bound to the goggles' blackbox interface (Zadig →
-  WinUSB/libusb0). This is the transport the root shell uses. Without it,
-  **Start root** cannot talk to the device.
-- **Android platform-tools** (`adb.exe`) in `PATH` or `C:\platform-tools`. Needed
-  for ADB, live preview, screenshots, file pulls and PC Stream.
+  WinUSB/libusb0). This is the root-shell transport.
+- **Android platform-tools** (`adb.exe`) in `PATH` or `C:\platform-tools` for
+  ADB, live preview, screenshots, file pulls and PC Stream.
 - **ffmpeg** in `PATH`, `tools\ffmpeg.exe`, or via `FFMPEG=...` for the
-  **Goggles Stream** page (it remuxes the H.264 to fragmented MP4).
+  **Goggles Stream** page.
 
 ### Per feature
 
@@ -204,7 +154,7 @@ transmit/jam. Follow local law. See [`docs/SAFETY.md`](docs/SAFETY.md).
 | Control deck UI | WebView2 runtime (falls back to the Tk app) |
 | Root shell | libusb0 driver on the goggles |
 | ADB / files / logs | `adb.exe` from platform-tools |
-| E420Z live preview + screenshots | ADB, plus the `n3live` mod installed from Mods & UI |
+| E420Z live preview + screenshots | ADB, plus the `n3live` mod from Mods & UI |
 | PC Stream (desktop → goggles) | ADB **and** the root shell, plus the **Frame injection (PC stream)** mod |
 | Goggles Stream (goggles → PC) | the root shell, the **video-out** mod, and **ffmpeg** on the PC |
 | Themes / custom background | a local copy of the stock `libew_gls_stock.so` (DJI binary, not in this repo) |
@@ -226,7 +176,7 @@ powershell -ExecutionPolicy Bypass -File run.ps1
 ```
 
 Or double-click **`Start N3 ROOT.cmd`**. It launches the pywebview UI and falls
-back to the Tk app automatically if pywebview or the web files are missing:
+back to Tk automatically if pywebview or the web files are missing:
 
 ```powershell
 py -3.12 app\webapp.py    # control deck (default)
@@ -236,40 +186,39 @@ py -3.12 app\main.py      # classic Tk app (fallback)
 ### First run
 
 1. Connect the goggles by USB and power them on.
-2. Open **Connection** → **Start root** (the blackbox RCE listens on
-   `192.168.60.2:4444`).
-3. **Enable ADB** if you want live preview / screenshots / PC Stream / file pulls.
-4. Open **E420Z** → **Start live** for the live UI preview.
-5. **PC Stream** → install **Frame injection (PC stream)** in Mods & UI, restart
-   the UI, then **Start stream**.
-6. Use **Mods & UI** for theme, background, and the custom menu.
+2. **Connection → Start root** — the RNDIS address is discovered automatically;
+   `N3_HOST` overrides the scan if needed.
+3. **Enable ADB** for live preview, screenshots, PC Stream and file pulls.
+4. **E420Z → Start live** for the UI preview.
+5. **Goggles Stream → Start stream** to view the goggles' encoder on the PC.
+6. **Mods & UI** for themes, background and the native menu row.
 
 ### Recover from a black screen
 
-```powershell
-py -3.12 app\webapp.py     # or app\main.py
-```
-
-Then **Connection → Recover stock UI**, or from a terminal:
+Open the app and use **Connection → Recover stock UI**, or from a terminal:
 
 ```powershell
 py -3.12 -c "import sys; sys.path.insert(0,'app'); import n3ctl; n3ctl.start_stock_ui()"
 ```
 
-A power cycle also restores the stock UI, because nothing is installed in the
-boot chain.
+A power cycle also restores stock, because nothing is in the boot chain.
 
 ---
 
-## How the root shell works (short version)
+## How the root shell works
 
-The goggles ship a stock `dji_blackbox` USB log-export path. Its protocol can be
+The goggles ship a `dji_blackbox` USB log-export path. Its protocol can be
 driven from the PC to spawn a shell in the `dji_services` SELinux domain
-(uid 0). The app opens that shell, uses it for `/vendor` file pushes and UI
-restarts, and closes it on **Stop root**. ADB is enabled by switching the USB
-composition with the stock `usb_adb.sh` script.
+(uid 0). The app uses it for `/vendor` pushes and UI restarts, and closes it on
+**Stop root**.
 
-Detailed write-ups, evidence, and reproduction notes:
+The helper now identifies the goggles' **Remote NDIS** adapter by USB PnP ID,
+renews DHCP if it only has an APIPA address, and can temporarily add
+`192.168.60.1/24` / `192.168.42.1/24` / `192.168.137.1/24` to that adapter to
+find a shell on an unusual lease. Only the DJI adapter is touched; the address
+is removed on Stop root or app exit.
+
+Detailed write-ups and evidence:
 
 - [`docs/ROOT-EXPLOIT.md`](docs/ROOT-EXPLOIT.md)
 - [`docs/REPRODUCE.md`](docs/REPRODUCE.md)
@@ -281,94 +230,128 @@ installed.
 
 ---
 
-## Live preview (why it is faster than other tools)
+## Mods and the in-goggles SDK
 
-![E420Z page](docs/screenshots/web_e420z.png)
+| Mod | Purpose |
+|---|---|
+| `mods/capture` | Safe thread-only dmabuf screenshots; no display detour. |
+| `mods/stream` | PC → goggles JPEG receiver and injection hook. |
+| `mods/h264` | `videoout` (goggles → PC H.264), `encprobe` (60 Mbps research), `videc` (decoder probe), decoder experiments. |
+| `mods/n3live` | Live preview source (dmabuf downscale + FIFO). |
+| `mods/n3menu` | Custom in-goggles menu — **experimental/beta**. |
+| `mods/paint` | Minimal overlay proof. |
+| `sdk/` | `n3app.h` / `n3app.c`, template, `build.ps1`, and the mod contract. |
 
-The app loads `n3live.so`, which reads the live 1920×1080 dmabuf, downscales it
-by an integer factor (12 … 1), and writes framed pixels to a FIFO. The PC reads
-that FIFO over `adb exec-out`. Result: **selectable 160×90 … 1920×1080**.
+The menu build in this repo has the experimental `DisplayEngine` hooks
+**disabled** (they caused a black screen on 2026-11-25). The safe path is the
+thread compositor plus input suppression; the display hook is opt-in in source.
 
-| Size | FPS (measured) |
-|---|---:|
-| 160×90 | ~58 |
-| 640×360 | ~8 |
-| 1920×1080 | ~0.9 |
+SDK documentation: [`sdk/README.md`](sdk/README.md),
+[`docs/OVERLAY-SDK.md`](docs/OVERLAY-SDK.md).
 
-Higher resolution is bandwidth-bound, not a missing codec. The reader
-auto-restarts and resyncs if the FIFO/ADB drops, so the preview no longer
-freezes after ~10 s.
-
-For comparison, Toolya's own UI mirror is ~2–3 fps (full 8 MB frames). The
-60 fps video seen elsewhere is the camera/live-view H.264 feed, not the goggles
-UI. See [`docs/LIVE-STREAM.md`](docs/LIVE-STREAM.md).
-
-Screenshots use a separate thread-only dmabuf capture hook; no display detour,
-no frame suppression.
-
----
-
-## Stability
-
-See **[docs/EXPERIMENTAL.md](docs/EXPERIMENTAL.md)** for the full table.
+### Stability
 
 | Area | Status |
 |---|---|
 | Control deck, live preview, screenshots, root/ADB | **Stable** |
 | Themes / background | **Low risk**, reversible |
-| **N3 Menu app** | **Experimental/beta** — a prior build black-screened; display hooks disabled in this build |
-| Experimental `DisplayEngine` hooks | **Off — do not enable yet** |
+| E420Z menu row / panel | **Experimental** |
+| PC Stream | **Experimental** |
+| Goggles Stream | **Experimental** |
+| H.264 PC → goggles / 60 Mbps research | **In development** |
+| Experimental `DisplayEngine` hooks | **Off — do not enable** |
 | Legacy G3 menu/popen/template mods | **Removed** (unsafe on N3) |
 
-## Mods and the in-goggles SDK
-
-- `mods/n3menu` — custom in-goggles menu (window composited into the live
-  buffer, key/touch suppression, long-press OK/exit). **Experimental/beta.**
-- `mods/n3live` — live preview source.
-- `mods/capture` — safe screenshots.
-- `mods/paint` — minimal overlay proof.
-- `sdk/` — `n3app.h` / `n3app.c`, a template, and `build.ps1`. See
-  [`sdk/README.md`](sdk/README.md) and [`docs/OVERLAY-SDK.md`](docs/OVERLAY-SDK.md).
-
-The menu build in this repo has the experimental `DisplayEngine` hooks
-**disabled** (they caused a black screen on 2026-11-25). The safe path is the
-thread compositor plus input suppression; the display hook is opt-in in source.
+Full table: [`docs/EXPERIMENTAL.md`](docs/EXPERIMENTAL.md).
 
 ---
 
 ## Repository layout
 
 ```
-app/            Windows control deck (CustomTkinter) + n3ctl + mods/theme modules
-app/plugins/    mods discovered by the app (n3menu, n3live, capture, paint)
-app/tools/      runtime root-shell + USB + debug scripts
-exploit/        root-shell / blackbox transport scripts (reference copies)
+app/            pywebview control deck, n3ctl, gstream, h264send
+app/web/        HTML/CSS/JS UI and API.md
+app/plugins/    mods discovered by the app
+app/tools/      root-shell, USB, capture and debug tools
+exploit/        root-shell / blackbox transport references
 sdk/            in-goggles app SDK (header, framework, template, build)
-mods/           mod sources and built .so files
-docs/           exploit, safety, live stream, SDK, architecture notes
-linux/          ADB-based backup/recovery CLI for Linux
-tests/          host tests / probes
+mods/           capture, stream, h264, n3live, n3menu, paint
+docs/           safety, exploit, video, UI, SDK and architecture notes
+linux/          ADB-based backup/recovery CLI
+tests/          host tests and probes
 ```
 
 Local-only (not committed, see `.gitignore`):
 `app/assets/libew_gls_stock.so`, `app/assets/dji_glasses_vendor`,
 `app/state/`, recordings. Put your own stock lib and vendor loader there to
-build themes; they are extracted from your device/firmware and not
-redistributed.
+build themes; they come from your device/firmware and are not redistributed.
+
+---
+
+## Version and firmware
+
+- **Latest release:** [v1.2.1](https://github.com/E420Z/DJI-GOGGLE-N3-ADB-ROOT-SHELL-APP/releases/tag/v1.2.1)
+  — Goggles Stream 1080p60 and RNDIS auto-recovery.
+- **Release notes:** [`docs/RELEASE-v1.2.1.md`](docs/RELEASE-v1.2.1.md)
+- **Changelog:** [`docs/CHANGELOG.md`](docs/CHANGELOG.md)
+- **Tested firmware:** **0900 only**. 1.09 is untested; the root payload and
+  vendor OMX paths are build-specific. Check your version before writing
+  `/vendor`.
+
+The `main` branch also contains lower-latency per-frame fMP4 streaming, a
+validated H.264 PC → goggles sender, and the 60 Mbps encoder research; those are
+not in the v1.2.1 asset yet.
+
+---
+
+## Safety
+
+This project is for **your own goggles**, on your bench.
+
+- **No `/system` writes**, no dm-verity or partition changes.
+- No OTP, RPMB, fuse, bootloader, SPI or NVRAM writes.
+- The root shell is the stock `dji_blackbox` RCE; **session-only**, removed by
+  Stop root or a reboot.
+- `/vendor` is remounted read-write only while pushing mods, then read-only.
+- **Recover stock UI** always restarts `dji_glasses`, even if a mod breaks the
+  screen.
+- The live preview and debug hooks are **read-only**; they never suppress real
+  display frames.
+- No RF transmit, jamming, spoofing or interception. Receive-only research
+  only. Follow local law.
+
+Read [`docs/SAFETY.md`](docs/SAFETY.md) and
+[`docs/EXPERIMENTAL.md`](docs/EXPERIMENTAL.md) before using anything that writes
+to `/vendor`.
 
 ---
 
 ## Credits and licensing
 
 - The in-goggles mod framework is derived from **natartos** (AGPL-3.0). The
-  natartos-derived header/mods keep that license; see
-  [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) and
-  [`LICENSE`](LICENSE).
+  natartos-derived header and mods keep that license; see
+  [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) and [`LICENSE`](LICENSE).
 - Thanks to the DJI FPV/open-source community (natartos, toolya, fpv-wtf,
   dji-firmware-tools) for public research and tooling.
-- DJI, Goggles, and O4 are trademarks of DJI. This is an independent project,
+- DJI, Goggles and O4 are trademarks of DJI. This is an independent project,
   not affiliated with or endorsed by DJI.
-- Original app code in this repo is MIT-licensed. DJI binaries are **not**
+- Original app code in this repo is **MIT**-licensed. DJI binaries are **not**
   included.
+- Built with **Claude Code** and **DeepSeek V4.1 Flash**.
 
 **Use only on hardware you own. No warranty.**
+
+---
+
+## Support the project
+
+N3 ROOT is open source. Donations go straight back into hardware, testing and
+late-night debugging.
+
+| | Address |
+|---|---|
+| **Bitcoin (BTC)** | `bc1qrs9rdj9rklllyp624hlkd6n0v347nsvaae4sa0` |
+| **Ethereum (ETH)** | `0x49d006ff56d4848d2D21F161abDE80BD09210e74` |
+
+Always double-check the address before sending — crypto transfers are
+irreversible.
