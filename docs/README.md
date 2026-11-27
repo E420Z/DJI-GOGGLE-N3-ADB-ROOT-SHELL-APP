@@ -31,3 +31,4 @@ Start with `APP.md` for usage and `ROOT-EXPLOIT.md` for the transport.
 | [GSTREAM.md](GSTREAM.md) | **Goggles -> PC video out: 1080p60 H.264 over TCP, real SPS/PPS, ffmpeg/MSE page, 10 Mbps pipe ceiling.** |
 | [RELEASE-v1.2.0.md](RELEASE-v1.2.0.md) | **v1.2.0 release notes: Goggles Stream + RNDIS auto-discovery.** |
 | [RELEASE-v1.2.1.md](RELEASE-v1.2.1.md) | **v1.2.1 release notes: RNDIS adapter detection, APIPA recovery, full-init/multi-nc fallbacks.** |
+| [RELEASE-v1.3.0.md](RELEASE-v1.3.0.md) | **v1.3.0 release notes: deterministic Find N3 (USB VID/PID → RNDIS → port 4444), no LAN fallback, honest failure stages.** |

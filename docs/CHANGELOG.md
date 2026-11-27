@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.3.0 — Deterministic Find N3 (2026-11-27)
+
+- New **Connection → Find N3** action: matches `USB\VID_2CA3*` in PnP, selects
+  the `MI_00` Net adapter by hardware ID, reads its IPv4 and ARP neighbours, and
+  probes TCP 4444 only on that adapter. Four stages: `no_device`, `no_rndis`,
+  `no_shell`, `shell_up`.
+- The RNDIS/scan path no longer falls back to a non-DJI adapter. `_local_ipv4()`
+  is empty when the goggles are absent, and `_sweep_rndis()` refuses instead of
+  scanning a home LAN.
+- `start_root()` preflight reports "no USB", "USB but no RNDIS" or "RNDIS up but
+  no 4444" instead of a generic "not found".
+- `goggles_adapter()` now uses `Get-NetAdapter.PnpDeviceID` (the
+  `Get-NetAdapterHardwareInfo` property was empty on current Windows).
+- Neighbour discovery filters broadcast/permanent/incomplete entries.
+- Classic Tk log no longer prints `✔` when an action returned `False`.
+- Verified on stock 0900: `no_shell`, `Ethernet 2` `192.168.60.1/24`,
+  goggles `192.168.60.2`; no LAN sweep when no adapter is present.
+
 ## Unreleased — lower-latency video out + 60 Mbps research (2026-11-27)
 
 - Goggles Stream now fragments the fMP4 **every frame** (`frag_every_frame`)

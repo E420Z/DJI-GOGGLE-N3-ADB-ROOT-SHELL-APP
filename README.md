@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/E420Z/DJI-GOGGLE-N3-ADB-ROOT-SHELL-APP/releases/latest"><img src="https://img.shields.io/badge/release-v1.2.1-7c3aed" alt="Release v1.2.1"></a>
+  <a href="https://github.com/E420Z/DJI-GOGGLE-N3-ADB-ROOT-SHELL-APP/releases/latest"><img src="https://img.shields.io/badge/release-v1.3.0-7c3aed" alt="Release v1.3.0"></a>
   <img src="https://img.shields.io/badge/firmware-0900-0ea5e9" alt="Firmware 0900">
   <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-1f2937" alt="Windows 10 / 11">
   <img src="https://img.shields.io/badge/license-MIT%20%2B%20AGPL-22c55e" alt="MIT + AGPL">
@@ -59,7 +59,7 @@ irreversible.
 
 | Page | What it does |
 |---|---|
-| **Connection** | Live USB / root shell / ADB state, first-run checklist, ADB enable, UI restart and stock-UI recovery. |
+| **Connection** | Live USB / root shell / ADB state, **Find N3** (USB VID/PID → RNDIS adapter → port 4444), first-run checklist, ADB enable, UI restart and stock-UI recovery. |
 | **E420Z** | Goggles-side live preview (160×90 … 1920×1080), full-resolution screenshots, GIF recording and quick theme/menu actions. |
 | **PC Stream** | Sends this desktop **into** the goggles over USB (JPEG injection). ~12 fps at 1280×720, ~5 fps at 1080p; frames drop to the newest to keep latency low. |
 | **Goggles Stream** | The opposite direction: the goggles' own **1080p60 H.264** encoder, played on the PC with no re-encode. Telemetry rail and fullscreen. |
@@ -76,6 +76,9 @@ irreversible.
 - **PC → goggles:** the shipped path is JPEG; a validated **H.264 + hardware
   decoder** path is in development (see
   [`docs/PC-STREAM.md`](docs/PC-STREAM.md)).
+- **Find N3:** matches the goggles by `USB\VID_2CA3` and reads the IP/neighbours
+  of **its** RNDIS adapter. It never falls back to Wi-Fi or a home LAN, and it
+  says whether the failure is “no USB”, “no RNDIS” or “RNDIS up, no shell”.
 - **Native E420Z panel:** a real row in the stock sidebar, no stock row replaced,
   runtime `/vendor` mod only.
 - **In-goggles SDK:** build freestanding `.so` apps with the natartos-style
@@ -305,17 +308,17 @@ build themes; they come from your device/firmware and are not redistributed.
 
 ## Version and firmware
 
-- **Latest release:** [v1.2.1](https://github.com/E420Z/DJI-GOGGLE-N3-ADB-ROOT-SHELL-APP/releases/tag/v1.2.1)
-  — Goggles Stream 1080p60 and RNDIS auto-recovery.
-- **Release notes:** [`docs/RELEASE-v1.2.1.md`](docs/RELEASE-v1.2.1.md)
+- **Latest release:** [v1.3.0](https://github.com/E420Z/DJI-GOGGLE-N3-ADB-ROOT-SHELL-APP/releases/tag/v1.3.0)
+  — deterministic **Find N3** discovery and honest failure stages.
+- **Release notes:** [`docs/RELEASE-v1.3.0.md`](docs/RELEASE-v1.3.0.md)
 - **Changelog:** [`docs/CHANGELOG.md`](docs/CHANGELOG.md)
 - **Tested firmware:** **0900 only**. 1.09 is untested; the root payload and
   vendor OMX paths are build-specific. Check your version before writing
   `/vendor`.
 
-The `main` branch also contains lower-latency per-frame fMP4 streaming, a
-validated H.264 PC → goggles sender, and the 60 Mbps encoder research; those are
-not in the v1.2.1 asset yet.
+The `main` branch also contains the experimental H.264 PC → goggles transport,
+the vendor display-sink probes and the 60 Mbps encoder research; those are not
+enabled in the app yet and are not part of the supported v1.3.0 workflow.
 
 ---
 

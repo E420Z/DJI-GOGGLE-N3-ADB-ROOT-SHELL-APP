@@ -64,6 +64,8 @@ const RISK_INFO = {
 };
 
 const ACTIONS = {
+  find_n3: { label: "Find N3", risk: "SAFE", icon: "search",
+    desc: "Match the goggles by USB VID/PID, then probe only their RNDIS subnet. Never scans Wi-Fi or LAN." },
   enable_adb: { label: "Enable ADB", risk: "EXPERIMENTAL", icon: "bug",
     desc: "Expose adbd over the USB composition. The device re-enumerates once.",
     confirm: "The goggles drop and re-enumerate their USB link. Live preview and the root shell may disconnect for a few seconds." },
@@ -469,6 +471,15 @@ function renderDevice(s, links) {
     ["Patched UI", flag(s.patched, "Running", "Stopped")],
     ["UI process", flag(s.ui, "Alive", "Not running")],
   ];
+  if (s.n3) {
+    const n3text = {
+      no_device: "No USB device",
+      no_rndis: "USB, no RNDIS",
+      no_shell: "N3 found, no shell",
+      shell_up: "N3 found, shell open",
+    }[s.n3.stage] || "Scanned";
+    rows.push(["N3 link", { text: n3text + (s.n3.goggles_ip ? " · " + s.n3.goggles_ip : "") }]);
+  }
   setHTML($("#devKv"), rows.map(([k, v]) => `
     <div class="kv-row"><dt>${esc(k)}</dt><dd>${"on" in v ? `<span class="dot" data-on="${v.on}"></span>` : ""}${esc(v.text)}</dd></div>`).join(""));
 }

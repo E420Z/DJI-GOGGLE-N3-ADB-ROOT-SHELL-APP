@@ -102,10 +102,9 @@ def goggles_adapter():
     if _DJ_ADAPTER is not None and now - _DJ_AT < 15:
         return _DJ_ADAPTER
     cmd = (
-        "Get-NetAdapter | ForEach-Object { "
-        "$id = (Get-NetAdapterHardwareInfo -Name $_.Name "
-        "-ErrorAction SilentlyContinue).PnpDeviceID; "
-        "if ($id -like '*VID_2CA3*') { $_.Name + '|' + $_.InterfaceDescription } }"
+        "Get-NetAdapter -IncludeHidden -ErrorAction SilentlyContinue | "
+        "Where-Object { $_.PnpDeviceID -like 'USB\\VID_2CA3*' } | "
+        "ForEach-Object { $_.Name + '|' + $_.InterfaceDescription }"
     )
     out, _err = _ps(cmd, 12)
     found = None
@@ -205,60 +204,108 @@ def restore_network() -> None:
         _reset_local_cache()
 
 
+def _adapter_ipv4_info(name: str):
+    """[(ip, prefix, origin)] for one adapter, IPv4 only."""
+    safe = name.replace("'", "''")
+    out, _err = _ps(
+        "Get-NetIPAddress -InterfaceAlias '%s' -AddressFamily IPv4 "
+        "-ErrorAction SilentlyContinue | ForEach-Object { "
+        "$_.IPAddress + '|' + $_.PrefixLength + '|' + $_.PrefixOrigin }"
+        % safe, 8)
+    res = []
+    for line in out.splitlines():
+        parts = [p.strip() for p in line.strip().split("|")]
+        if len(parts) < 2 or parts[0].count(".") != 3:
+            continue
+        try:
+            prefix = int(parts[1])
+        except ValueError:
+            prefix = 24
+        res.append((parts[0], prefix, parts[2] if len(parts) > 2 else ""))
+    return res
+
+
+def _adapter_neighbors(name: str):
+    """[(ip, mac, state)] seen on one adapter, multicast filtered out."""
+    safe = name.replace("'", "''")
+    out, _err = _ps(
+        "Get-NetNeighbor -InterfaceAlias '%s' -AddressFamily IPv4 "
+        "-ErrorAction SilentlyContinue | Where-Object { "
+        "$_.State -ne 'Unreachable' -and $_.State -ne 'Permanent' -and "
+        "$_.State -ne 'Incomplete' -and "
+        "$_.IPAddress -notmatch '^(224|239|255|169\\.254)\\.' -and "
+        "$_.IPAddress -notmatch '\\.(0|255)$' -and "
+        "$_.LinkLayerAddress -ne 'FF-FF-FF-FF-FF-FF' "
+        "} | ForEach-Object { "
+        "$_.IPAddress + '|' + $_.LinkLayerAddress + '|' + $_.State }"
+        % safe, 8)
+    res = []
+    for line in out.splitlines():
+        parts = [p.strip() for p in line.strip().split("|")]
+        if parts and parts[0].count(".") == 3:
+            res.append((parts[0],
+                        parts[1] if len(parts) > 1 else "",
+                        parts[2] if len(parts) > 2 else ""))
+    return res
+
+
+def _n3_usb_devices():
+    """Present USB interfaces whose instance ID starts USB\\VID_2CA3."""
+    out, _err = _ps(
+        "Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | "
+        "Where-Object { $_.InstanceId -like 'USB\\VID_2CA3*' } | ForEach-Object { "
+        "$_.Class + '|' + $_.FriendlyName + '|' + $_.InstanceId }", 10)
+    devs = []
+    for line in out.splitlines():
+        cls, _sep, rest = line.strip().partition("|")
+        name, _sep2, iid = rest.partition("|")
+        if iid.count("\\") >= 2:
+            devs.append({"class": cls.strip(), "name": name.strip(),
+                         "id": iid.strip()})
+    return devs
+
+
 def _local_ipv4():
-    """IPv4 addresses of the PC's RNDIS/USB adapters (cached 20 s)."""
+    """IPv4 addresses of the N3 RNDIS adapter only (cached 20 s).
+
+    Never falls back to Wi-Fi/LAN. If the goggles are not the adapter the
+    answer is empty, and callers must report that instead of scanning a
+    home network.
+    """
     global _LOCAL_IPS, _LOCAL_AT
     now = time.time()
     if _LOCAL_IPS is not None and now - _LOCAL_AT < 20:
         return _LOCAL_IPS
+    ad = goggles_adapter()
     ips = []
-    try:
-        cmd = (
-            "Get-CimInstance Win32_NetworkAdapterConfiguration "
-            "-Filter 'IPEnabled=TRUE' | ForEach-Object { "
-            "$_.Description + '|' + ($_.IPAddress -join ',') }"
-        )
-        r = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", cmd],
-            capture_output=True, text=True, timeout=6)
-        entries = []
-        for line in (r.stdout or "").splitlines():
-            desc, _sep, addrs = line.strip().partition("|")
-            v4 = [ip for ip in addrs.split(",")
-                  if ip.count(".") == 3 and not ip.startswith("169.254.")]
-            if v4:
-                entries.append((desc.lower(), v4))
-        preferred = [ip for desc, v4 in entries
-                     if any(k in desc for k in ("rndis", "remote ndis", "usb"))
-                     for ip in v4]
-        if not preferred:
-            bad = ("wi-fi", "wireless", "802.11", "tailscale", "vpn", "wireguard",
-                   "hyper-v", "vmware", "virtualbox", "npcap", "loopback", "bluetooth")
-            preferred = [ip for desc, v4 in entries
-                         if not any(k in desc for k in bad)
-                         for ip in v4]
-        ips = preferred
-    except Exception:  # noqa: BLE001
-        ips = []
+    if ad:
+        ips = [ip for ip, _p, _o in _adapter_ipv4_info(ad[0])
+               if not ip.startswith("169.254.")]
     _LOCAL_IPS = ips
     _LOCAL_AT = now
     return ips
 
 
 def candidate_hosts():
-    """Likely goggles addresses: explicit override, then local /24 .2/.1/.129."""
+    """Addresses to try, scoped to the N3 RNDIS adapter only."""
     if _EXPLICIT_HOST:
         return [_EXPLICIT_HOST]
-    local = _local_ipv4()
-    out = ["192.168.60.2"]
-    for ip in local:
-        base = ".".join(ip.split(".")[:3])
-        for last in ("2", "1", "129"):
-            host = "%s.%s" % (base, last)
-            if host in local:          # never probe the PC itself
-                continue
-            if host not in out:
-                out.append(host)
+    out = []
+    ad = goggles_adapter()
+    if ad:
+        nbrs = _adapter_neighbors(ad[0])
+        nbrs.sort(key=lambda x: (not x[0].endswith(".2"), x[0]))
+        for ip, _mac, _state in nbrs:
+            if ip not in out:
+                out.append(ip)
+        for ip, _p, _o in _adapter_ipv4_info(ad[0]):
+            base = ".".join(ip.split(".")[:3])
+            for last in ("2", "129", "1"):
+                host = "%s.%s" % (base, last)
+                if host != ip and host not in out:
+                    out.append(host)
+    if not out:
+        out = ["192.168.60.2"]
     return out
 
 
@@ -285,13 +332,17 @@ def _scan_hosts(hosts, timeout: float = 0.3):
 
 
 def _sweep_rndis(log=_noop):
-    """Full /24 sweep of the RNDIS subnet (the device's DHCP lease is unknown)."""
+    """Full /24 sweep, but only of the N3 RNDIS adapter's subnet."""
+    ad = goggles_adapter()
+    if not ad:
+        log("No N3 RNDIS adapter; refusing to scan other networks.")
+        return None
     local = set(_local_ipv4())
     for ip in _local_ipv4():
         base = ".".join(ip.split(".")[:3])
         hosts = ["%s.%d" % (base, n) for n in range(1, 255)
                  if "%s.%d" % (base, n) not in local]
-        log("Sweeping %s.1-254 for port %d..." % (base, PORT))
+        log("Sweeping %s.1-254 on '%s' for port %d..." % (base, ad[0], PORT))
         found = _scan_hosts(hosts)
         if found:
             return found
@@ -324,6 +375,103 @@ def find_root(timeout: float = 8.0, log=_noop, sweep: bool = True) -> bool:
                 return True
         time.sleep(0.25)
     return False
+
+
+def find_n3(log=_noop) -> dict:
+    """Deterministic N3 locator: USB VID/PID -> its RNDIS adapter -> :4444.
+
+    Stages: no_device, no_rndis, no_shell, shell_up. It only ever probes the
+    N3's own adapter, never Wi-Fi/LAN.
+    """
+    usb = _n3_usb_devices()
+    info = {
+        "usb": usb, "adapter": None, "ipv4": [], "neighbors": [],
+        "candidates": [], "goggles_ip": "", "shell_host": "",
+        "port": PORT, "stage": "", "summary": "", "detail": "",
+    }
+    if not usb:
+        info["stage"] = "no_device"
+        info["summary"] = "No DJI N3 on USB (VID 2CA3 not found)."
+        info["detail"] = (
+            "Check the cable (it must be data-capable), use a direct USB "
+            "port with no hub, and power the goggles on.")
+        log(info["summary"])
+        return info
+
+    ad = goggles_adapter()
+    if not ad:
+        info["stage"] = "no_rndis"
+        info["summary"] = ("N3 is on USB, but its RNDIS adapter (MI_00) "
+                           "is missing.")
+        info["detail"] = (
+            "The USB device enumerated without the network interface. "
+            "Reinstall the RNDIS driver, or use the stock USB composition "
+            "(rndis,mass_storage,bulk,acm).")
+        log(info["summary"])
+        return info
+
+    name, desc = ad
+    ips = _adapter_ipv4_info(name)
+    nbrs = _adapter_neighbors(name)
+    info["adapter"] = {"name": name, "description": desc}
+    info["ipv4"] = ips
+    info["neighbors"] = nbrs
+
+    # Prefer a .2 neighbor (the goggles' usual RNDIS address), then every
+    # neighbor, then the conventional host addresses on the adapter's /24.
+    goggles = ""
+    for ip, _mac, _state in nbrs:
+        if ip.endswith(".2"):
+            goggles = ip
+            break
+    if not goggles and nbrs:
+        goggles = nbrs[0][0]
+    info["goggles_ip"] = goggles
+
+    cands = []
+    if goggles:
+        cands.append(goggles)
+    for ip, _mac, _state in nbrs:
+        if ip not in cands:
+            cands.append(ip)
+    for ip, _p, _o in ips:
+        base = ".".join(ip.split(".")[:3])
+        for last in ("2", "129", "1"):
+            host = "%s.%s" % (base, last)
+            if host != ip and host not in cands:
+                cands.append(host)
+    if not cands:
+        cands = ["192.168.60.2"]
+    info["candidates"] = cands
+
+    for host in cands:
+        if _probe_host(host):
+            info["shell_host"] = host
+            info["stage"] = "shell_up"
+            break
+
+    addr = ", ".join("%s/%s" % (ip, p) for ip, p, _o in ips) or "no IPv4"
+    if info["stage"] == "shell_up":
+        info["summary"] = ("N3 found on '%s' (%s); root shell OPEN at %s:%d."
+                           % (name, addr, info["shell_host"], PORT))
+    else:
+        info["stage"] = "no_shell"
+        info["summary"] = ("N3 found on '%s' (%s), goggles %s; no root shell "
+                           "on port %d."
+                           % (name, addr, info["goggles_ip"] or "?", PORT))
+    info["detail"] = "\n".join([
+        "USB interfaces: %d (VID_2CA3)" % len(usb),
+        "RNDIS adapter : %s (%s)" % (name, desc),
+        "IPv4          : %s" % addr,
+        "Neighbors     : %s" % (", ".join(
+            "%s %s" % (ip, mac) for ip, mac, _s in nbrs) or "none"),
+        "Probed        : %s" % ", ".join(cands),
+        "Port %d: %s" % (PORT, "open on " + info["shell_host"]
+                         if info["shell_host"] else "closed everywhere"),
+    ])
+    for line in info["detail"].splitlines():
+        log(line)
+    return info
 
 
 def maybe_discover() -> None:
@@ -396,6 +544,16 @@ def start_root(log=_noop) -> bool:
     if find_root(2.0, log, sweep=False):
         log("Root shell is already running on %s:%d." % (HOST, PORT))
         return True
+    if not _EXPLICIT_HOST:
+        if not _n3_usb_devices():
+            log("No DJI N3 on USB (VID 2CA3). Connect it directly with a "
+                "data-capable cable and power it on.")
+            return False
+        if not goggles_adapter():
+            log("N3 is on USB, but its RNDIS adapter (MI_00) is missing; "
+                "not scanning other networks.")
+            log("Reinstall the RNDIS driver or replug the goggles, then retry.")
+            return False
 
     def attempt(full: bool) -> None:
         label = "full" if full else "minimal"
@@ -429,11 +587,20 @@ def start_root(log=_noop) -> bool:
         log("Root shell is up: %s:%d (uid 0, dji_services)." % (HOST, PORT))
         return True
 
-    log("Root shell did not answer on any local RNDIS address (tried %s)."
-        % ", ".join(candidate_hosts()))
-    log("The payload was accepted but nothing bound. If the handshake reported "
-        "0 replies, the 1.09 blackbox path differs from 0900; this build is "
-        "untested and may need new offsets.")
+    ad = goggles_adapter()
+    if ad:
+        ips = ", ".join("%s/%s" % (ip, p)
+                        for ip, p, _o in _adapter_ipv4_info(ad[0])) or "no IPv4"
+        log("N3 RNDIS '%s' is up (%s), but nothing is listening on port 4444."
+            % (ad[0], ips))
+        log("The payload was accepted but did not bind: that points at the "
+            "firmware path or nc/SELinux, not at the network.")
+    else:
+        log("The N3 RNDIS adapter disappeared during the attempt.")
+    log("Tried: %s" % ", ".join(candidate_hosts()))
+    log("If the DUML handshake reported 1 reply but nothing bound, the 1.09 "
+        "dji_blackbox path may differ from 0900; this build is untested and "
+        "may need new offsets.")
     return False
 
 

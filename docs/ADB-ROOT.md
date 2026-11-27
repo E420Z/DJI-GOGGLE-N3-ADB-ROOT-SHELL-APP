@@ -126,6 +126,14 @@ the `dji_services` root shell (RCE) if they need cleaning.
 `ack=c0` only means `dji_blackbox` accepted the log payload. It does **not**
 prove the shell bound. Check, in order:
 
+**Start with Connection → Find N3.** It matches the goggles by USB PnP ID
+(`USB\VID_2CA3*`), selects the `MI_00` Net adapter by hardware ID, and reads
+that adapter's IPv4 plus its ARP neighbours. It never falls back to a non-DJI
+adapter, so a `192.168.68.x` subnet is only scanned when Windows says it *is*
+the goggles' RNDIS interface. If it reports `no_rndis`, fix the driver/cable
+before retrying root; if it reports `no_shell`, the network is fine and the
+payload did not bind.
+
 1. **RNDIS address.** The app reads the IPv4 of the `Remote NDIS`/USB adapter
    and probes `x.y.z.2` and `x.y.z.129` on port 4444. If neither answers it
    **sweeps the whole RNDIS /24** (`x.y.z.1-254`), because Windows ICS can hand

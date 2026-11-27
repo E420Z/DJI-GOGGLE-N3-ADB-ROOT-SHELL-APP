@@ -29,7 +29,7 @@ from ui.live import LiveStream, capture_png, SCALE_BY_LABEL  # noqa: E402
 from pcsender import PcStream, SIZES as PC_SIZES  # noqa: E402
 from gstream import GogglesStream  # noqa: E402
 
-VERSION = "1.2.1"
+VERSION = "1.3.0"
 PREFS = os.path.join(APP_DIR, "state", "web_prefs.json")
 SHOTS = os.path.join(APP_DIR, "state", "screenshots")
 
@@ -64,6 +64,7 @@ class Api:
         self._fps_t0 = time.time()
         self._log = []
         self._status_cache = None
+        self._n3 = None
         self._pc = PcStream(note=self._note)
         self._gstream = None
 
@@ -128,6 +129,7 @@ class Api:
                          "USB" if st.get("usb") else "offline",
             "serial": "••••••••",
             "device": "DJI Goggles N3",
+            "n3": self._n3,
         }
         with self._lock:
             self._status_cache = (time.time(), dict(out))
@@ -141,6 +143,25 @@ class Api:
     def start_root(self) -> dict:
         return self._action("Start root",
                             lambda: n3ctl.start_root(log=self._note))
+
+    def find_n3(self) -> dict:
+        """Deterministic N3 locator: USB VID/PID -> RNDIS -> port 4444."""
+        try:
+            info = n3ctl.find_n3(log=self._note)
+            self._n3 = {
+                "stage": info.get("stage", ""),
+                "summary": info.get("summary", ""),
+                "adapter": info.get("adapter"),
+                "goggles_ip": info.get("goggles_ip", ""),
+                "shell_host": info.get("shell_host", ""),
+                "candidates": info.get("candidates", []),
+            }
+            self._status_cache = None
+            return _ok(info.get("summary", "N3 scan complete"),
+                       n3=info, detail=info.get("detail", ""))
+        except Exception as exc:  # noqa: BLE001
+            self._note("Find N3: %s" % exc)
+            return _fail("Find N3: %s" % exc)
 
     def stop_root(self) -> dict:
         return self._action("Stop root",
