@@ -339,12 +339,10 @@
             writes outside <code>/data/local/tmp/s2cap</code>. Decoding happens on the PC.
           </p>
           <p class="hint s2-blocked">
-            <strong>Measured on this build:</strong> the vendor decoder aborts
-            (<code>FORTIFY: fseeko: null FILE*</code>) because it needs
-            <code>/etc/wl_liveview_venc.json</code>, which is missing — and
-            <code>/etc</code> is <code>/system/etc</code> on dm-verity, so it must never
-            be created. <code>-p</code>/<code>-k</code> also fail to parse, and the S2
-            link is down (<code>recv_cnt 0</code>). Probe still works.
+            <strong>Not supported on this build.</strong> The vendor encoded-capture
+            path needs a read-only system config (or a flash dump), both outside
+            the project safety rules. Use the E420Z display mirror or Goggles
+            Stream for decoded video. Probe still works.
           </p>
           <div class="s2-controls">
             <label class="s2-field">

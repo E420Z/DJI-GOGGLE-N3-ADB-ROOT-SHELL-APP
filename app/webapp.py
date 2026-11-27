@@ -605,12 +605,10 @@ class Api:
                 log = text or ""
                 if "FORTIFY" in log or "parse command failed" in log:
                     return _fail(
-                        "Blocked on this build: the vendor decoder aborts with "
-                        "'FORTIFY: fseeko: null FILE*' because it wants "
-                        "/etc/wl_liveview_venc.json, which does not exist. /etc "
-                        "is /system/etc (dm-verity, read-only) so it must never "
-                        "be created. -p and -k also fail to parse here, and the "
-                        "S2 link is down (logcat: recv_cnt 0).",
+                        "Not supported on this build: the vendor encoded-capture "
+                        "path needs a read-only system config (or a flash dump), "
+                        "both outside the project safety rules. Use the E420Z "
+                        "display mirror or Goggles Stream for decoded video.",
                         text=_clip(text, 12000))
                 return _fail(
                     "The decoder produced no file. Check the run log above.",
