@@ -28,4 +28,5 @@ Start with `APP.md` for usage and `ROOT-EXPLOIT.md` for the transport.
 | [VIDEO-OUT.md](VIDEO-OUT.md) | **1080p out to the PC: the goggles already encodes H.264 at 50 fps.** |
 | [PC-STREAM.md](PC-STREAM.md) | **Desktop into the goggles: architecture, measured fps, latency, anti burn-in, troubleshooting.** |
 | [LIVEVIEW-SHARE.md](LIVEVIEW-SHARE.md) | **Share Liveview: property toggle, 60 fps measurement, AOA transport, why PC capture is blocked.** |
-| [GSTREAM.md](GSTREAM.md) | **Goggles → PC video out: 1080p60 H.264 over TCP, real SPS/PPS, ffmpeg/MSE page, 10 Mbps pipe ceiling.** |
+| [GSTREAM.md](GSTREAM.md) | **Goggles -> PC video out: 1080p60 H.264 over TCP, real SPS/PPS, ffmpeg/MSE page, 10 Mbps pipe ceiling.** |
+| [RELEASE-v1.2.0.md](RELEASE-v1.2.0.md) | **v1.2.0 release notes: Goggles Stream + RNDIS auto-discovery.** |

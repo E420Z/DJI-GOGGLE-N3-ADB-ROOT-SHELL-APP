@@ -1,11 +1,11 @@
 # Changelog
 
-## Unreleased — Goggles → PC video out (2026-11-27)
+## 1.2.0 — Goggles Stream (2026-11-27)
 
-- **New Goggles Stream page**: plays the goggles' own **1920×1080 H.264** on the
-  PC with no re-encode, a telemetry rail (state, fps, bitrate, frames, dropped,
-  device counters) and fullscreen (button, double-click, `F`). Built with
-  Claude Code + OpenDesign's `linear-app` design system, then wired into the app.
+- **Goggles Stream page + `app/gstream.py`**: plays the goggles' own
+  **1920×1080 H.264** on the PC with no re-encode, telemetry rail and
+  fullscreen. Verified live in WebView2: readyState 4, buffered 1.7→11.7 s,
+  718 frames, 0 dropped.
 - **`mods/h264/videoout.c` / `n3videoout.so`**: reads
   `zv900_app_liveview_chn` with `OMX.dji.video_reader.avc.mdc`, prepends the real
   vc8000e SPS/PPS (`67 64 00 34 … 68 ee 3c b0`), and serves Annex-B H.264 on
@@ -20,6 +20,11 @@
   reader→encoder mode is the only route above 10 Mbps.
 - `ui_shot.ps1` now accepts relative `-Out` paths; the page shows “—” instead of
   a fake `0 ms` latency.
+- **Root shell auto-discovers the RNDIS address**: reads the Remote NDIS/USB
+  adapter IPv4, probes `x.y.z.2` and `x.y.z.129` on 4444, adopts the answer, and
+  keeps `N3_HOST` as an override. `is_root()` starts a throttled background
+  scan, so a shell that appears after USB re-enumeration is picked up.
+- App version is **1.2**.
 
 ## Unreleased - PC stream working (2026-11-26)
 

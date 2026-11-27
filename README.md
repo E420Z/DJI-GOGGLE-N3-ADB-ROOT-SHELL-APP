@@ -2,7 +2,8 @@
 
 A Windows desktop app for **your own** DJI Goggles N3: a session-only root
 shell, ADB, a modern UI control deck, purple theme patches, custom background,
-in-goggles menu apps, a live USB debug preview, and an in-goggles app SDK.
+in-goggles menu apps, a live USB debug preview, **1080p60 goggles → PC video
+out**, and an in-goggles app SDK.
 
 > **Tested on firmware 0900 only.** Everything here was developed and verified
 > against the N3 running firmware **0900**. Other firmware builds are **untested**:
@@ -12,7 +13,8 @@ in-goggles menu apps, a live USB debug preview, and an in-goggles app SDK.
 
 **What you need:** Windows 10/11 x64, Python 3.12, and the goggles on a USB-C
 **data** cable. The root shell needs the libusb0 driver; live preview, file pulls
-and PC Stream also need ADB. Full list: [Requirements](#requirements).
+and PC Stream also need ADB. Goggles Stream also needs **ffmpeg**. Full list:
+[Requirements](#requirements).
 
 ![N3 ROOT connection page](docs/screenshot.png)
 
