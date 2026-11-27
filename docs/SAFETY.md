@@ -16,9 +16,10 @@ The goggles run dm-verity in **mode 2 (`restart_on_corruption`)** on `/system`.
   reboot (fast bootloop; USB does not enumerate).
 - **Do not zero verity metadata.** It makes the partition unmountable.
 - There is currently **no known way to unbrick** a device in this state.
-- This project only writes `/vendor` (flat mods/theme) and
-  `/data/local/tmp`. It never modifies `/system`, verity metadata, or
-  partitions.
+- This project normally writes only `/vendor` (flat mods/theme) and
+  `/data/local/tmp`. The opt-in `perma-root-exp/` hook additionally writes
+  four tiny filenames under `/blackbox/system/sys_perf`; it never modifies
+  `/system`, verity metadata, or partitions.
 
 If any instruction or tool asks you to write `/system`, stop.
 
@@ -31,6 +32,8 @@ If any instruction or tool asks you to write `/system`, stop.
 - Read-only dmabuf capture and a 160×90 live stream.
 - In-goggles app windows composited into the live buffer (no frame
   suppression; the real display call is always made).
+- Opt-in perma-ADB boot hook (`perma-root-exp/`): `/data` plus tiny
+  `/blackbox/system/sys_perf` filenames; no `/system` or `/vendor`.
 - One-click recovery to the stock UI.
 
 ## Not done
@@ -40,7 +43,26 @@ If any instruction or tool asks you to write `/system`, stop.
 - No firmware decryption or key extraction.
 - No RF transmit, jamming, spoofing, or interception/decryption of third-party
   traffic.
-- No boot persistence; a power cycle restores stock.
+- The **shipped app** has no boot persistence; a power cycle restores stock.
+  The opt-in [`perma-root-exp/`](../perma-root-exp/) experiment is separate:
+  it uses `/data` and a tiny `/blackbox` filename, never `/system` or
+  `/vendor`; see its README and plan.
+
+## Permanent root / ADB experiment
+
+`perma-root-exp/` uses the stock `sys_perf_monitor` root service and a
+`/blackbox/system/sys_perf` filename to run `/data/dji/boot-adb.sh` within
+~60 s of boot. It switches the USB composition to adb and starts `adbd` with
+`--root_seclabel=u:r:su:s0`. It does **not** write `/system` or `/vendor`.
+
+- Test the benign hook first (`touch /data/dji/hook_ok`).
+- Kill switch: `touch /data/dji/perma_off`.
+- Remove: `host/install_hook.py --remove`; reboot returns the stock USB
+  composition.
+- The hook is persistent root code execution: keep `boot-adb.sh` minimal and
+  log to `/data/dji/perma.log`.
+- A bad hook can break USB/UI. Recovery is power-cycle with the hook removed
+  or the kill switch present.
 
 ## Recovery
 

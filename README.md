@@ -84,6 +84,20 @@ irreversible.
 - **In-goggles SDK:** build freestanding `.so` apps with the natartos-style
   loader contract ([`sdk/`](sdk/)).
 
+## Permanent root / ADB (experimental)
+
+The static design for a **boot-persistent root ADB** shell is in
+[`perma-root-exp/`](perma-root-exp/). It uses the stock `sys_perf_monitor`
+root service to run `/data/dji/boot-adb.sh` within ~60 s of boot, switches the
+USB composition to adb, and starts `adbd` with `--root_seclabel=u:r:su:s0`
+(uid 0 in `u:r:su:s0`).
+
+It writes only `/data` plus four tiny hook filenames under
+`/blackbox/system/sys_perf`; **no `/system` or `/vendor`**. It is **not armed**
+by default: the plan requires the benign hook first, has a kill switch, and
+documents removal/recovery. See
+[`perma-root-exp/README.md`](perma-root-exp/README.md).
+
 ---
 
 ## Screenshots

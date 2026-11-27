@@ -295,111 +295,16 @@ equivalent on-device IQ door was found.
 - The C5VRX analogy does **not** map cleanly: ESP32-C5 has a ROM `MODEM_DIAG`
   path; Sparrow2's firmware is encrypted and its console is host-gated.
 - **No on-goggles IQ/ADC software path was found.** The *encoded liveview* is a
-  different story and is available — see §10A.
+  different story ; capture is not supported — see §10A.
 
 ---
 
-## 10A. Encoded liveview capture (new, receive-only)
+## 10A. Encoded liveview capture
 
-Sparrow2's liveview reaches the AP as **H.265 over vendor USB bulk endpoints**,
-not as IQ samples:
-
-| stream | interface | EP IN | resolution | codec |
-|---|---|---|---|---|
-| main | 3 | `0x84` | 1920×1080 | H.265 |
-| secondary | 0 | `0x81` | 640×360 | H.265 |
-
-The shipped decoder `/system/bin/test_wl_vdec` can be pointed at those
-endpoints. With `-d` it dumps the encoded stream instead of decoding it:
-
-```
-test_wl_vdec -t usb_vdec -p 0 -F 1 -w 1920 -h 1080 -C yuv420 \
-             -d -e /data/local/tmp/s2cap -b s2_main
-```
-
-- `-p` is `[--port] port` in the usage text (0 = main, 1 = secondary by
-  `wl_port_id`), but on this build **it fails to parse**, as does `-k`. Omit
-  both; the app's "Auto (no -p)" option does exactly that.
-- The write itself lives in `libduml_frwk.so` (`fopen`/`fwrite`/`strftime`,
-  keys `dump_wl_stream_path`, `dump_stream_name`, `dump_stream_enable`).
-- Output is an elementary stream; remux or decode on the PC.
-
-There is also `record_test_script.sh`, which routes video to the e3t vdec
-(`-s 9 -c 0x4c 000200`) and has `omx_recordtest` write
-`/blackbox/record/test.mp4`. **Not used by the app**: it re-routes the live
-video pipeline and may blank the goggles display until reboot.
-
-Link start/stop (`wlm_cfg.json` → `test.liveview`, opcodes `006E0001` /
-`006E0000`) would be the supported way to make the S2 stream without the media
-server. On this build the `start_cmd` and `finish_cmd` arrays are **empty**, so
-those opcodes are simply not configured — nothing to send.
-
-### Measured on the device (2026-11-26)
-
-Everything below is from the owner's N3, root shell up, no captures written.
-
-| Check | Result |
-|---|---|
-| S2 enumerates on the goggles' USB bus | **Yes** — `/sys/bus/usb/devices/2-1  2ca3:1020` |
-| Interface 3 endpoint | **Yes** — `/sys/bus/usb/devices/2-1:1.3/ep_84` present |
-| `test_wl_vdec` present | **Yes** — `/system/bin/test_wl_vdec`, 33,416 bytes |
-| `-d` is the encoded-stream dump | **Yes** — usage: `-d [--set_dump] enable dump encoded stream` |
-| `-p 0` selects main | **No** — `-p` is `[--port] port`, and **fails to parse** (`rc=255`, usage printed). `-k` fails the same way |
-| `test_wl_vdec -t usb_vdec …` (vendor's own example) | **Aborts** — `FORTIFY: fseeko: null FILE*`, `rc=133` (SIGTRAP) |
-| Why it aborts | `wlm_cfg.json` points `test.liveview_venc_cfg` at `/etc/wl_liveview_venc.json`, which **does not exist**. `/etc` is `/system/etc` on `dm-0` (dm-verity, ro) — creating it would be a `/system` write |
-| `test.liveview` start/finish commands | **Empty arrays** in `/system/etc/wlm_cfg.json` — `006E0001`/`006E0000` are not configured on this build |
-| S2 link state | **Down** — logcat `wlm_ds_common_dump … recv_cnt 0, recv_bytes 0, freq 0, bitrate 0`; `failed to get target dev` |
-
-The **real** readers are OMX graph nodes, not the test tool:
-
-- `secondary_liveview_pipe.json` → `OMX.dji.video_reader.wlvdec` with
-  `usb_interface: 0`, `usb_ep_in: 129` (`0x81`), `input_fmt: h265`,
-  `wl_port_id: 1`, 640×360 — the S2 secondary stream.
-- `app_liveview_pipe.json` → `OMX.dji.video_reader.mdc` on the already-decoded
-  `zv900_liveview_lcdc_chn` (1920×1080), re-encoded to AVC for the phone app.
-- `wlm_cfg.json` gives the main channel to `media_server` (`0x1c07`) as
-  `usbv2`, `vid 2ca3 pid 1020 interface 3 ep_in 84`.
-
-So the encoded H.265 for the **main** stream is owned by `media_server` on USB
-interface 3. Reading it from a second process means competing with the running
-media server, and the vendor's own test reader (`wlvdec`) is addressed by
-`wl_port_id`, not by `-p`.
-
-### Status
-
-| Step | State |
-|---|---|
-| Read-only probe | **works on-device** |
-| `test_wl_vdec -d` dump | **blocked** — vendor tool aborts, config missing on `/system` |
-| Pull to PC | implemented, not exercised (nothing captured) |
-| `record_test_script.sh` route | documented only, deliberately not wired |
-| `006E0001` / `006E0000` start/stop | **not available** — arrays empty in this build's config |
-
-### What this means
-
-The USB endpoint and the encoding are real; the *shipped test tool* is not
-usable here, and the config it wants is on dm-verity `/system`, so it cannot be
-supplied safely. Two independent blockers:
-
-1. The vendor decoder needs `/system/etc/wl_liveview_venc.json`. Writing it is
-   a `/system` write → brick on reboot. **Never do this.**
-2. Even a working reader gets nothing right now: the S2 link is down
-   (`recv_cnt 0`), because no aircraft/air unit is paired.
-
-Until one of those changes, the practical way to get S2 video onto the PC is
-the existing **E420Z live preview**, which mirrors the goggles display — i.e.
-the already-decoded liveview.
-
-### Getting video on the PC: three options
-
-| Option | State | What it needs |
-|---|---|---|
-| **E420Z live preview** (display mirror) | **works today** | ADB + patched UI running `n3live.so`. Streams the decoded liveview the goggles is already showing, OSD included. |
-| Raw H.265 from USB iface 3 / EP `0x84` | blocked | Either the vendor decoder (needs a `/system` file) or our own aarch64 reader competing with `media_server`. |
-| OMX tap of `zv900_liveview_lcdc_chn` / `wlvdec` | research | Same competition problem; `lcdcwb_pipe.json` shows the vendor's own LCDC-writeback capture path. |
-
-The display mirror is the same pixels without any of those risks, so that is the
-one to use.
+Not supported on N3 0900 under the project safety rules. The vendor
+capture path needs a `/system` config or a flash dump; neither is
+permitted. Use the E420Z display mirror or Goggles Stream for decoded
+video on the PC.
 
 ## 10B. Board identifiers (hardware vs firmware)
 

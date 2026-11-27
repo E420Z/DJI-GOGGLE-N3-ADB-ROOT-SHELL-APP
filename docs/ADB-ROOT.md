@@ -167,3 +167,12 @@ the temporary address on **Stop root** or app exit. This needs administrator;
 if Windows refuses, the log says so and you can set the address manually with
 `netsh interface ipv4 set address name="Ethernet 3" static 192.168.60.1
 255.255.255.0` (revert with `... dhcp`).
+
+## Persistence (experimental)
+
+Runtime root ADB is proven. For a boot-persistent variant, see
+[`../perma-root-exp/`](../perma-root-exp/): the stock `sys_perf_monitor`
+root service runs `/data/dji/boot-adb.sh` from a `/blackbox` hook filename,
+then switches the USB composition to adb and starts `adbd`. It writes only
+`/data` and four tiny `/blackbox` filenames — no `/system` or `/vendor`.
+Benign hook first; kill switch and removal are documented.
