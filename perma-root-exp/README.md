@@ -54,6 +54,8 @@ itself from `boot-adb.sh`.
 | `host/install_hook.py` | `--check`, `--benign`, `--arm`, `--kill`, `--resume`, `--remove` |
 | `host/verify.py` | PC-side check: `perma_ok`, `adb devices`, `adb shell id` |
 | `STATIC-ANALYSIS.md` | Boot gate, SELinux, hook, AVB, risks |
+| `BOOT-ADB.md` | Exact adbd gate, runtime proof, perma hook, expected output |
+| `DEVICE-WIDE-ROOT.md` | Capability matrix; what root can write; why `/system` stays read-only |
 | `PLAN.md` | Phased benign -> armed test and recovery |
 
 ## Safety

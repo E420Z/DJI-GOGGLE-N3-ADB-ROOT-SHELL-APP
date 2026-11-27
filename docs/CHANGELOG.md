@@ -10,6 +10,8 @@
   `/vendor` writes**.
 - Benign hook first, kill switch (`/data/dji/perma_off`), and removal are
   documented.
+- Added `BOOT-ADB.md` (exact gate + expected output) and
+  `DEVICE-WIDE-ROOT.md` (capability matrix; `/system` remains read-only).
 - Trimmed unsupported capture notes from `SPARROW2.md`.
 
 ## 1.3.0 — Deterministic Find N3 (2026-11-27)

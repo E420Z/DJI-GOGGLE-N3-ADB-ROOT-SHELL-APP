@@ -176,3 +176,7 @@ root service runs `/data/dji/boot-adb.sh` from a `/blackbox` hook filename,
 then switches the USB composition to adb and starts `adbd`. It writes only
 `/data` and four tiny `/blackbox` filenames — no `/system` or `/vendor`.
 Benign hook first; kill switch and removal are documented.
+See [`BOOT-ADB.md`](../perma-root-exp/BOOT-ADB.md) for the exact gate and
+expected output, and
+[`DEVICE-WIDE-ROOT.md`](../perma-root-exp/DEVICE-WIDE-ROOT.md) for the
+capability limits.

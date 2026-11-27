@@ -34,4 +34,6 @@ Start with `APP.md` for usage and `ROOT-EXPLOIT.md` for the transport.
 | [RELEASE-v1.3.0.md](RELEASE-v1.3.0.md) | **v1.3.0 release notes: deterministic Find N3 (USB VID/PID → RNDIS → port 4444), no LAN fallback, honest failure stages.** |
 | [`../perma-root-exp/README.md`](../perma-root-exp/README.md) | **Perma-root/ADB experiment: `sys_perf` boot hook, root adbd, kill switch, recovery.** |
 | [`../perma-root-exp/STATIC-ANALYSIS.md`](../perma-root-exp/STATIC-ANALYSIS.md) | **Static boot/SELinux/AVB analysis for the perma-root path.** |
+| [`../perma-root-exp/BOOT-ADB.md`](../perma-root-exp/BOOT-ADB.md) | **Boot ADB gate, runtime proof, perma hook, expected output.** |
+| [`../perma-root-exp/DEVICE-WIDE-ROOT.md`](../perma-root-exp/DEVICE-WIDE-ROOT.md) | **Device-wide root capabilities and the `/system` verity limit.** |
 | [`../perma-root-exp/PLAN.md`](../perma-root-exp/PLAN.md) | **Phased benign → armed test and recovery.** |

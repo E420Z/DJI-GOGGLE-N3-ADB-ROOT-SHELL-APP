@@ -63,6 +63,9 @@ If any instruction or tool asks you to write `/system`, stop.
   log to `/data/dji/perma.log`.
 - A bad hook can break USB/UI. Recovery is power-cycle with the hook removed
   or the kill switch present.
+- Device-wide limits: root covers non-verity paths; `/system` stays
+  read-only. See [`DEVICE-WIDE-ROOT.md`](../perma-root-exp/DEVICE-WIDE-ROOT.md).
+  Never run `adb remount` or remount `/system`.
 
 ## Recovery
 

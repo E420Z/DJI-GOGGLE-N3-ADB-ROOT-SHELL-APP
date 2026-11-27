@@ -98,6 +98,9 @@ by default: the plan requires the benign hook first, has a kill switch, and
 documents removal/recovery. See
 [`perma-root-exp/README.md`](perma-root-exp/README.md).
 
+Device-wide root covers non-verity paths; `/system` stays read-only. See
+[`perma-root-exp/DEVICE-WIDE-ROOT.md`](perma-root-exp/DEVICE-WIDE-ROOT.md).
+
 ---
 
 ## Screenshots
