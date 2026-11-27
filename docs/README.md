@@ -27,3 +27,4 @@
 Start with `APP.md` for usage and `ROOT-EXPLOIT.md` for the transport.
 | [VIDEO-OUT.md](VIDEO-OUT.md) | **1080p out to the PC: the goggles already encodes H.264 at 50 fps.** |
 | [PC-STREAM.md](PC-STREAM.md) | **Desktop into the goggles: architecture, measured fps, latency, anti burn-in, troubleshooting.** |
+| [LIVEVIEW-SHARE.md](LIVEVIEW-SHARE.md) | **Share Liveview: property toggle, 60 fps measurement, AOA transport, why PC capture is blocked.** |

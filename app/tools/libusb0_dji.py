@@ -117,6 +117,15 @@ class Libusb0:
         d.usb_get_string_simple.argtypes = [C.c_void_p, C.c_int, C.c_char_p,
                                             C.c_size_t]
         d.usb_get_string_simple.restype = C.c_int
+        d.usb_control_msg.argtypes = [C.c_void_p, C.c_int, C.c_int, C.c_int,
+                                      C.c_int, C.c_void_p, C.c_int, C.c_int]
+        d.usb_control_msg.restype = C.c_int
+
+    def control(self, handle, reqtype, request, value, index, data, size,
+                timeout=1000):
+        """Raw control transfer (used for the Android Open Accessory handshake)."""
+        return self.dll.usb_control_msg(handle, reqtype, request, value, index,
+                                        data, size, timeout)
 
     def err(self, rc):
         try:
