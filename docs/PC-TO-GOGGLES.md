@@ -52,6 +52,28 @@ The sink `url` is:
 therefore did not get the main/sub geometry, the aux-liveview setting, or the
 timing map. It accepted and returned buffers, but displayed nothing.
 
+## Display plane findings (measured)
+
+dmesg from the live `extra_blending` probe:
+
+- **video plane 4**: `en:1, alpha:255, order:0`; `lcdc display 1st frame` at 60 Hz.
+- **UI gfx0 plane 5**: `en:1, alpha:-1, order:2` — the home screen is on top.
+- **backlight** `aw99703-bl`: `brightness=2047`, `max=2047`, `actual=2047`.
+- So the sink and panel are working; the black screen is the **UI gfx layer**,
+  not the video path.
+
+Fork test:
+
+- A child forked from the UI inherits the UI's display/gfx fds; the gfx0
+  plane stays held and is only released at teardown.
+- After the child closes inherited fds (3..1023) and kills the UI parent, the
+  gfx0 plane is released and the video plane remains scanning out at 60 Hz.
+- The stock UI must be restarted afterwards (`start_stock_ui`).
+
+Next: confirm the bars appear **after** the gfx plane is released, then feed
+the H.264 decoder output; if the plane is still black, check the video plane
+source/format and plane ordering.
+
 ## How the pipeline passes the URL
 
 `PipeBuilder::setNodeUrl` builds a small struct and calls:

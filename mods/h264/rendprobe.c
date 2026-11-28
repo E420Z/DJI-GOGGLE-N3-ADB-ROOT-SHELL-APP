@@ -21,6 +21,7 @@ typedef int (*pthread_create_fn)(unsigned long *, const void *, void *(*)(void *
 
 #define RTLD_NOW 2
 #define ARM_PATH "/data/local/tmp/rend_on"
+#define FORK_PATH "/data/local/tmp/rend_fork"
 #define __NR_unlinkat 35
 
 static inline long sys_unlink(const char *p) {
@@ -127,6 +128,39 @@ static void worker(void) {
     g_free_handle = (OMX_ERRORTYPE (*)(OMX_HANDLETYPE))pds(core, "OMX_FreeHandle");
     if (!init || !get) return;
     init();
+
+    /* Optional fork test: the child kills the UI parent so its gfx plane
+     * releases, then the child keeps the video plane. Requires rend_fork. */
+    if (sys_faccessat(AT_FDCWD, FORK_PATH, 0) == 0) {
+        typedef int (*fork_fn)(void);
+        typedef int (*setsid_fn)(void);
+        typedef int (*prctl_fn)(int, unsigned long, unsigned long, unsigned long, unsigned long);
+        typedef int (*getppid_fn)(void);
+        typedef int (*kill_fn)(int, int);
+        typedef int (*close_fn)(int);
+        fork_fn pf = (fork_fn)g_dlsym(RTLD_DEFAULT, "fork");
+        setsid_fn pss = (setsid_fn)g_dlsym(RTLD_DEFAULT, "setsid");
+        prctl_fn ppr = (prctl_fn)g_dlsym(RTLD_DEFAULT, "prctl");
+        getppid_fn pgp = (getppid_fn)g_dlsym(RTLD_DEFAULT, "getppid");
+        kill_fn pk = (kill_fn)g_dlsym(RTLD_DEFAULT, "kill");
+        close_fn pclose = (close_fn)g_dlsym(RTLD_DEFAULT, "close");
+        if (pf && pss && ppr && pgp && pk) {
+            int c = pf();
+            if (c > 0) {
+                for (;;) { struct timespec_t t = { 0, 1000000000 }; sys_nanosleep(&t, 0); }
+            } else if (c == 0) {
+                pss();
+                ppr(15, (unsigned long)"n3rend", 0, 0, 0); /* PR_SET_NAME */
+                pk(pgp(), 9);                              /* SIGKILL the UI */
+                /* The child inherited the UI's display/gfx fds. Close them so
+                 * the gfx0 plane is released before we open the video plane. */
+                if (pclose) {
+                    for (int fd = 3; fd < 1024; fd++) pclose(fd);
+                }
+                NTLOG("fork child: UI parent killed, inherited fds closed");
+            }
+        }
+    }
 
     const char *names[2] = { "OMX.dji.iv_renderer.yuv.extra_blending",
                              "OMX.dji.iv_renderer.yuv.liveview" };
