@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — PC → goggles 1080p60 hardware tunnel (2026-11-28)
+## 1.4.0 — PC → goggles 1080p60 hardware tunnel (2026-11-28)
 
 - Added the working `OMX.dji.video_decoder.avc.vc8000d` hardware decoder tunnel
   into `OMX.dji.iv_renderer.yuv.extra_blending`: 60.0 fps, 30 Mbps, no copy.
@@ -150,12 +150,15 @@
 - Learned and documented the mod contract: export 
 atartos_mod_init(dlsym),
   never reference dlopen directly, install 755, and write the file through the
-  dji_services push path (su cannot write endor_file).
+  dji_services push path (su cannot write 
+endor_file).
 
 ## Unreleased - PC screen into the goggles (2026-11-26)
 
-- **Working:** PC desktop -> goggles over the RNDIS link. New b_receiver
-  (aarch64, static) decodes length-prefixed JPEG into b_shared; the existing
+- **Working:** PC desktop -> goggles over the RNDIS link. New 
+b_receiver
+  (aarch64, static) decodes length-prefixed JPEG into 
+b_shared; the existing
   hook_overlay.so inject thread puts it on the display. Measured 11.7 fps at
   1200x900 in an 8 s test.
 - Packaging: mods/stream/ (source, binary, README) and the experimental
@@ -164,7 +167,9 @@ atartos_mod_init(dlsym),
   (root ADB) because dji_services cannot exec /data ELF, and the file must
   stay labelled system_data_file (relabelling to shell_data_file makes it
   unreadable to su).
-- Stop is clean: SIGTERM removes b_override, touches b_stop, UI repaints.
+- Stop is clean: SIGTERM removes 
+b_override, touches 
+b_stop, UI repaints.
 
 ## Unreleased - recorder test + PC-stream packaging (2026-11-26)
 
@@ -173,10 +178,14 @@ atartos_mod_init(dlsym),
   unaffected. The factory wrapper also does a DUML route change and an I2C mux
   write, so it was not run.
 - Built the injection-capable hook from mods/capture/mod.c
-  (sdk/build.ps1, 198,912 B, implements b_shared / b_override /
-  b_stop). Packaged as the experimental **overlay** plugin; installing it
+  (sdk/build.ps1, 198,912 B, implements 
+b_shared / 
+b_override /
+  
+b_stop). Packaged as the experimental **overlay** plugin; installing it
   restarts the goggles UI.
-- Documented the remaining PC-stream work: b_receiver (JPEG -> BGRA) plus a
+- Documented the remaining PC-stream work: 
+b_receiver (JPEG -> BGRA) plus a
   PC sender over the RNDIS link, since ADB is off.
 
 ## Unreleased - 1080p video out (2026-11-26)
@@ -187,9 +196,14 @@ atartos_mod_init(dlsym),
   zv900_app_liveview_chn.
 - Raw frame mirroring (E420Z) cannot do 1080p over ADB (~6 MB/frame); the
   encoded path is ~1.5 MB/s, so 1080p30 is a plumbing problem, not a speed one.
-- Inventoried the components: ideo_reader.lcdc, ideo_reader.mdc/
-  .avc.mdc, ideo_encoder.avc|hevc.vc8000e, ile_writer.binary,
-  container_muxer.ffmuxer, and ideo_writer.uvc (USB webcam sink).
+- Inventoried the components: 
+ideo_reader.lcdc, 
+ideo_reader.mdc/
+  .avc.mdc, 
+ideo_encoder.avc|hevc.vc8000e, 
+ile_writer.binary,
+  container_muxer.ffmuxer, and 
+ideo_writer.uvc (USB webcam sink).
 - Documented three routes in docs/VIDEO-OUT.md. Route B (omx_recordtest)
   needs a DUML route change plus an I2C mux write, so it is not run blind.
 - natartos stream is PC -> goggles, the opposite direction; its device half

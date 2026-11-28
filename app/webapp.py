@@ -29,7 +29,7 @@ from ui.live import LiveStream, capture_png, SCALE_BY_LABEL  # noqa: E402
 from n3live import N3Live  # noqa: E402
 from gstream import GogglesStream  # noqa: E402
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 PREFS = os.path.join(APP_DIR, "state", "web_prefs.json")
 SHOTS = os.path.join(APP_DIR, "state", "screenshots")
 

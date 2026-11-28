@@ -32,6 +32,7 @@ Start with `APP.md` for usage and `ROOT-EXPLOIT.md` for the transport.
 | [RELEASE-v1.2.0.md](RELEASE-v1.2.0.md) | **v1.2.0 release notes: Goggles Stream + RNDIS auto-discovery.** |
 | [RELEASE-v1.2.1.md](RELEASE-v1.2.1.md) | **v1.2.1 release notes: RNDIS adapter detection, APIPA recovery, full-init/multi-nc fallbacks.** |
 | [RELEASE-v1.3.0.md](RELEASE-v1.3.0.md) | **v1.3.0 release notes: deterministic Find N3 (USB VID/PID → RNDIS → port 4444), no LAN fallback, honest failure stages.** |
+| [RELEASE-v1.4.0.md](RELEASE-v1.4.0.md) | **v1.4.0 release notes: 1080p60 PC → goggles hardware tunnel (H.264/H.265), app page, SDK.** |
 | [`../perma-root-exp/README.md`](../perma-root-exp/README.md) | **Perma-root/ADB experiment: `sys_perf` boot hook, root adbd, kill switch, recovery.** |
 | [`../perma-root-exp/STATIC-ANALYSIS.md`](../perma-root-exp/STATIC-ANALYSIS.md) | **Static boot/SELinux/AVB analysis for the perma-root path.** |
 | [`../perma-root-exp/BOOT-ADB.md`](../perma-root-exp/BOOT-ADB.md) | **Boot ADB gate, runtime proof, perma hook, expected output.** |

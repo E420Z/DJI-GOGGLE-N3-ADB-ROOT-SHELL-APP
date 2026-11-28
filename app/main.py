@@ -37,7 +37,7 @@ from tools import probe_n3_bulk_console as bulkmod  # noqa: E402
 
 STOCK_LIB = os.path.join(APP_DIR, "assets", "libew_gls_stock.so")
 SHOTS = os.path.join(APP_DIR, "state", "shots")
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 # Page title, one-line description and the highest safety level on the page.
 PAGE_META = {
