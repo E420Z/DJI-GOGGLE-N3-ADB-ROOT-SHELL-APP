@@ -118,6 +118,48 @@ raised above 10 Mbps.
 
 Until then the page reports the honest ceiling: 1080p60, ~10 Mbps max.
 
+### 60 Mbps tunnel progress (2026-11-28)
+
+`mods/h264/enctunnel.c` opens a second `vc8000e`, subscribes the LCMD reader to
+`zv900_liveview_lcdc_chn`, and **tunnels** the reader output straight into the
+encoder (`OMX_SetupTunnel(reader, out, encoder, 0)`). Tunnelling is required:
+manual YUV copies crash `VC8000EVideoEnc::processBuffer`.
+
+Measured:
+
+- Stable 1920×1080 encode, ~357 output buffers in 3 s (~119 fps on the 120 Hz
+  LCDC writeback), clean Idle/free/handle teardown, no crash.
+- Output port 1 `nBitrate=60000000` set at Loaded is **read back as 60000000
+  after Idle**, so the 60 Mbps target is in the port definition.
+- The standard runtime bitrate config (`OMX_IndexParamVideoBitrate` through
+  `OMX_SetConfig`, CBR) reaches `duss_hal_venc_set_ratectrl` but the vendor
+  call returns `0x80001001` for every value; the port definition is the working
+  path (the vendor `PipeBuilder` sets the same field with
+  `OMX_SetParameter(0x02000001)`).
+- Encoder mode (`0x7f000026`, storage=0 / liveview=1) is applied.
+- On static UI content the stream is 7–11 Mbps at a 60 Mbps target (VBR) and
+  7.5 Mbps at a 10 Mbps target — the target is honored, but the menu simply
+  does not need the bits. **The real 60 Mbps number needs a live drone feed**
+  on the goggles (O4 connected), where the LCDC content has full detail.
+- The writeback carries the UI/composited plane. The PC‑video
+  `extra_blending` plane is not in it while the UI lives; the fork child that
+  hides the UI stops the app-liveview pipe, so it cannot be used to synthesise
+  motion for this test.
+- The encoder does not emit in-band SPS/PPS; prepend the vendor 40-byte header
+  (`videoout.c`) before decoding or streaming.
+- **Bitrate proof (transcode):** `mods/h264/enctranscode.c` tunnels the
+  `vc8000d` decoder into the same encoder and feeds 1080p60 NVENC noise. It
+  produced **26.9 MB in 3 s (~71 Mbps)** at the 60 Mbps target, then crashed in
+  `VC8000EVideoEnc::processBuffer+2844` (the transcode graph is a proof only).
+  The reader → encoder tunnel remains stable.
+- **Frame rate:** both tunnels emit ~2 frames per input frame (~120 fps of
+  60 Hz content, duplicates). `OMX_IndexConfigVideoFramerate` and the AVC intra
+  period return `0x80001006`, so the encoder does not drop. A 60 Mbps raw
+  stream therefore needs `-framerate 120` on the PC (or a future frame-drop
+  path). The prefixed vendor SPS/PPS declares 25 fps, so raw input must always
+  set `-framerate` explicitly.
+
+
 ## Requirements
 
 - Root shell (the mod is preloaded into `dji_glasses`).

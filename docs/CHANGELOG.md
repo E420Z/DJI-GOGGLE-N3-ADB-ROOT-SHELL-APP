@@ -79,6 +79,19 @@
 
 ## Unreleased — lower-latency video out + 60 Mbps research (2026-11-27)
 
+- New **`mods/h264/enctranscode.c` / `n3enctranscode.so`**: the vc8000d
+  decoder tunnelled into the second vc8000e. Fed 1080p60 NVENC noise it produced
+  **26.9 MB in 3 s (~71 Mbps)** at the 60 Mbps target, proving the encoder is
+  not capped at 10 Mbps; it then crashed in `processBuffer+2844`, so it is a
+  proof only. The reader→encoder tunnel stays stable.
+- `mods/h264/enctunnel.c` / `n3enctunnel.so`: the LCDC reader is
+  tunnelled into a second `vc8000e` at a 60 Mbps port-definition target. Stable
+  1920×1080 encode, no crash (manual copies crash `processBuffer`). The 60 Mbps
+  target survives Idle; static UI content only needs 7–11 Mbps, so a live
+  drone feed is required to measure the real ceiling. See `docs/GSTREAM.md`.
+- `OMX_IndexParamVideoBitrate` is a **setConfig** index here (CBR, port 0/2);
+  the vendor `duss_hal_venc_set_ratectrl` call fails with `0x80001001`, so the
+  port definition remains the working bitrate path. `vencMode` 0 = storage.
 - Goggles Stream now fragments the fMP4 **every frame** (`frag_every_frame`)
   instead of at keyframes, flushes each packet, uses a **512 KB** ring, sets
   **TCP_NODELAY** on both ends, and keeps the MSE playhead **0.12 s** behind the

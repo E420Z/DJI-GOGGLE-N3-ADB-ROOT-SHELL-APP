@@ -40,6 +40,7 @@ static inline long sys_unlink(const char *p) {
                   "\"name\":\"zv900_liveview_lcdc_chn\",\"type\":0}"
 #define W 1920
 #define H 1080
+#define STRIDE 2048
 #define BITRATE 60000000
 #define IN_BUFS 4
 #define OUT_BUFS 4
@@ -151,10 +152,19 @@ static OMX_ERRORTYPE rd_fill(OMX_HANDLETYPE h, OMX_PTR a, OMX_BUFFERHEADERTYPE *
     if (g_synth < 0)
         g_synth = sys_faccessat(AT_FDCWD, "/data/local/tmp/enc_synth", 0) == 0;
     if (g_synth) {
-        /* moving high-detail pattern: measures the encoder's bitrate ceiling */
+        /* full-entropy pattern: measures the encoder's actual bitrate ceiling */
         unsigned char *p = in->pBuffer;
-        for (long i = 0; i < g_enc_in_size; i++)
-            p[i] = (unsigned char)((i * 7 + g_in_frames * 11) & 0xFF);
+        unsigned long long s = 88172645463325252ULL +
+            (unsigned long long)g_in_frames * 0x9E3779B97F4A7C15ULL;
+        long i = 0;
+        for (; i + 8 <= g_enc_in_size; i += 8) {
+            s ^= s << 13; s ^= s >> 7; s ^= s << 17;
+            *(unsigned long long *)(p + i) = s;
+        }
+        for (; i < g_enc_in_size; i++) {
+            s ^= s << 13; s ^= s >> 7; s ^= s << 17;
+            p[i] = (unsigned char)s;
+        }
         copied = g_enc_in_size;
     } else if (rlen <= g_enc_in_size) {
         for (long i = 0; i < rlen; i++) in->pBuffer[i] = b->pBuffer[b->nOffset + i];
@@ -260,7 +270,7 @@ static void worker(void) {
         if (pd.eDir == OMX_DirInput) {
             pd.format.video.nFrameWidth = W;
             pd.format.video.nFrameHeight = H;
-            pd.format.video.nStride = W;
+            pd.format.video.nStride = STRIDE;
             pd.format.video.nSliceHeight = H;
             pd.format.video.xFramerate = 60 << 16;
             pd.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
@@ -344,6 +354,20 @@ static void worker(void) {
     NTLOG_INT("enc exec=", g_enc_state);
     if (!g_enc_state) goto out;
 
+    /* runtime bitrate: the vendor UvcManager sets nBitrate in the output port
+     * definition while the encoder is running. */
+    for (int p = 0; p < 2; p++) {
+        for (unsigned i = 0; i < sizeof(pd); i++) ((unsigned char *)&pd)[i] = 0;
+        ver(&pd, sizeof(pd)); pd.nPortIndex = p;
+        OMX_GetParameter(g_enc, OMX_IndexParamPortDefinition, &pd);
+        if (p == 1) {
+            pd.format.video.nBitrate = BITRATE;
+            pd.nBufferCountActual = OUT_BUFS;
+            NTLOG_INT("rt out bitrate=", (int)OMX_SetParameter(
+                g_enc, OMX_IndexParamPortDefinition, &pd));
+        }
+    }
+
     /* runtime bitrate config (the param index above is unsupported here) */
     OMX_VIDEO_CONFIG_BITRATETYPE cb;
     for (int p = 0; p < 2; p++) {
@@ -387,6 +411,9 @@ static void worker(void) {
     ver(&pd, sizeof(pd)); pd.nPortIndex = g_rd_port;
     OMX_GetParameter(g_rd, OMX_IndexParamPortDefinition, &pd);
     NTLOG_INT("rd size=", (int)pd.nBufferSize);
+    NTLOG_INT("rd stride=", (int)pd.format.video.nStride);
+    NTLOG_INT("rd slice=", (int)pd.format.video.nSliceHeight);
+    NTLOG_INT("rd color=", (int)pd.format.video.eColorFormat);
 
     for (int i = 0; i < 3; i++) {
         OMX_BUFFERHEADERTYPE *bh = 0;
