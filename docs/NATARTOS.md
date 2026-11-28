@@ -14,14 +14,13 @@ through `toolya` (CLI or toolya.dev), writing `LD_PRELOAD` mods into `/vendor`.
 | `menu` (menu framework) | **Reimplemented** | `n3menuinject.so` + `n3menu.so`: private data-source vtable copy + Reload hook. Patching the shared class vtable crashes the camera toolbar. |
 | `overlay` (display hook) | **Reimplemented** | `hook_overlay.so` GOT-patches `duss_hal_display_push_frame` in `libdisp_eng.so`, captures via DMA-buf and injects frames. |
 | `background` | **Already shipped** | `background` mod + Settings page. |
-| `stream` (PC → goggles) | **Device half exists** | `hook_overlay.so` already reads `/data/local/tmp/fb_shared` (64-byte header, 2× 8,294,400-byte BGRA slots, counter at offset 0) and honours `fb_override` / `fb_stop`. |
+| `stream` (PC → goggles) | **Superseded** | The JPEG/`fb_shared` route was removed. The working path is the 1080p60 `vc8000d` hardware tunnel into `extra_blending`; see `docs/PC-TO-GOGGLES.md`. |
 | `doom` | Not ported | Needs an "app" mod type our loader does not have. Separate project. |
 | `input`, `mute`, `audio`, `splash` | Not ported | Marked experimental/untested upstream. |
 
-The **only** file worth borrowing for PC streaming is `fb_receiver.c` — the
-receiver that decodes length-prefixed JPEG on stdin and publishes into
-`fb_shared`. That is ~200 lines. Because the upstream is AGPL-3.0, writing our
-own is cleaner than copying it into this repo.
+The old JPEG receiver (`fb_receiver`) has been removed. The working PC → goggles
+path is the **1080p60 hardware tunnel** (`vc8000d` → `extra_blending`), documented
+in `docs/PC-TO-GOGGLES.md`; it needs no JPEG, no `fb_shared` and no extra copy.
 
 ## What natartos does *not* solve
 
@@ -44,13 +43,6 @@ help.
 
 ## If you still want a PC stream
 
-It is a small, self-contained piece of work on top of what already exists:
-
-1. Write `fb_receiver` (JPEG in on stdin → BGRA into `/data/local/tmp/fb_shared`,
-   bump the counter at offset 0, touch `fb_override`).
-2. Capture the Windows desktop with `mss`/`PIL.ImageGrab`, encode JPEG.
-3. Pipe frames over `adb exec-out` to the receiver.
-4. Stop by removing `fb_override` or creating `fb_stop`.
-
-That is a fun feature, but it is orthogonal to the goggles' own video and is
-not needed for S2 capture.
+Use the hardware tunnel in `docs/PC-TO-GOGGLES.md` (`vc8000d` →
+`extra_blending`). The old JPEG/`fb_receiver` plan is obsolete and its files were
+removed.

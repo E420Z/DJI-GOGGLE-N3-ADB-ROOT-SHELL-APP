@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased — PC → goggles 1080p60 hardware tunnel (2026-11-28)
+
+- Added the working `OMX.dji.video_decoder.avc.vc8000d` hardware decoder tunnel
+  into `OMX.dji.iv_renderer.yuv.extra_blending`: 60.0 fps, 30 Mbps, no copy.
+- Standalone `vc8000d` free-runs; `OMX_SetupTunnel(decoder, 1, sink, 0)` is
+  required. Ports: decoder in 1920×1080/16, out 1920×1080/7; sink main
+  1920×1080/7 + URL, sub 640×360/7. Allocate only decoder input and sink sub.
+- Hardware output is linear NV12, stride 2048, 3,317,760 B; 16 input buffers
+  and a 6 MB port fixed the input stall.
+- First SPS/PPS is fed as `OMX_BUFFERFLAG_CODECCONFIG`; NVENC sets `aud=1` and
+  `repeat_headers=1`.
+- H.265 tested on the same tunnel: `hevc.vc8000d` + `hevc_nvenc`, 20 Mbps,
+  **60.1 fps**, no drops. H.264 remains the default.
+- Software `avc.ffmpeg` fallback is ~40 fps and emits **I420 planar** despite
+  reporting format 21; U/V are now interleaved explicitly.
+- PC capture runs at native 1920×1080 (the display was switched from
+  2048×1536); the sender draws the Windows cursor.
+- App: new **PC → Goggles** backend/page (`pcvideo_*`), H.264/H.265 selector,
+  bitrate/cursor settings, live fps/bitrate/frames/encode/device stats.
+- Removed the old JPEG/`fb_receiver` PC Stream route and the obsolete
+  `DisplayEngine` hook warning.
+- Docs: `docs/PC-TO-GOGGLES.md` and `sdk/examples/display_sink/README.md`
+  document the tunnel, the planar fallback, and the exact port setup.
+
 ## Unreleased — perma-root / ADB experiment (2026-11-27)
 
 - Added `perma-root-exp/`: static design plus host/device scripts for a

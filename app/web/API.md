@@ -86,24 +86,27 @@ live_frame() -> {
 capture_screen() -> { ok, message, image: string, path: string }
 ```
 
-## PC stream (desktop → goggles)
+## PC → Goggles (hardware tunnel)
 
 ```ts
-pcstream_info() -> {
-  ok, sender: { running, size, fps_target, quality, frames, slow, errors,
-                fps, kbps, host, port, last_error },
-  device: { adb, pid, decode_ms, blit_ms, dropped, flags: {...}, log },
-  settings: { size, fps, quality },
-  sizes: string[]
+pcvideo_info() -> {
+  ok, state: "idle" | "starting" | "live" | "error", message,
+  stats: { fps, kbps, bitrate, codec, size, frames, bytes,
+           encode_ms, drops, device_frames, input_empty },
+  device: { root, ui, stat: {...} },
+  settings: { codec: "h264" | "h265", bitrate, cursor, size, fps },
+  notes: string[]
 }
-pcstream_start(size, fps, quality) -> { ok, message, stats, pid }
-pcstream_stop() -> { ok, message, stats }
-pcstream_set(size, fps, quality) -> { ok, message, settings }
+pcvideo_start(codec, bitrate, cursor) -> { ok, message, stats }
+pcvideo_stop() -> { ok, message, stats }
+pcvideo_set(codec, bitrate, cursor) -> { ok, message, settings }
 ```
 
-`pcstream_start` installs (if needed), starts and labels the on-device
-`fb_receiver`, then starts the in-app sender thread. It needs ADB plus the root
-shell. Everything it writes is under `/data/local/tmp`.
+`pcvideo_start` pushes `n3h264live.so`, starts the patched UI with
+`hook_overlay.so`, arms the `vc8000d → extra_blending` tunnel, and starts the
+NVENC sender on TCP 5572. It needs the root shell and the mod loader. Everything
+it writes is under `/data/local/tmp` and `/vendor` (the module). Stop removes
+the triggers and restores the stock UI.
 
 ## Goggles stream (goggles → PC)
 

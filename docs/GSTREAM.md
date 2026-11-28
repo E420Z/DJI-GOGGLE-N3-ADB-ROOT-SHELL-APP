@@ -2,7 +2,7 @@
 
 The goggles' **own hardware encoder** (vc8000e) is read live and sent to this PC
 over the USB link, with no re-encode. This is the goggles → PC direction; the
-PC Stream page is the opposite.
+PC → Goggles page is the opposite.
 
 Measured on the owner's N3 (firmware 0900), 2026-11-27.
 

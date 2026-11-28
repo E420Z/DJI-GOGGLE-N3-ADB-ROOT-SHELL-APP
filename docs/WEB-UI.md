@@ -52,15 +52,16 @@ app/tools/ui_shot.ps1  headless screenshot helper
 | Logs | SAFE | Five tabs, auto-refresh, filter, copy, client-side clear. |
 | Settings | SAFE | Accent, motion, density, live scale, themes, safety key, DANGER card. |
 
-### PC Stream page
+### PC → Goggles page
 
-Sends this desktop into the goggles. It needs ADB, the root shell (to label the
-on-device receiver) and the **Frame injection (PC stream)** mod; the page keeps
-Start disabled and explains itself when one is missing. Settings are size, fps
-and quality; the page shows both sides of the pipeline - sender fps/KB/s/frames
-and the goggles' decode/publish timings, dropped frames and errors.
+Sends this desktop into the goggles at 1080p60 through the hardware `vc8000d`
+decoder tunnel. It needs the root shell and the mod loader; the app pushes
+`n3h264live.so` and starts the patched UI with `hook_overlay.so`. Settings are
+codec (H.264/H.265), bitrate (20/30/40 Mbps) and cursor. The page shows sender
+fps, actual bitrate, frames, NVENC encode time, device frames, input-buffer
+returns and drops.
 
-Full architecture, measured numbers and troubleshooting: [PC-STREAM.md](PC-STREAM.md).
+Architecture and measured numbers: [PC-TO-GOGGLES.md](PC-TO-GOGGLES.md).
 
 ### Goggles Stream page
 

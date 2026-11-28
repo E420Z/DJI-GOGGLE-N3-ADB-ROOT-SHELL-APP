@@ -40,8 +40,8 @@ const PAGES = [
     subtitle: "Live mirror of the goggles display and on-demand screenshots." },
   { id: "sparrow", title: "Sparrow2", group: "Device", icon: "radio", risk: "SAFE",
     subtitle: "Read-only inspection of the radio subsystem." },
-  { id: "pcstream", title: "PC Stream", group: "Device", icon: "monitor", risk: "EXPERIMENTAL",
-    subtitle: "Stream this desktop into the goggles over the USB link." },
+  { id: "pcstream", title: "PC → Goggles", group: "Device", icon: "monitor", risk: "EXPERIMENTAL",
+    subtitle: "1080p60 hardware tunnel into the goggles video plane." },
   { id: "shell", title: "Root Shell", group: "System", icon: "terminal", risk: "RISKY",
     subtitle: "Run commands on the goggles as uid 0. Nothing runs until you press Run." },
   { id: "mods", title: "Mods & UI", group: "System", icon: "layers", risk: "EXPERIMENTAL",
@@ -157,7 +157,7 @@ const state = {
   visitedLive: false,
   live: { running: false, scale: DEFAULT_SCALE, userScale: false, frames: 0, misses: 0, failures: 0, timer: 0, lastShot: null },
   mockPc: { running: new URLSearchParams(location.search).get("pclive") === "1",
-            size: "1280x720", fps: 12, quality: 65, frames: 420 },
+            codec: "h264", bitrate: 30000000, cursor: true, frames: 420 },
   webLog: [],
   busy: new Set(),
   timers: { status: 0, logs: 0, pc: 0 },
@@ -575,27 +575,36 @@ function onPageLeave(id) {
 }
 
 /* ==========================================================================
-   PC Stream
+   PC → Goggles
    ========================================================================== */
 function pcSet(id, value) {
   const el = $(id);
   if (el) el.textContent = value == null || value === "" ? "—" : String(value);
 }
 
+function pcMbpsBps(v) {
+  return v ? `${(Number(v) / 1e6).toFixed(1)} Mb/s` : "—";
+}
+function pcMbpsKbps(v) {
+  return v ? `${(Number(v) / 1000).toFixed(1)} Mb/s` : "—";
+}
+
 function renderPcStream() {
   const p = state.pc;
   if (!p) return;
-  const sender = p.sender || {};
-  const dev = p.device || {};
-  const running = Boolean(sender.running);
+  const s = p.stats || {};
+  const d = p.device || {};
+  const st = p.settings || {};
+  const running = p.state === "live";
+  const starting = p.state === "starting";
 
   const page = document.getElementById("page-pcstream");
   if (page) page.classList.toggle("is-live", running);
 
   state.pcHist = state.pcHist || { fps: [], kbps: [] };
   if (running) {
-    state.pcHist.fps.push(Number(sender.fps) || 0);
-    state.pcHist.kbps.push(Number(sender.kbps) || 0);
+    state.pcHist.fps.push(Number(s.fps) || 0);
+    state.pcHist.kbps.push(Number(s.kbps) || 0);
     if (state.pcHist.fps.length > 30) state.pcHist.fps.shift();
     if (state.pcHist.kbps.length > 30) state.pcHist.kbps.shift();
   } else {
@@ -607,89 +616,91 @@ function renderPcStream() {
   }
 
   setOn($("#pcPill"), running);
-  pcSet("#pcPillText", running ? "Streaming" : "Idle");
-  pcSet("#pcFps", sender.fps != null ? sender.fps : 0);
-  pcSet("#pcKbps", sender.kbps != null ? sender.kbps : 0);
-  pcSet("#pcFrames", sender.frames != null ? sender.frames : 0);
-  pcSet("#pcSize", sender.size);
-  pcSet("#pcTarget", sender.fps_target != null ? `${sender.fps_target} fps` : null);
-  pcSet("#pcQuality", sender.quality != null ? `q${sender.quality}` : null);
-  pcSet("#pcSlow", sender.slow != null ? sender.slow : 0);
-  pcSet("#pcErrors", sender.errors != null ? sender.errors : 0);
-  pcSet("#pcDecode", dev.decode_ms != null ? `${dev.decode_ms} ms` : null);
-  pcSet("#pcBlit", dev.blit_ms != null ? `${dev.blit_ms} ms` : null);
-  pcSet("#pcDropped", dev.dropped != null ? dev.dropped : 0);
-  pcSet("#pcPid", dev.pid || (dev.adb ? "not running" : "no ADB"));
-  pcSet("#pcHold", dev.flags ? (dev.flags.fb_hold ? "on" : "off") : null);
-  pcSet("#pcOverride", dev.flags ? (dev.flags.fb_override ? "on" : "off") : null);
+  pcSet("#pcPillText", running ? "Live" : starting ? "Starting" : p.state === "error" ? "Error" : "Idle");
+  pcSet("#pcFps", s.fps != null ? Number(s.fps).toFixed(1) : 0);
+  pcSet("#pcKbps", s.kbps != null ? (Number(s.kbps) / 1000).toFixed(1) : 0);
+  pcSet("#pcFrames", s.frames != null ? s.frames : 0);
+  pcSet("#pcSize", s.size || st.size);
+  pcSet("#pcCodec", (s.codec || st.codec || "h264").toUpperCase());
+  pcSet("#pcTargetRate", pcMbpsBps(s.bitrate || st.bitrate));
+  pcSet("#pcActualRate", pcMbpsKbps(s.kbps));
+  pcSet("#pcFpsStat", s.fps != null ? `${Number(s.fps).toFixed(1)} fps` : null);
+  pcSet("#pcFramesStat", s.frames);
+  pcSet("#pcEncode", s.encode_ms != null ? `${Number(s.encode_ms).toFixed(1)} ms` : null);
+  pcSet("#pcDrops", s.drops != null ? s.drops : 0);
+  pcSet("#pcTunnel", running ? "vc8000d → extra_blending" : starting ? "starting" : null);
+  pcSet("#pcDeviceFrames", s.device_frames);
+  pcSet("#pcInputEmpty", s.input_empty);
+  pcSet("#pcUi", d.ui || null);
 
   const log = $("#pcLog");
-  if (log && dev.log) log.textContent = dev.log;
-  if (log && !dev.log) log.textContent = "No receiver log yet.";
+  if (log) {
+    const stat = d.stat || {};
+    log.textContent = Object.keys(stat).length ? JSON.stringify(stat, null, 2)
+      : "Start the tunnel to see device state.";
+  }
 
-  if ($("#pcStart")) $("#pcStart").disabled = running;
-  if ($("#pcStop")) $("#pcStop").disabled = !running;
+  if ($("#pcStart")) $("#pcStart").disabled = running || starting;
+  if ($("#pcStop")) $("#pcStop").disabled = !running && !starting;
+
+  if (!state.pcInit) {
+    state.pcInit = true;
+    const cs = $("#pcCodecSel"), bs = $("#pcBitrateSel"), cu = $("#pcCursor");
+    if (cs && st.codec) cs.value = st.codec;
+    if (bs && st.bitrate) bs.value = String(st.bitrate);
+    if (cu) cu.checked = st.cursor !== false;
+  }
 
   const hint = $("#pcHint");
   if (hint) {
-    if (!dev.adb) {
-      hint.textContent = "Enable ADB on Connection first, then press Start.";
-    } else if (!dev.hook) {
-      hint.textContent = "Install the “Frame injection (PC stream)” mod on Mods & UI, then restart the UI.";
-    } else if (running) {
-      hint.textContent = "Streaming. The goggles may look a beat behind — that is the software decoder, not the link.";
-    } else if (sender.last_error) {
-      hint.textContent = `Last error: ${sender.last_error}`;
-    } else {
-      hint.textContent = "Idle. Start the root shell and enable ADB on Connection, then press Start.";
-    }
+    hint.textContent = p.message || (running
+      ? "Live. Hardware vc8000d → extra_blending tunnel active."
+      : "Idle. Start the root shell on Connection, then press Start tunnel.");
   }
-  if ($("#pcStart")) $("#pcStart").disabled = running || !dev.adb || !dev.hook;
-}
-
-function renderPcSizes(sizes, current) {
-  const sel = $("#pcSizeSel");
-  if (!sel) return;
-  const list = Array.isArray(sizes) && sizes.length ? sizes : ["1280x720"];
-  setHTML(sel, list.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join(""));
-  sel.value = list.includes(current) ? current : list[0];
 }
 
 async function refreshPcStream(manual = false) {
   if (!state.backend) return;
-  const res = await call("pcstream_info", [], { label: "PC stream", quiet: true, refresh: false });
+  const res = await call("pcvideo_info", [],
+    { label: "PC video", quiet: true, refresh: false });
   if (!isOk(res)) return;
   state.pc = res;
-  renderPcSizes(res.sizes, res.settings && res.settings.size);
   renderPcStream();
-  if (manual) toast("Stream status refreshed", "info", "PC stream");
+  if (manual) toast("Tunnel status refreshed", "info", "PC → Goggles");
 }
 
 function startPcStream() {
   if (!state.backend) return;
   clearInterval(state.timers.pc);
+  state.pcInit = false;
   refreshPcStream();
-  state.timers.pc = setInterval(refreshPcStream, 2000);
+  state.timers.pc = setInterval(refreshPcStream, 1000);
 }
 
 async function pcToggle(start) {
   if (!state.backend) return;
+  const codec = ($("#pcCodecSel") || {}).value || "h264";
+  const bitrate = Number(($("#pcBitrateSel") || {}).value) || 30000000;
+  const cursor = $("#pcCursor") ? $("#pcCursor").checked : true;
   const res = start
-    ? await call("pcstream_start",
-        [$("#pcSizeSel").value, Number($("#pcFpsSel").value), Number($("#pcQualitySel").value)],
-        { label: "Start PC stream", key: "pc_start" })
-    : await call("pcstream_stop", [], { label: "Stop PC stream", key: "pc_stop" });
-  if (res) toast(res.message || (start ? "Stream started" : "Stream stopped"),
-                 res.ok === false ? "error" : "success", "PC stream");
+    ? await call("pcvideo_start", [codec, bitrate, cursor],
+        { label: "Start PC video", key: "pc_start" })
+    : await call("pcvideo_stop", [], { label: "Stop PC video", key: "pc_stop" });
+  if (res) {
+    toast(res.message || (start ? "Tunnel started" : "Tunnel stopped"),
+          res.ok === false ? "error" : "success", "PC → Goggles");
+  }
   refreshPcStream();
 }
 
 async function pcSave() {
   if (!state.backend) return;
-  const res = await call("pcstream_set",
-    [$("#pcSizeSel").value, Number($("#pcFpsSel").value), Number($("#pcQualitySel").value)],
-    { label: "Stream settings" });
-  if (isOk(res)) toast("Stream settings saved", "success", "PC stream");
+  const codec = ($("#pcCodecSel") || {}).value || "h264";
+  const bitrate = Number(($("#pcBitrateSel") || {}).value) || 30000000;
+  const cursor = $("#pcCursor") ? $("#pcCursor").checked : true;
+  const res = await call("pcvideo_set", [codec, bitrate, cursor],
+    { label: "Video settings" });
+  if (isOk(res)) toast("Settings saved — restart to apply", "success", "PC → Goggles");
   refreshPcStream();
 }
 
@@ -1668,7 +1679,6 @@ function bindEvents() {
   $("#pcStop").addEventListener("click", () => pcToggle(false));
   $("#pcRefresh").addEventListener("click", () => refreshPcStream(true));
   $("#pcSave").addEventListener("click", pcSave);
-  $("#pcCopyLog").addEventListener("click", () => copyText($("#pcLog").textContent, "Receiver log copied"));
   $("#shotBtn").addEventListener("click", captureScreen);
   $("#shotThumb").addEventListener("click", openShotModal);
   $("#scaleGrid").addEventListener("click", (e) => {
@@ -1870,40 +1880,62 @@ function createMock() {
       const path = `/data/local/tmp/n3cap/shot-${String(shots).padStart(4, "0")}.jpg`;
       return ok(`Saved ${path}`, { image: mockFrame(1280, 720, frame + shots * 40), path });
     },
-    async pcstream_info() {
+    async pcvideo_info() {
       await sleep(60);
+      const n = mockPc.frames + (mockPc.running ? 60 : 0);
       return {
         ok: true,
-        sender: { running: mockPc.running, size: mockPc.size, fps_target: mockPc.fps,
-                  quality: mockPc.quality, frames: mockPc.frames, slow: 3, errors: 0,
-                  fps: mockPc.running ? 11.8 : 0, kbps: mockPc.running ? 452 : 0,
-                  host: "192.168.60.2", port: 5570, last_error: "" },
-        device: { adb: true, pid: mockPc.running ? "12104" : "", hook: true,
-                  decode_ms: 57.3, blit_ms: 89.0, dropped: 44,
-                  flags: { fb_override: mockPc.running, fb_hold: mockPc.running, fb_stop: false },
-                  log: mockPc.running
-                    ? "fb_override + fb_hold set\nclient connected\nfirst frame 1280x720 (39484 bytes)\nframes 30  decode 57.3 ms  blit 89.0 ms\n"
-                    : "No receiver log yet." },
-        settings: { size: mockPc.size, fps: mockPc.fps, quality: mockPc.quality },
-        sizes: ["960x540", "1280x720", "1600x900", "1920x1080"],
-        notes: ["Enable ADB first.", "1280x720 at 12 fps is the sweet spot."],
+        state: mockPc.running ? "live" : "idle",
+        message: mockPc.running
+          ? "Live 1080p60 hardware tunnel."
+          : "Idle. Start the root shell, then press Start tunnel.",
+        stats: {
+          fps: mockPc.running ? 60.0 : 0,
+          kbps: mockPc.running ? 30000 : 0,
+          bitrate: mockPc.bitrate,
+          codec: mockPc.codec,
+          size: "1920x1080",
+          frames: n,
+          bytes: n * 60000,
+          encode_ms: mockPc.running ? 7.4 : 0,
+          drops: 0,
+          device_frames: n,
+          input_empty: n,
+        },
+        device: {
+          root: true,
+          ui: mockPc.running ? "19643" : "",
+          stat: { frames: n, inempty: n, sinkempty: 0, drop: 0 },
+        },
+        settings: {
+          codec: mockPc.codec,
+          bitrate: mockPc.bitrate,
+          cursor: mockPc.cursor,
+          size: "1920x1080",
+          fps: 60,
+        },
+        notes: ["Mock mode.", "Hardware tunnel: vc8000d → extra_blending."],
       };
     },
-    async pcstream_start(size, fps, quality) {
+    async pcvideo_start(codec, bitrate, cursor) {
       await sleep(700);
       mockPc.running = true;
-      mockPc.size = size || mockPc.size;
-      mockPc.fps = fps || mockPc.fps;
-      mockPc.quality = quality || mockPc.quality;
-      return ok("PC stream started (mock).");
+      if (codec) mockPc.codec = codec;
+      if (bitrate) mockPc.bitrate = bitrate;
+      if (cursor != null) mockPc.cursor = cursor;
+      return ok("Tunnel started (mock).");
     },
-    async pcstream_stop() { await sleep(400); mockPc.running = false; return ok("PC stream stopped (mock)."); },
-    async pcstream_set(size, fps, quality) {
+    async pcvideo_stop() {
+      await sleep(400);
+      mockPc.running = false;
+      return ok("Tunnel stopped (mock).");
+    },
+    async pcvideo_set(codec, bitrate, cursor) {
       await sleep(150);
-      mockPc.size = size || mockPc.size;
-      mockPc.fps = fps || mockPc.fps;
-      mockPc.quality = quality || mockPc.quality;
-      return ok("Stream settings saved (mock).");
+      if (codec) mockPc.codec = codec;
+      if (bitrate) mockPc.bitrate = bitrate;
+      if (cursor != null) mockPc.cursor = cursor;
+      return ok("Video settings saved (mock).");
     },
     async s2_probe() {
       await sleep(500);

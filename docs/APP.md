@@ -23,16 +23,15 @@
   loader; long-press 5-way up opens/closes it, short up/down navigate, center
   selects, Back goes back. The power button has no input event.
 
-### PC Stream
-- Streams this desktop into the goggles over USB. **Start / Stop** are one
-  toggle; size, fps and quality sit in a settings strip.
-- Live figures: sender fps, throughput KB/s, frames sent, plus the goggles'
-  decode and publish timings, dropped frames, over-budget frames and errors.
-- Needs ADB, the root shell and the **Frame injection (PC stream)** mod. Start
-  stays disabled with a reason until all three are ready.
-- ~12 fps at 1280×720, ~5 fps at 1080p (software decode). Stale frames are
-  dropped so latency stays low; the OLED screen saver is dismissed
-  automatically while streaming. Details: [`PC-STREAM.md`](PC-STREAM.md).
+### PC → Goggles
+- 1080p60 H.264/H.265 through the **hardware `vc8000d` decoder tunnel** into
+  `extra_blending`. **Start / Stop** are one toggle.
+- Settings: codec (H.264/H.265), bitrate (20/30/40 Mbps) and cursor.
+- Live figures: fps, actual bitrate, frames, NVENC encode ms, device frames,
+  input-buffer returns and drops.
+- Needs the root shell and the mod loader; the app pushes `n3h264live.so` and
+  starts the patched UI with `hook_overlay.so`.
+- Details: [`PC-TO-GOGGLES.md`](PC-TO-GOGGLES.md).
 
 ### Root Shell
 Embedded console. Each command runs as uid 0 in `dji_services` in a fresh
@@ -103,8 +102,7 @@ interface (Zadig). Check Connection → USB DEVICE.
 **ADB not found** → install platform-tools and put `adb.exe` in `PATH` or
 `C:\platform-tools`.
 
-**Menu mod black-screens** → this repo ships the conservative build with
-`DisplayEngine` hooks disabled. Recover stock UI, then reinstall from
+**Menu mod black-screens** → Recover stock UI, then reinstall from
 `app/plugins/n3menu`.
 
 ---

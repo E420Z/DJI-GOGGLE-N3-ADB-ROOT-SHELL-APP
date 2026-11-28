@@ -73,14 +73,9 @@ partition), never `/system`.
 
 ## natartos `stream` is the wrong direction
 
-`grom-labs/natartos` `stream` casts a **PC screen into the goggles**
-(`fb_receiver` → `/data/local/tmp/fb_shared` → `hook_overlay.so` inject thread).
-Patching it for N3 gives you PC → goggles, not goggles → PC.
-
-The other half — the injection thread that reads `fb_shared` (64-byte header,
-2× 8,294,400-byte BGRA slots, counter at 0, `fb_override` / `fb_stop`) — is
-already in this repo as `mods/capture/hook_overlay.so`. So a PC-screen cast is
-~200 lines away (write our own `fb_receiver`; upstream is AGPL-3.0).
+`grom-labs/natartos` `stream` casts a PC screen into the goggles over JPEG.
+That legacy route was removed. The working PC → goggles path is the 1080p60
+hardware `vc8000d` tunnel (`docs/PC-TO-GOGGLES.md`); it is not goggles → PC.
 
 For goggles → PC, the missing piece is not a receiver at all: it is **using the
 encoded stream instead of raw frames**.
@@ -145,34 +140,12 @@ So "the same way the Fly app does" means reimplementing that app-link handshake
 over FunctionFS — a protocol reverse-engineering job, strictly bigger than the
 MDC client.
 
-## PC screen into the goggles (working, 2026-11-26)
+## PC screen into the goggles (legacy, removed)
 
-**This now works.** Measured end to end on the device:
-
-```
-PC (PIL ImageGrab -> JPEG)  --TCP 5570-->  /data/local/tmp/fb_receiver
-  -> fb_shared (64 B header, counter@0, 2 x 8,294,400 B BGRA)
-  -> hook_overlay.so inject thread -> display
-```
-
-- `[overlay] watcher: fb_shared opened, starting inject`
-- `[overlay] inject thr: start`
-- receiver: `first frame 1920x1080 (33270 bytes)`
-- desktop stream: **95 frames in 8 s = 11.7 fps** at 1200×900, ~56 KB/frame
-
-Two things were required and are now documented:
-
-1. **Run the receiver from `u:r:su:s0`** (root ADB). The `dji_services` root
-   shell cannot execute ELF files from `/data` — that is why an earlier attempt
-   failed with `Permission denied`. See `docs/ADB-ROOT.md`.
-2. **Keep the file labelled `system_data_file`.** Relabelling it to
-   `shell_data_file` makes it unreadable to `su` (and the `dji_services` shell
-   is then the only thing that can change it back).
-
-Stop: `pkill -TERM fb_receiver` → removes `fb_override`, touches `fb_stop`, the
-hook stops injecting and the live UI repaints.
-
-Source and build instructions: `mods/stream/`.
+The JPEG/`fb_receiver` route was replaced by the 1080p60 hardware
+tunnel (`vc8000d` → `extra_blending`). See
+[`PC-TO-GOGGLES.md`](PC-TO-GOGGLES.md). `mods/stream/` and
+`app/pcsender.py` were removed.
 
 ## What is still missing
 
@@ -224,14 +197,6 @@ The new build is packaged as the **experimental** `overlay` plugin
 removing `fb_override` (or creating `fb_stop`) returns to the live UI. If the
 screen stays black, use *Recover stock UI* or reboot.
 
-Still missing for a working PC stream:
-
-1. `fb_receiver` on the goggles: read length-prefixed JPEG from a socket,
-   decode to BGRA, write the next slot, bump the counter.
-2. A PC sender: grab the desktop, JPEG-encode, push frames. ADB is currently
-   off, so this would run over the RNDIS link (goggles at `192.168.60.2`)
-   instead.
-
-`zig` is available locally (`sdk/build.ps1` already uses it), so the receiver can
-be cross-compiled without Docker.
-
+Still mThe old `fb_shared` injection plugin is legacy. The working PC → goggles path is
+the **vc8000d hardware tunnel**; no receiver or JPEG is involved. See
+[`PC-TO-GOGGLES.md`](PC-TO-GOGGLES.md).

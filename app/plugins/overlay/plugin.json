@@ -1,13 +1,13 @@
 {
   "id": "overlay",
-  "name": "Frame injection (PC stream)",
-  "version": "0.3",
+  "name": "Display hook (PC \u2192 Goggles)",
+  "version": "0.4",
   "type": "hook",
-  "description": "Adds the injection half of the display hook: reads /data/local/tmp/fb_shared and pushes those frames to the goggles display. Used by the PC-stream feature.",
+  "description": "Loads the display/overlay hook required by the PC \u2192 Goggles hardware tunnel. The tunnel owns the video plane; the hook is kept loaded so the fork child can open extra_blending.",
   "risk": "medium",
   "status": "experimental",
   "experimental": true,
-  "notes": "Supersedes the capture-only hook (same source, larger build). Installing it restarts the goggles UI. While fb_override exists the display shows whatever the PC sends; remove fb_override or create fb_stop to return to the live UI. If the screen stays black, use Recover stock UI or reboot.",
+  "notes": "Required by PC \u2192 Goggles. The legacy fb_shared JPEG injection is not used by the app. If the screen stays black, use Recover stock UI or reboot.",
   "so": "files/hook_overlay.so",
   "filename": "hook_overlay.so"
 }

@@ -10,12 +10,9 @@ API, release page, and asset all return 404.
 
 ## Experimental / crash warnings
 
-- **N3 Menu is experimental/beta.** A previous `displayFrame`-hook build
-  **black-screened** on 2026-11-25. Those hooks are compile-time **off** in this
-  build; the shipped menu uses the conservative thread compositor + input
-  suppression.
+- **N3 Menu is experimental/beta.** A previous build black-screened on
+  2026-11-25; the shipped build is the conservative compositor build.
 - **Paint overlay** is a proof of concept only.
-- **Experimental `DisplayEngine` hooks are OFF. Do not enable them yet.**
 - Legacy natartos G3 `menu` / `popen` / `template` mods were **removed**
   (unsafe on N3).
 - **If the screen goes black:** Connection → **Recover stock UI**, or

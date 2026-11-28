@@ -73,10 +73,9 @@ irreversible.
 
 - **Goggles → PC:** 1920×1080 at 59–60 fps, H.264 straight from the vc8000e
   encoder, no transcode. The vendor pipe caps it at **10 Mbps**.
-- **PC → goggles:** the shipped path is JPEG; a validated **H.264 + hardware
-  decoder** path is in development (see
-  [`docs/PC-STREAM.md`](docs/PC-STREAM.md)). The 1080p60 display-sink route is
-  in [`docs/PC-TO-GOGGLES.md`](docs/PC-TO-GOGGLES.md).
+- **PC → goggles:** 1080p60 H.264/H.265 through the **hardware `vc8000d`
+  decoder tunnel** into `extra_blending`; see
+  [`docs/PC-TO-GOGGLES.md`](docs/PC-TO-GOGGLES.md).
 - **Find N3:** matches the goggles by `USB\VID_2CA3` and reads the IP/neighbours
   of **its** RNDIS adapter. It never falls back to Wi-Fi or a home LAN, and it
   says whether the failure is “no USB”, “no RNDIS” or “RNDIS up, no shell”.
@@ -112,7 +111,6 @@ Device-wide root covers non-verity paths; `/system` stays read-only. See
 <tr>
 <td align="center" width="33%"><a href="docs/screenshots/web_connection.png"><img src="docs/screenshots/thumbs/web_connection.jpg" width="360" alt="Connection page"></a><br><sub><b>Connection</b> — USB, root shell, ADB, recovery</sub></td>
 <td align="center" width="33%"><a href="docs/screenshots/web_e420z.png"><img src="docs/screenshots/thumbs/web_e420z.jpg" width="360" alt="E420Z page"></a><br><sub><b>E420Z</b> — live preview, scales, screenshots</sub></td>
-<td align="center" width="33%"><a href="docs/screenshots/web_pcstream.png"><img src="docs/screenshots/thumbs/web_pcstream.jpg" width="360" alt="PC Stream page"></a><br><sub><b>PC Stream</b> — desktop → goggles</sub></td>
 </tr>
 <tr>
 <td align="center" width="33%"><a href="docs/screenshots/web_gstream.png"><img src="docs/screenshots/thumbs/web_gstream.jpg" width="360" alt="Goggles Stream page"></a><br><sub><b>Goggles Stream</b> — 1080p60 → PC</sub></td>
@@ -271,16 +269,11 @@ installed.
 | Mod | Purpose |
 |---|---|
 | `mods/capture` | Safe thread-only dmabuf screenshots; no display detour. |
-| `mods/stream` | PC → goggles JPEG receiver and injection hook. |
-| `mods/h264` | `videoout` (goggles → PC H.264), `encprobe` (60 Mbps research), `videc` (decoder probe), decoder experiments. |
+| `mods/h264` | `videoout` (goggles → PC H.264), `h264live` (PC → goggles hardware tunnel), `encprobe`, `videc`. |
 | `mods/n3live` | Live preview source (dmabuf downscale + FIFO). |
 | `mods/n3menu` | Custom in-goggles menu — **experimental/beta**. |
 | `mods/paint` | Minimal overlay proof. |
 | `sdk/` | `n3app.h` / `n3app.c`, template, `build.ps1`, and the mod contract. |
-
-The menu build in this repo has the experimental `DisplayEngine` hooks
-**disabled** (they caused a black screen on 2026-11-25). The safe path is the
-thread compositor plus input suppression; the display hook is opt-in in source.
 
 SDK documentation: [`sdk/README.md`](sdk/README.md),
 [`docs/OVERLAY-SDK.md`](docs/OVERLAY-SDK.md).
@@ -292,10 +285,9 @@ SDK documentation: [`sdk/README.md`](sdk/README.md),
 | Control deck, live preview, screenshots, root/ADB | **Stable** |
 | Themes / background | **Low risk**, reversible |
 | E420Z menu row / panel | **Experimental** |
-| PC Stream | **Experimental** |
+| PC → Goggles (hardware tunnel) | **Experimental** — 1080p60 |
 | Goggles Stream | **Experimental** |
-| H.264 PC → goggles / 60 Mbps research | **In development** |
-| Experimental `DisplayEngine` hooks | **Off — do not enable** |
+| H.264/H.265 PC → goggles | **Working** (1080p60, both tested) |
 | Legacy G3 menu/popen/template mods | **Removed** (unsafe on N3) |
 
 Full table: [`docs/EXPERIMENTAL.md`](docs/EXPERIMENTAL.md).

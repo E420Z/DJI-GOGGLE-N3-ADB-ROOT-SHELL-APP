@@ -12,6 +12,8 @@ import struct
 import threading
 import time
 
+import numpy as np
+
 
 class H264Sender:
     def __init__(self, note=None):
@@ -28,12 +30,15 @@ class H264Sender:
         self.last_error = ""
         self.running = False
         self.size = "1920x1080"
-        self.bitrate = 20_000_000
+        self.bitrate = 30_000_000
+        self.codec = "h264"
+        self._cursor = None
 
     def start(self, host: str, port: int = 5570, width: int = 1920,
               height: int = 1080, fps: int = 60,
-              bitrate: int = 20_000_000, region=None,
-              framed: bool = True) -> bool:
+              bitrate: int = 30_000_000, region=None,
+              framed: bool = True, cursor: bool = True,
+              codec: str = "h264") -> bool:
         if self.running:
             return True
         try:
@@ -45,18 +50,31 @@ class H264Sender:
         try:
             self._cam = dxcam.create(output_color="BGRA", region=region)
             self._cam.start(target_fps=fps, video_mode=True)
-            codec = av.CodecContext.create("h264_nvenc", "w")
-            codec.width = width
-            codec.height = height
-            codec.pix_fmt = "yuv420p"
-            codec.framerate = fps
-            codec.bit_rate = bitrate
-            codec.options = {"preset": "p1", "tune": "ll", "bf": "0",
-                             "g": str(max(fps, 1)), "rc": "cbr",
-                             "delay": "0", "zerolatency": "1"}
-            codec.open()
-            self._codec = codec
+            enc_name = "hevc_nvenc" if codec == "h265" else "h264_nvenc"
+            codec_ctx = av.CodecContext.create(enc_name, "w")
+            codec_ctx.width = width
+            codec_ctx.height = height
+            codec_ctx.pix_fmt = "yuv420p"
+            codec_ctx.framerate = fps
+            codec_ctx.bit_rate = bitrate
+            codec_ctx.options = {"preset": "p1", "tune": "ull", "bf": "0",
+                                 "g": str(max(fps, 1)), "rc": "cbr",
+                                 "delay": "0", "zerolatency": "1",
+                                 "aud": "1", "repeat_headers": "1",
+                                 "spatial_aq": "1", "temporal_aq": "1",
+                                 "aq-strength": "8", "rc-lookahead": "0"}
+            codec_ctx.open()
+            self._codec = codec_ctx
+            self.codec = codec
             self._av = av
+            if cursor:
+                try:
+                    from cursor_overlay import CursorOverlay
+                    self._cursor = CursorOverlay()
+                except Exception:  # noqa: BLE001
+                    self._cursor = None
+            else:
+                self._cursor = None
             sock = socket.create_connection((host, port), timeout=4)
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1 << 18)
@@ -75,6 +93,10 @@ class H264Sender:
             self.stop()
             return False
 
+    def _fit(self, frame):
+        """Keep the previous full-screen stretch; the goggles fill 16:9."""
+        return frame
+
     def _loop(self) -> None:
         av = self._av
         last_t = time.time()
@@ -84,6 +106,14 @@ class H264Sender:
                 frame = self._cam.get_latest_frame()
                 if frame is None:
                     continue
+                if self._cursor is not None:
+                    try:
+                        if not frame.flags.writeable:
+                            frame = frame.copy()
+                        self._cursor.draw(frame)
+                    except Exception:  # noqa: BLE001
+                        self._cursor = None
+                frame = self._fit(frame)
                 t0 = time.time()
                 vf = av.VideoFrame.from_ndarray(frame, format="bgra")
                 if (frame.shape[1], frame.shape[0]) != (self._width, self._height):
@@ -91,7 +121,10 @@ class H264Sender:
                                      format="yuv420p")
                 else:
                     vf = vf.reformat(format="yuv420p")
-                for pkt in self._codec.encode(vf):
+                pkts = list(self._codec.encode(vf))
+                self.encode_ms = (self.encode_ms * 0.9 +
+                                  (time.time() - t0) * 100.0)
+                for pkt in pkts:
                     data = bytes(pkt)
                     if data:
                         if self._framed:
@@ -99,8 +132,6 @@ class H264Sender:
                         self._sock.sendall(data)
                         self.bytes += len(data)
                         self.frames += 1
-                self.encode_ms = (self.encode_ms * 0.9 +
-                                  (time.time() - t0) * 100.0)
                 now = time.time()
                 if now - last_t >= 1.0:
                     dt = now - last_t
@@ -137,6 +168,7 @@ class H264Sender:
             "running": self.running,
             "size": self.size,
             "bitrate": self.bitrate,
+            "codec": self.codec,
             "frames": self.frames,
             "bytes": self.bytes,
             "fps": round(self.fps, 1),

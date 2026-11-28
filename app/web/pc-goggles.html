@@ -1,0 +1,166 @@
+      <!-- ============ PC -> Goggles ============ -->
+      <section class="page" id="page-pcstream" aria-labelledby="pageTitle">
+        <div class="stagger">
+          <div class="banner banner-info">
+            <span class="banner-icon"><svg class="i"><use href="#i-monitor"/></svg></span>
+            <div>
+              <h3>PC → goggles · 1080p60 hardware tunnel <span class="badge" data-risk="EXPERIMENTAL">Experimental</span></h3>
+              <p>NVENC → USB TCP 5572 → <code>vc8000d</code> → <code>extra_blending</code>. No JPEG, no <code>fb_receiver</code>, no extra copy. Measured <b>60.0 fps</b> at 1080p. Power off the O4 air unit first: it shares the display sink and can hold a D-Log M colour mode.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="stagger">
+          <article class="card pcstream-status">
+            <header class="pcstream-hero">
+              <div class="pcstream-state">
+                <div class="label">Tunnel</div>
+                <span class="pcstream-pill" id="pcPill" data-on="false" role="status" aria-live="polite">
+                  <span class="dot" data-on="false"></span><span id="pcPillText">Idle</span>
+                </span>
+              </div>
+              <div class="pcstream-actions">
+                <button class="btn btn-sm btn-ghost" id="pcRefresh" title="Refresh status"><svg class="i"><use href="#i-refresh"/></svg>Refresh</button>
+                <div class="pcstream-toggle">
+                  <button class="btn btn-primary" id="pcStart" data-busy-key="pc_start"><svg class="i"><use href="#i-play"/></svg>Start tunnel</button>
+                  <button class="btn btn-danger" id="pcStop" data-busy-key="pc_stop" disabled><svg class="i"><use href="#i-stop"/></svg>Stop tunnel</button>
+                </div>
+              </div>
+            </header>
+
+            <div class="pcstream-metrics">
+              <div class="pcstream-metric is-primary">
+                <div class="pcstream-metric-top">
+                  <span class="label">FPS</span>
+                  <span class="pcstream-legend"><i></i>target 60</span>
+                </div>
+                <div class="pcstream-value"><span id="pcFps">0</span><small>fps</small></div>
+                <svg class="pcstream-spark" id="pcSparkFps" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
+                  <line class="pcstream-spark-target" x1="0" x2="120" y1="-10" y2="-10" vector-effect="non-scaling-stroke"/>
+                  <path class="pcstream-spark-area" d=""/>
+                  <path class="pcstream-spark-line" d="" vector-effect="non-scaling-stroke"/>
+                </svg>
+              </div>
+              <div class="pcstream-metric is-primary">
+                <div class="pcstream-metric-top"><span class="label">Throughput</span></div>
+                <div class="pcstream-value"><span id="pcKbps">0</span><small>Mb/s</small></div>
+                <svg class="pcstream-spark" id="pcSparkKbps" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
+                  <path class="pcstream-spark-area" d=""/>
+                  <path class="pcstream-spark-line" d="" vector-effect="non-scaling-stroke"/>
+                </svg>
+              </div>
+              <div class="pcstream-metric is-quiet">
+                <div class="pcstream-metric-top"><span class="label">Frames</span></div>
+                <div class="pcstream-value"><span id="pcFrames">0</span></div>
+                <p class="pcstream-metric-note">sent this session</p>
+              </div>
+            </div>
+
+            <p class="hint pcstream-hint" id="pcHint">Idle. Start the root shell on Connection, then press Start tunnel.</p>
+          </article>
+
+          <article class="card pcstream-strip">
+            <h2 class="pcstream-strip-title"><span class="label">Settings</span></h2>
+            <div class="pcstream-ctls">
+              <label class="pcstream-ctl">
+                <span>Codec</span>
+                <select class="select" id="pcCodecSel">
+                  <option value="h264">H.264 · proven 1080p60</option>
+                  <option value="h265">H.265 · efficient</option>
+                </select>
+              </label>
+              <label class="pcstream-ctl">
+                <span>Bitrate</span>
+                <select class="select" id="pcBitrateSel">
+                  <option value="20000000">20 Mbps</option>
+                  <option value="30000000" selected>30 Mbps</option>
+                  <option value="40000000">40 Mbps</option>
+                </select>
+              </label>
+              <label class="pcstream-ctl pvg-check">
+                <span>Cursor</span>
+                <input type="checkbox" id="pcCursor" checked>
+              </label>
+            </div>
+            <p class="pcstream-tip">H.264 is the default. H.265 is tested at 60 fps / ~20 Mbps. Power off the O4 first.</p>
+            <button class="btn btn-sm" id="pcSave"><svg class="i"><use href="#i-check"/></svg>Save</button>
+          </article>
+        </div>
+
+        <div class="stagger">
+          <article class="card pvg-flow-card">
+            <div class="label">Tunnel</div>
+            <div class="pvg-flow">
+              <span class="pvg-node">NVENC</span><span class="pvg-arrow">→</span>
+              <span class="pvg-node">USB · 192.168.60.2:5572</span><span class="pvg-arrow">→</span>
+              <span class="pvg-node">vc8000d</span><span class="pvg-arrow">→</span>
+              <span class="pvg-node is-accent">extra_blending</span><span class="pvg-arrow">→</span>
+              <span class="pvg-node">panel · 60 Hz</span>
+            </div>
+          </article>
+        </div>
+
+        <div class="grid pcstream-bottom stagger">
+          <article class="card pcstream-encode">
+            <header class="card-head">
+              <div class="min0"><div class="label">Stream</div><h2 class="card-title">Sender stats</h2></div>
+            </header>
+            <dl class="pcstream-kv">
+              <div><dt>Resolution</dt><dd id="pcSize">—</dd></div>
+              <div><dt>Codec</dt><dd id="pcCodec">—</dd></div>
+              <div><dt>Target bitrate</dt><dd id="pcTargetRate">—</dd></div>
+              <div><dt>Actual bitrate</dt><dd id="pcActualRate">—</dd></div>
+              <div><dt>FPS</dt><dd id="pcFpsStat">—</dd></div>
+              <div><dt>Frames sent</dt><dd id="pcFramesStat">—</dd></div>
+              <div><dt>NVENC encode</dt><dd id="pcEncode">—</dd></div>
+              <div><dt>Drops</dt><dd id="pcDrops">0</dd></div>
+            </dl>
+          </article>
+
+          <article class="card pcstream-receiver">
+            <header class="card-head">
+              <div class="min0"><div class="label">Device</div><h2 class="card-title">Hardware tunnel</h2></div>
+            </header>
+            <dl class="pcstream-facts">
+              <div><dt>Decoder</dt><dd>avc.vc8000d</dd></div>
+              <div><dt>Tunnel</dt><dd id="pcTunnel">—</dd></div>
+              <div><dt>Device frames</dt><dd id="pcDeviceFrames">—</dd></div>
+              <div><dt>Input returns</dt><dd id="pcInputEmpty">—</dd></div>
+              <div><dt>UI pid</dt><dd id="pcUi">—</dd></div>
+            </dl>
+            <pre class="console pcstream-log" id="pcLog">Start the tunnel to see device state.</pre>
+          </article>
+        </div>
+
+        <script>
+          (function () {
+            var W = 120, H = 32, N = 30, TARGET = 60;
+            function yOf(v, max) { return (H - 2 - (Math.max(0, v) / max) * (H - 5)).toFixed(1); }
+            function draw(id, samples, floor) {
+              var svg = document.getElementById(id);
+              if (!svg) return 0;
+              var line = svg.querySelector(".pcstream-spark-line"), area = svg.querySelector(".pcstream-spark-area");
+              var pts = (samples || []).slice(-N).map(Number).filter(isFinite);
+              if (pts.length < 2) { line.setAttribute("d", ""); area.setAttribute("d", ""); return 0; }
+              var max = Math.max(floor || 0, Math.max.apply(null, pts)) * 1.12 || 1;
+              var step = pts.length > 1 ? W / (pts.length - 1) : W, x0 = 0;
+              var d = pts.map(function (v, i) { return (i ? "L" : "M") + (x0 + i * step).toFixed(1) + " " + yOf(v, max); }).join("");
+              line.setAttribute("d", d);
+              area.setAttribute("d", d + "L" + W + " " + H + "L" + x0.toFixed(1) + " " + H + "Z");
+              return max;
+            }
+            window.pcSparkline = function (samples, kind) {
+              if (samples && !Array.isArray(samples)) {
+                if (samples.kbps) window.pcSparkline(samples.kbps, "kbps");
+                if (samples.fps) window.pcSparkline(samples.fps, "fps");
+                return;
+              }
+              if (kind === "kbps") { draw("pcSparkKbps", samples, 0); return; }
+              var max = draw("pcSparkFps", samples, TARGET);
+              var t = document.querySelector("#pcSparkFps .pcstream-spark-target");
+              var y = max && TARGET ? yOf(TARGET, max) : -10;
+              if (t) { t.setAttribute("y1", y); t.setAttribute("y2", y); }
+            };
+          })();
+        </script>
+      </section>

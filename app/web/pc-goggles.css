@@ -1,0 +1,56 @@
+/* PC -> Goggles hardware tunnel page additions. Scoped to .pvg-*. */
+
+.pvg-flow-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.pvg-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.pvg-node {
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--surface-top), var(--surface-bottom));
+  color: var(--text-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.pvg-node.is-accent {
+  color: #fff;
+  border-color: rgba(var(--accent-rgb), .55);
+  background: rgba(var(--accent-rgb), .14);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), .12);
+}
+
+.pvg-arrow {
+  color: var(--muted);
+  font-size: 12px;
+  user-select: none;
+}
+
+.pvg-check {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.pvg-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+@media (max-width: 700px) {
+  .pvg-flow { gap: 6px; }
+  .pvg-node { font-size: 10.5px; padding: 6px 8px; }
+}

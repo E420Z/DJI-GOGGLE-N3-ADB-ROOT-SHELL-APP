@@ -58,6 +58,40 @@ The `config_file` maps the input fps (60) to
 - Fork mode: a child forked from the UI inherits the display/gfx fds. Closing
   fds 3..1023 and killing the UI parent releases gfx0; the video plane stays.
 
+## Hardware decoder tunnel (1080p60)
+
+The software `OMX.dji.video_decoder.avc.ffmpeg` decoder caps at ~40 fps. The
+hardware `OMX.dji.video_decoder.avc.vc8000d` reaches 60 fps, but only when its
+output is tunnelled into the sink; standalone it free-runs and holds input
+buffers.
+
+```c
+OMX_SetupTunnel(decoder, 1 /*out*/, sink, 0 /*main in*/);
+```
+
+Configure decoder input 0 (1920×1080 AVC, 16 buffers, 6 MB) and output 1
+(1920×1080 YUV420SP, 7 buffers); configure sink main 0 (1920×1080, 7, URL) and
+sub 1 (640×360, 7). Then Idle both, allocate only the decoder input and sink
+sub buffers, and Executing both. The tunnel owns the decoder output / sink
+main buffers; there is no copy.
+
+Hardware output is linear NV12, **stride 2048**, `nFilledLen = 3,317,760`
+(2048×1080×1.5), matching the sink. Feed SPS/PPS as an
+`OMX_BUFFERFLAG_CODECCONFIG` buffer before the IDR, and set `aud=1` /
+`repeat_headers=1` on NVENC.
+
+Measured: **60.0 fps**, 30 Mbps, NVENC ~7.4 ms, `tunnel=0`.
+
+H.265: **tested** with `hevc_nvenc` + `OMX.dji.video_decoder.hevc.vc8000d`,
+20 Mbps, 60.1 fps, no drops. The codec-config extractor handles VPS/SPS/PPS.
+
+## Software decoder fallback (planar I420)
+
+If the hardware decoder is unavailable, `avc.ffmpeg` works but is CPU-bound at
+~40 fps. It reports format 21 but emits **I420 planar** (Y, U plane, V plane).
+Interleave U/V explicitly into the sink's NV12 buffer (see the main
+`docs/PC-TO-GOGGLES.md`).
+
 ## Not yet a frozen API
 
 A full `n3_display_sink_open/push/close` SDK API is best frozen **after** the

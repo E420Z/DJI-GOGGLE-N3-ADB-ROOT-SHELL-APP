@@ -26,7 +26,7 @@ import mods as modman  # noqa: E402
 import background  # noqa: E402
 import theme_builder  # noqa: E402
 from ui.live import LiveStream, capture_png, SCALE_BY_LABEL  # noqa: E402
-from pcsender import PcStream, SIZES as PC_SIZES  # noqa: E402
+from n3live import N3Live  # noqa: E402
 from gstream import GogglesStream  # noqa: E402
 
 VERSION = "1.3.0"
@@ -65,7 +65,7 @@ class Api:
         self._log = []
         self._status_cache = None
         self._n3 = None
-        self._pc = PcStream(note=self._note)
+        self._pc = N3Live(note=self._note)
         self._gstream = None
 
     # ---------------------------------------------------------------- helper
@@ -384,151 +384,20 @@ class Api:
         except Exception as exc:  # noqa: BLE001
             return _fail("Screenshot: %s" % exc)
 
-    # ------------------------------------------------------------ pc stream
-    PC_RECEIVER = "/data/local/tmp/fb_receiver_new"
-    PC_ASSET = os.path.join(APP_DIR, "assets", "fb_receiver")
-    PC_LOG = "/data/local/tmp/fb_receiver.log"
-    PC_FLAGS = ("/data/local/tmp/fb_override", "/data/local/tmp/fb_hold",
-                "/data/local/tmp/fb_stop")
+    # ------------------------------------------------------------ pc video
+    def pcvideo_info(self) -> dict:
+        return self._pc.info()
 
-    def _pc_adb(self):
-        if not n3ctl.adb_devices():
-            return None
-        return n3ctl.find_adb()
+    def pcvideo_start(self, codec: str = "h264", bitrate: int = 30000000,
+                      cursor: bool = True) -> dict:
+        return self._pc.start(codec=codec, bitrate=bitrate, cursor=cursor)
 
-    def _pc_ensure_receiver(self, adb) -> None:
-        """Install/refresh the on-device receiver (adb push + su exec label)."""
-        have = ""
-        try:
-            have = (n3ctl.adb_shell("ls -l %s 2>/dev/null" % self.PC_RECEIVER,
-                                    adb=adb) or "").strip()
-        except Exception:  # noqa: BLE001
-            have = ""
-        if have:
-            return
-        if not os.path.exists(self.PC_ASSET):
-            raise RuntimeError("missing app/assets/fb_receiver")
-        import subprocess
-        self._note("pcstream: pushing receiver (%d bytes)"
-                   % os.path.getsize(self.PC_ASSET))
-        subprocess.run([adb, "push", self.PC_ASSET, self.PC_RECEIVER],
-                       check=True, timeout=180, capture_output=True)
-        # samsung label: the file must be system_data_file for su to execute it
-        if n3ctl.is_root():
-            n3ctl.run_root(
-                "chcon u:object_r:system_data_file:s0 %s; chmod 755 %s"
-                % (self.PC_RECEIVER, self.PC_RECEIVER), timeout=15, retries=1)
+    def pcvideo_stop(self) -> dict:
+        return self._pc.stop()
 
-    def _pc_start_receiver(self, adb) -> str:
-        n3ctl.adb_shell(
-            "pkill -TERM fb_receiver_new 2>/dev/null; "
-            "pkill -9 fb_receiver_new 2>/dev/null; "
-            "rm -f %s; echo ok" % " ".join(self.PC_FLAGS), adb=adb)
-        out = n3ctl.adb_shell(
-            "cd /data/local/tmp && (setsid ./fb_receiver_new >/dev/null 2>&1 &); "
-            "sleep 2; pidof fb_receiver_new", adb=adb, timeout=20)
-        return (out or "").strip()
-
-    def _pc_stop_receiver(self, adb) -> None:
-        n3ctl.adb_shell("pkill -TERM fb_receiver_new 2>/dev/null; sleep 1; "
-                        "pkill -9 fb_receiver_new 2>/dev/null; echo ok", adb=adb)
-
-    def _pc_device_stats(self, adb) -> dict:
-        import re
-        text = ""
-        try:
-            text = n3ctl.adb_shell("tail -8 %s 2>/dev/null" % self.PC_LOG,
-                                   adb=adb) or ""
-        except Exception:  # noqa: BLE001
-            pass
-        out = {"decode_ms": None, "blit_ms": None, "dropped": 0, "log": _clip(text, 2000),
-               "pid": "", "flags": {}}
-        for line in text.splitlines():
-            m = re.search(r"decode ([\d.]+) ms\s+blit ([\d.]+) ms", line)
-            if m:
-                out["decode_ms"] = float(m.group(1))
-                out["blit_ms"] = float(m.group(2))
-            m = re.search(r"\((\d+) dropped\)", line)
-            if m:
-                out["dropped"] = int(m.group(1))
-        try:
-            out["pid"] = (n3ctl.adb_shell("pidof fb_receiver_new", adb=adb)
-                          or "").strip()
-            ls = n3ctl.adb_shell("ls %s 2>/dev/null" % " ".join(self.PC_FLAGS),
-                                 adb=adb) or ""
-            out["flags"] = {os.path.basename(p): p in ls for p in self.PC_FLAGS}
-        except Exception:  # noqa: BLE001
-            pass
-        return out
-
-    def pcstream_info(self) -> dict:
-        adb = self._pc_adb()
-        device = {"adb": bool(adb)}
-        hook = False
-        if adb:
-            try:
-                device.update(self._pc_device_stats(adb))
-                mods = n3ctl.adb_shell("cat /data/local/tmp/n3mods.list 2>/dev/null",
-                                       adb=adb) or ""
-                hook = "hook_overlay.so" in mods
-            except Exception as exc:  # noqa: BLE001
-                device["error"] = str(exc)
-        device["hook"] = hook
-        return {
-            "ok": True,
-            "sender": self._pc.stats(),
-            "device": device,
-            "settings": {
-                "size": "%dx%d" % (self._pc.width, self._pc.height),
-                "fps": self._pc.fps,
-                "quality": self._pc.quality,
-            },
-            "sizes": PC_SIZES,
-            "notes": [
-                "Enable ADB first; the receiver runs in u:r:su:s0.",
-                "The goggles decodes ~5 fps at 1080p, ~12 fps at 1280x720.",
-                "The screen saver is dismissed automatically while streaming.",
-            ],
-        }
-
-    def pcstream_start(self, size: str = "1280x720", fps: float = 12,
-                       quality: int = 65) -> dict:
-        adb = self._pc_adb()
-        if not adb:
-            return _fail("Enable ADB first (Connection page), then try again.")
-        if not n3ctl.is_root():
-            return _fail("Start the root shell first (needed to label the receiver).")
-        if self._pc.running:
-            return _ok("PC stream is already running.", stats=self._pc.stats())
-        try:
-            self._pc_ensure_receiver(adb)
-            pid = self._pc_start_receiver(adb)
-            if not pid:
-                return _fail("The receiver did not start. Check the ADB log.")
-            if not self._pc.start(size, fps, quality):
-                return _fail(self._pc.last_error or "Sender failed to start.")
-            return _ok("PC stream started.", stats=self._pc.stats(), pid=pid)
-        except Exception as exc:  # noqa: BLE001
-            return _fail("PC stream: %s" % exc)
-
-    def pcstream_stop(self) -> dict:
-        stats = self._pc.stats()
-        self._pc.stop()
-        adb = self._pc_adb()
-        if adb:
-            try:
-                self._pc_stop_receiver(adb)
-            except Exception as exc:  # noqa: BLE001
-                self._note("pcstream stop: %s" % exc)
-        return _ok("PC stream stopped.", stats=stats)
-
-    def pcstream_set(self, size=None, fps=None, quality=None) -> dict:
-        self._pc.configure(size, fps, quality)
-        return _ok("Stream settings saved.", settings={
-            "size": "%dx%d" % (self._pc.width, self._pc.height),
-            "fps": self._pc.fps,
-            "quality": self._pc.quality,
-        })
+    def pcvideo_set(self, codec=None, bitrate=None, cursor=None) -> dict:
+        return self._pc.set_settings(codec=codec, bitrate=bitrate,
+                                     cursor=cursor)
 
     # ------------------------------------------------------------ goggles out
     def _gs(self) -> GogglesStream:

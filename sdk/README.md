@@ -49,6 +49,14 @@ int n3_start(const n3_app*, void *(*loader_dlsym)(void*, const char*));
 Colors are `0xAARRGGBB` (stored little-endian as BGRA, matching the N3).
 `on_key` receives `N3_KEY_BACK` / `N3_KEY_ENTER`; BACK also closes the window.
 
+## PC → goggles display tunnel
+
+[`examples/hardware_tunnel/`](examples/hardware_tunnel/) documents the proven
+1080p60 path: `vc8000d` hardware decoder tunnelled into `extra_blending`, with
+the exact ports, buffer ownership, codec-config feed, host sender settings and
+failure modes. `n3_hw_tunnel.h` has the constants/helpers. Reference
+implementation: `../mods/h264/h264live.c`.
+
 ## Build
 
 ```
