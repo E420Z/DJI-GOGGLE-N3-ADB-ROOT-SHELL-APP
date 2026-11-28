@@ -489,6 +489,10 @@
                 <span>Cursor</span>
                 <input type="checkbox" id="pcCursor" checked>
               </label>
+              <label class="pcstream-ctl pvg-check">
+                <span>Auto 1080p</span>
+                <input type="checkbox" id="pcAutoDisplay" checked>
+              </label>
             </div>
             <p class="pcstream-tip">H.264 is the default. H.265 is tested at 60 fps / ~20 Mbps. Power off the O4 first.</p>
             <button class="btn btn-sm" id="pcSave"><svg class="i"><use href="#i-check"/></svg>Save</button>
@@ -505,6 +509,16 @@
               <span class="pvg-node is-accent">extra_blending</span><span class="pvg-arrow">→</span>
               <span class="pvg-node">panel · 60 Hz</span>
             </div>
+          </article>
+
+          <article class="card pvg-display-card">
+            <div class="label">PC display</div>
+            <div class="pvg-display-row">
+              <span id="pcDisplayMode" class="pvg-mode">—</span>
+              <button class="btn btn-sm btn-ghost" id="pcDisplaySwitch">Switch to 1080p</button>
+              <button class="btn btn-sm btn-ghost" id="pcDisplayRestore">Restore</button>
+            </div>
+            <p class="pcstream-tip">Auto switches before Start and restores on Stop. Stop the tunnel to change manually.</p>
           </article>
         </div>
 

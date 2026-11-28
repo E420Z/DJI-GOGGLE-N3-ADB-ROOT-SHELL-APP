@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.1 — PC display auto-switch (2026-11-28)
+
+- PC → Goggles page: **PC display** card with current mode, **Switch to 1080p**
+  and **Restore**; **Auto 1080p** setting.
+- Start saves the current PC mode and switches to 1920×1080 @ 60 Hz before
+  capture; Stop restores it. Buttons disabled while live.
+- Backend `pcvideo_display(switch_now, restore)` and a `display` block in
+  `pcvideo_info`.
+- Verified 1920×1080@60 ↔ 2048×1536@240; saved original retained.
+- Unchanged 1080p60 H.264/H.265 hardware tunnel.
+
 ## 1.4.0 — PC → goggles 1080p60 hardware tunnel (2026-11-28)
 
 - Added the working `OMX.dji.video_decoder.avc.vc8000d` hardware decoder tunnel

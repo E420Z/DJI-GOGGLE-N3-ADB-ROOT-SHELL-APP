@@ -94,19 +94,24 @@ pcvideo_info() -> {
   stats: { fps, kbps, bitrate, codec, size, frames, bytes,
            encode_ms, drops, device_frames, input_empty },
   device: { root, ui, stat: {...} },
-  settings: { codec: "h264" | "h265", bitrate, cursor, size, fps },
+  display: { current: {w,h,hz}, saved: {w,h,hz}|null, switched, auto,
+             target: "1920x1080@60" },
+  settings: { codec: "h264" | "h265", bitrate, cursor, auto_display, size, fps },
   notes: string[]
 }
-pcvideo_start(codec, bitrate, cursor) -> { ok, message, stats }
+pcvideo_start(codec, bitrate, cursor, auto_display) -> { ok, message, stats }
 pcvideo_stop() -> { ok, message, stats }
-pcvideo_set(codec, bitrate, cursor) -> { ok, message, settings }
+pcvideo_set(codec, bitrate, cursor, auto_display) -> { ok, message, settings }
+pcvideo_display(switch_now, restore) -> { ok, message, display }
 ```
 
 `pcvideo_start` pushes `n3h264live.so`, starts the patched UI with
 `hook_overlay.so`, arms the `vc8000d → extra_blending` tunnel, and starts the
-NVENC sender on TCP 5572. It needs the root shell and the mod loader. Everything
-it writes is under `/data/local/tmp` and `/vendor` (the module). Stop removes
-the triggers and restores the stock UI.
+NVENC sender on TCP 5572. If `auto_display` is true it saves the current PC
+mode and switches to 1920×1080 @ 60 Hz first; Stop restores it. It needs the
+root shell and the mod loader. Everything it writes is under
+`/data/local/tmp` and `/vendor` (the module). Stop removes the triggers and
+restores the stock UI.
 
 ## Goggles stream (goggles → PC)
 

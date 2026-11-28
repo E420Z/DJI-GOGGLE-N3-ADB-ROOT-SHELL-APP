@@ -12,6 +12,7 @@ import threading
 import time
 
 import n3ctl
+import display_mode
 from h264send import H264Sender
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -37,7 +38,9 @@ class N3Live:
         self._state = "idle"
         self._message = "Idle."
         self._settings = {"codec": "h264", "bitrate": 30_000_000,
-                          "cursor": True, "size": "1920x1080", "fps": 60}
+                          "cursor": True, "auto_display": True,
+                          "size": "1920x1080", "fps": 60}
+        self._display_switched = False
 
     # ------------------------------------------------------------ helpers
     def _sh(self, cmd, t=25):
@@ -79,6 +82,15 @@ class N3Live:
         self._sh("rm -f " + " ".join(TRIGGERS) +
                  " /data/local/tmp/h264live.stat; echo ok", 10)
 
+    def _display_info(self):
+        return {
+            "current": display_mode.current(),
+            "saved": display_mode.saved(),
+            "switched": bool(self._display_switched),
+            "auto": bool(self._settings.get("auto_display", True)),
+            "target": "1920x1080@60",
+        }
+
     # ------------------------------------------------------------ api
     def info(self):
         sender = self._sender.stats()
@@ -102,6 +114,7 @@ class N3Live:
                 "input_empty": stat.get("inempty", 0),
             },
             "device": dev,
+            "display": self._display_info(),
             "settings": dict(self._settings),
             "notes": [
                 "Hardware vc8000d decoder tunneled straight into the "
@@ -112,7 +125,8 @@ class N3Live:
             ],
         }
 
-    def start(self, codec="h264", bitrate=30_000_000, cursor=True):
+    def start(self, codec="h264", bitrate=30_000_000, cursor=True,
+              auto_display=None):
         with self._lock:
             if self._sender.running:
                 return {"ok": True, "message": "PC video is already running.",
@@ -138,6 +152,15 @@ class N3Live:
 
             self._settings.update({"codec": codec, "bitrate": int(bitrate),
                                    "cursor": bool(cursor)})
+            if auto_display is not None:
+                self._settings["auto_display"] = bool(auto_display)
+            if self._settings.get("auto_display", True):
+                sw, orig = display_mode.ensure_1080()
+                self._display_switched = bool(sw)
+                if sw:
+                    self._note("PC display -> 1920x1080 @ 60 Hz"
+                               + (" (from %dx%d)" % (orig["w"], orig["h"])
+                                  if orig else ""))
             try:
                 self._note("remount /vendor rw")
                 self._sh("mount -o remount,rw /vendor", 20)
@@ -194,6 +217,14 @@ class N3Live:
         self._sh("for p in $(pidof n3hlive); do kill -9 $p; done; "
                  "for p in $(pidof dji_glasses_patched); do kill -9 $p; done; "
                  "echo ok", 10)
+        if self._display_switched:
+            m = display_mode.restore()
+            if m:
+                self._display_switched = False
+                self._note("PC display restored to %dx%d @ %d Hz"
+                           % (m["w"], m["h"], m.get("hz") or 60))
+            else:
+                self._note("PC display restore failed (use Restore)")
         if restore:
             try:
                 n3ctl.start_stock_ui(log=self._note)
@@ -208,7 +239,8 @@ class N3Live:
             self._message = "Stopped. Stock UI restored."
             return {"ok": True, "message": self._message, "stats": stats}
 
-    def set_settings(self, codec=None, bitrate=None, cursor=None):
+    def set_settings(self, codec=None, bitrate=None, cursor=None,
+                     auto_display=None):
         with self._lock:
             if codec in ("h264", "h265"):
                 self._settings["codec"] = codec
@@ -216,6 +248,37 @@ class N3Live:
                 self._settings["bitrate"] = int(bitrate)
             if cursor is not None:
                 self._settings["cursor"] = bool(cursor)
+            if auto_display is not None:
+                self._settings["auto_display"] = bool(auto_display)
             return {"ok": True,
                     "message": "Settings saved; start/restart to apply.",
-                    "settings": dict(self._settings)}
+                    "settings": dict(self._settings),
+                    "display": self._display_info()}
+
+    def display_control(self, switch_now=False, restore=False):
+        with self._lock:
+            if self._sender.running:
+                return {"ok": False,
+                        "message": "Stop the tunnel before changing the display.",
+                        "display": self._display_info()}
+            if switch_now:
+                if display_mode.is_target():
+                    self._note("PC display is already 1920x1080")
+                else:
+                    sw, orig = display_mode.ensure_1080()
+                    if sw:
+                        self._display_switched = True
+                        self._note("PC display -> 1920x1080 @ 60 Hz")
+                    else:
+                        self._note("PC display switch failed")
+            if restore:
+                m = display_mode.restore()
+                if m:
+                    self._display_switched = False
+                    self._note("PC display restored to %dx%d @ %d Hz"
+                               % (m["w"], m["h"], m.get("hz") or 60))
+                else:
+                    self._note("No saved PC display mode")
+            return {"ok": True, "message": "Display updated.",
+                    "display": self._display_info()}
+

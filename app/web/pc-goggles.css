@@ -50,6 +50,31 @@
   accent-color: var(--accent);
 }
 
+.pvg-display-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.pvg-display-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.pvg-mode {
+  margin-right: auto;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: linear-gradient(180deg, var(--surface-top), var(--surface-bottom));
+  color: var(--text-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
 @media (max-width: 700px) {
   .pvg-flow { gap: 6px; }
   .pvg-node { font-size: 10.5px; padding: 6px 8px; }

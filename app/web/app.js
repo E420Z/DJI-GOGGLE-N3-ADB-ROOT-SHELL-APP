@@ -157,7 +157,8 @@ const state = {
   visitedLive: false,
   live: { running: false, scale: DEFAULT_SCALE, userScale: false, frames: 0, misses: 0, failures: 0, timer: 0, lastShot: null },
   mockPc: { running: new URLSearchParams(location.search).get("pclive") === "1",
-            codec: "h264", bitrate: 30000000, cursor: true, frames: 420 },
+            codec: "h264", bitrate: 30000000, cursor: true,
+            auto_display: true, frames: 420 },
   webLog: [],
   busy: new Set(),
   timers: { status: 0, logs: 0, pc: 0 },
@@ -633,6 +634,14 @@ function renderPcStream() {
   pcSet("#pcInputEmpty", s.input_empty);
   pcSet("#pcUi", d.ui || null);
 
+  const disp = p.display || {};
+  const cur = disp.current || {};
+  pcSet("#pcDisplayMode", cur.w ? `${cur.w}x${cur.h} @ ${cur.hz || 60} Hz` : null);
+  if ($("#pcDisplaySwitch")) $("#pcDisplaySwitch").disabled = running || starting;
+  if ($("#pcDisplayRestore")) {
+    $("#pcDisplayRestore").disabled = running || starting || !(disp.saved || disp.switched);
+  }
+
   const log = $("#pcLog");
   if (log) {
     const stat = d.stat || {};
@@ -646,9 +655,11 @@ function renderPcStream() {
   if (!state.pcInit) {
     state.pcInit = true;
     const cs = $("#pcCodecSel"), bs = $("#pcBitrateSel"), cu = $("#pcCursor");
+    const ad = $("#pcAutoDisplay");
     if (cs && st.codec) cs.value = st.codec;
     if (bs && st.bitrate) bs.value = String(st.bitrate);
     if (cu) cu.checked = st.cursor !== false;
+    if (ad) ad.checked = disp.auto !== false;
   }
 
   const hint = $("#pcHint");
@@ -682,8 +693,9 @@ async function pcToggle(start) {
   const codec = ($("#pcCodecSel") || {}).value || "h264";
   const bitrate = Number(($("#pcBitrateSel") || {}).value) || 30000000;
   const cursor = $("#pcCursor") ? $("#pcCursor").checked : true;
+  const auto = $("#pcAutoDisplay") ? $("#pcAutoDisplay").checked : true;
   const res = start
-    ? await call("pcvideo_start", [codec, bitrate, cursor],
+    ? await call("pcvideo_start", [codec, bitrate, cursor, auto],
         { label: "Start PC video", key: "pc_start" })
     : await call("pcvideo_stop", [], { label: "Stop PC video", key: "pc_stop" });
   if (res) {
@@ -698,7 +710,8 @@ async function pcSave() {
   const codec = ($("#pcCodecSel") || {}).value || "h264";
   const bitrate = Number(($("#pcBitrateSel") || {}).value) || 30000000;
   const cursor = $("#pcCursor") ? $("#pcCursor").checked : true;
-  const res = await call("pcvideo_set", [codec, bitrate, cursor],
+  const auto = $("#pcAutoDisplay") ? $("#pcAutoDisplay").checked : true;
+  const res = await call("pcvideo_set", [codec, bitrate, cursor, auto],
     { label: "Video settings" });
   if (isOk(res)) toast("Settings saved — restart to apply", "success", "PC → Goggles");
   refreshPcStream();
@@ -1679,6 +1692,22 @@ function bindEvents() {
   $("#pcStop").addEventListener("click", () => pcToggle(false));
   $("#pcRefresh").addEventListener("click", () => refreshPcStream(true));
   $("#pcSave").addEventListener("click", pcSave);
+  const pds = $("#pcDisplaySwitch");
+  if (pds) pds.addEventListener("click", async () => {
+    const res = await call("pcvideo_display", [true, false],
+      { label: "Switch PC display" });
+    if (res) toast(res.message || "Display switched",
+                   res.ok === false ? "error" : "success", "PC → Goggles");
+    refreshPcStream();
+  });
+  const pdr = $("#pcDisplayRestore");
+  if (pdr) pdr.addEventListener("click", async () => {
+    const res = await call("pcvideo_display", [false, true],
+      { label: "Restore PC display" });
+    if (res) toast(res.message || "Display restored",
+                   res.ok === false ? "error" : "success", "PC → Goggles");
+    refreshPcStream();
+  });
   $("#shotBtn").addEventListener("click", captureScreen);
   $("#shotThumb").addEventListener("click", openShotModal);
   $("#scaleGrid").addEventListener("click", (e) => {
@@ -1907,6 +1936,13 @@ function createMock() {
           ui: mockPc.running ? "19643" : "",
           stat: { frames: n, inempty: n, sinkempty: 0, drop: 0 },
         },
+        display: {
+          current: { w: 1920, h: 1080, hz: 60 },
+          saved: null,
+          switched: false,
+          auto: mockPc.auto_display,
+          target: "1920x1080@60",
+        },
         settings: {
           codec: mockPc.codec,
           bitrate: mockPc.bitrate,
@@ -1917,12 +1953,13 @@ function createMock() {
         notes: ["Mock mode.", "Hardware tunnel: vc8000d → extra_blending."],
       };
     },
-    async pcvideo_start(codec, bitrate, cursor) {
+    async pcvideo_start(codec, bitrate, cursor, auto) {
       await sleep(700);
       mockPc.running = true;
       if (codec) mockPc.codec = codec;
       if (bitrate) mockPc.bitrate = bitrate;
       if (cursor != null) mockPc.cursor = cursor;
+      if (auto != null) mockPc.auto_display = auto;
       return ok("Tunnel started (mock).");
     },
     async pcvideo_stop() {
@@ -1930,12 +1967,25 @@ function createMock() {
       mockPc.running = false;
       return ok("Tunnel stopped (mock).");
     },
-    async pcvideo_set(codec, bitrate, cursor) {
+    async pcvideo_set(codec, bitrate, cursor, auto) {
       await sleep(150);
       if (codec) mockPc.codec = codec;
       if (bitrate) mockPc.bitrate = bitrate;
       if (cursor != null) mockPc.cursor = cursor;
+      if (auto != null) mockPc.auto_display = auto;
       return ok("Video settings saved (mock).");
+    },
+    async pcvideo_display() {
+      await sleep(300);
+      return ok("Display updated (mock).", {
+        display: {
+          current: { w: 1920, h: 1080, hz: 60 },
+          saved: null,
+          switched: false,
+          auto: mockPc.auto_display,
+          target: "1920x1080@60",
+        },
+      });
     },
     async s2_probe() {
       await sleep(500);

@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/E420Z/DJI-GOGGLE-N3-ADB-ROOT-SHELL-APP/releases/latest"><img src="https://img.shields.io/badge/release-v1.4.0-7c3aed" alt="Release v1.4.0"></a>
+  <a href="https://github.com/E420Z/DJI-GOGGLE-N3-ADB-ROOT-SHELL-APP/releases/latest"><img src="https://img.shields.io/badge/release-v1.4.1-7c3aed" alt="Release v1.4.1"></a>
   <img src="https://img.shields.io/badge/firmware-0900-0ea5e9" alt="Firmware 0900">
   <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-1f2937" alt="Windows 10 / 11">
   <img src="https://img.shields.io/badge/license-MIT%20%2B%20AGPL-22c55e" alt="MIT + AGPL">
@@ -318,9 +318,9 @@ build themes; they come from your device/firmware and are not redistributed.
 
 ## Version and firmware
 
-- **Latest release:** [v1.4.0](https://github.com/E420Z/DJI-GOGGLE-N3-ADB-ROOT-SHELL-APP/releases/tag/v1.4.0)
-  — 1080p60 **PC → goggles hardware tunnel** (H.264/H.265).
-- **Release notes:** [`docs/RELEASE-v1.4.0.md`](docs/RELEASE-v1.4.0.md)
+- **Latest release:** [v1.4.1](https://github.com/E420Z/DJI-GOGGLE-N3-ADB-ROOT-SHELL-APP/releases/tag/v1.4.1)
+  — 1080p60 **PC → goggles hardware tunnel** + PC display auto-switch.
+- **Release notes:** [`docs/RELEASE-v1.4.1.md`](docs/RELEASE-v1.4.1.md)
 - **Changelog:** [`docs/CHANGELOG.md`](docs/CHANGELOG.md)
 - **Tested firmware:** **0900 only**. 1.09 is untested; the root payload and
   vendor OMX paths are build-specific. Check your version before writing

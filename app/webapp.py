@@ -29,7 +29,7 @@ from ui.live import LiveStream, capture_png, SCALE_BY_LABEL  # noqa: E402
 from n3live import N3Live  # noqa: E402
 from gstream import GogglesStream  # noqa: E402
 
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 PREFS = os.path.join(APP_DIR, "state", "web_prefs.json")
 SHOTS = os.path.join(APP_DIR, "state", "screenshots")
 
@@ -389,15 +389,22 @@ class Api:
         return self._pc.info()
 
     def pcvideo_start(self, codec: str = "h264", bitrate: int = 30000000,
-                      cursor: bool = True) -> dict:
-        return self._pc.start(codec=codec, bitrate=bitrate, cursor=cursor)
+                      cursor: bool = True, auto_display: bool = True) -> dict:
+        return self._pc.start(codec=codec, bitrate=bitrate, cursor=cursor,
+                              auto_display=auto_display)
 
     def pcvideo_stop(self) -> dict:
         return self._pc.stop()
 
-    def pcvideo_set(self, codec=None, bitrate=None, cursor=None) -> dict:
+    def pcvideo_set(self, codec=None, bitrate=None, cursor=None,
+                    auto_display=None) -> dict:
         return self._pc.set_settings(codec=codec, bitrate=bitrate,
-                                     cursor=cursor)
+                                     cursor=cursor, auto_display=auto_display)
+
+    def pcvideo_display(self, switch_now: bool = False,
+                        restore: bool = False) -> dict:
+        return self._pc.display_control(switch_now=switch_now,
+                                        restore=restore)
 
     # ------------------------------------------------------------ goggles out
     def _gs(self) -> GogglesStream:
